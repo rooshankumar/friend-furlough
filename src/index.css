@@ -2,95 +2,140 @@
 @tailwind components;
 @tailwind utilities;
 
-/* Definition of the design system. All colors, gradients, fonts, etc should be defined here. 
-All colors MUST be HSL.
+/* roshLingua Cultural Exchange Platform Design System
+All colors MUST be HSL. Cultural, warm, and inclusive design.
 */
 
 @layer base {
   :root {
-    --background: 0 0% 100%;
-    --foreground: 222.2 84% 4.9%;
+    /* Cultural Background Colors */
+    --background: 50 100% 98%;
+    --foreground: 210 100% 8%;
 
+    /* Card & Surface Colors */
     --card: 0 0% 100%;
-    --card-foreground: 222.2 84% 4.9%;
+    --card-foreground: 210 100% 8%;
+    --card-cultural: 195 100% 95%;
 
+    /* Popover Colors */
     --popover: 0 0% 100%;
-    --popover-foreground: 222.2 84% 4.9%;
+    --popover-foreground: 210 100% 8%;
 
-    --primary: 222.2 47.4% 11.2%;
-    --primary-foreground: 210 40% 98%;
+    /* Primary - Cultural Teal */
+    --primary: 195 100% 35%;
+    --primary-foreground: 0 0% 100%;
+    --primary-hover: 195 100% 30%;
+    --primary-cultural: 195 100% 40%;
 
-    --secondary: 210 40% 96.1%;
-    --secondary-foreground: 222.2 47.4% 11.2%;
+    /* Secondary - Warm Orange */
+    --secondary: 24 100% 55%;
+    --secondary-foreground: 0 0% 100%;
+    --secondary-hover: 24 100% 50%;
+    --secondary-muted: 24 100% 95%;
 
-    --muted: 210 40% 96.1%;
-    --muted-foreground: 215.4 16.3% 46.9%;
+    /* Accent - Cultural Purple */
+    --accent: 260 100% 70%;
+    --accent-foreground: 0 0% 100%;
+    --accent-muted: 260 100% 95%;
 
-    --accent: 210 40% 96.1%;
-    --accent-foreground: 222.2 47.4% 11.2%;
+    /* Success - Growth Green */
+    --success: 142 76% 36%;
+    --success-foreground: 0 0% 100%;
+    --success-muted: 142 76% 95%;
 
+    /* Cultural Muted Tones */
+    --muted: 195 20% 96%;
+    --muted-foreground: 210 20% 45%;
+
+    /* Interactive Elements */
+    --border: 195 30% 88%;
+    --input: 195 30% 88%;
+    --ring: 195 100% 35%;
+
+    /* Cultural Gradients */
+    --gradient-primary: linear-gradient(135deg, hsl(195, 100%, 35%), hsl(195, 100%, 45%));
+    --gradient-secondary: linear-gradient(135deg, hsl(24, 100%, 55%), hsl(24, 100%, 65%));
+    --gradient-cultural: linear-gradient(135deg, hsl(195, 100%, 35%), hsl(260, 100%, 70%));
+    --gradient-warm: linear-gradient(135deg, hsl(24, 100%, 95%), hsl(195, 100%, 95%));
+    --gradient-hero: linear-gradient(135deg, hsl(195, 100%, 35%), hsl(24, 100%, 55%), hsl(260, 100%, 70%));
+
+    /* Cultural Shadows */
+    --shadow-cultural: 0 10px 30px -10px hsl(195 100% 35% / 0.2);
+    --shadow-warm: 0 4px 20px -4px hsl(24 100% 55% / 0.15);
+    --shadow-accent: 0 4px 20px -4px hsl(260 100% 70% / 0.15);
+
+    /* Animations */
+    --transition-cultural: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    --transition-smooth: all 0.2s ease-out;
+
+    /* Destructive */
     --destructive: 0 84.2% 60.2%;
-    --destructive-foreground: 210 40% 98%;
+    --destructive-foreground: 0 0% 100%;
 
-    --border: 214.3 31.8% 91.4%;
-    --input: 214.3 31.8% 91.4%;
-    --ring: 222.2 84% 4.9%;
+    /* Border Radius */
+    --radius: 0.75rem;
+    --radius-cultural: 1rem;
 
-    --radius: 0.5rem;
+    /* Language Learning Colors */
+    --language-native: 142 76% 36%;
+    --language-learning: 24 100% 55%;
+    --language-beginner: 260 100% 70%;
 
-    --sidebar-background: 0 0% 98%;
-
-    --sidebar-foreground: 240 5.3% 26.1%;
-
-    --sidebar-primary: 240 5.9% 10%;
-
-    --sidebar-primary-foreground: 0 0% 98%;
-
-    --sidebar-accent: 240 4.8% 95.9%;
-
-    --sidebar-accent-foreground: 240 5.9% 10%;
-
-    --sidebar-border: 220 13% 91%;
-
-    --sidebar-ring: 217.2 91.2% 59.8%;
+    /* Country Colors */
+    --country-badge: 195 50% 90%;
+    --country-text: 195 100% 25%;
   }
 
   .dark {
-    --background: 222.2 84% 4.9%;
-    --foreground: 210 40% 98%;
+    /* Dark Mode Cultural Colors */
+    --background: 210 100% 4%;
+    --foreground: 50 100% 95%;
 
-    --card: 222.2 84% 4.9%;
-    --card-foreground: 210 40% 98%;
+    --card: 210 50% 8%;
+    --card-foreground: 50 100% 95%;
+    --card-cultural: 195 30% 12%;
 
-    --popover: 222.2 84% 4.9%;
-    --popover-foreground: 210 40% 98%;
+    --popover: 210 50% 8%;
+    --popover-foreground: 50 100% 95%;
 
-    --primary: 210 40% 98%;
-    --primary-foreground: 222.2 47.4% 11.2%;
+    /* Primary in Dark */
+    --primary: 195 100% 50%;
+    --primary-foreground: 210 100% 4%;
+    --primary-hover: 195 100% 45%;
+    --primary-cultural: 195 100% 55%;
 
-    --secondary: 217.2 32.6% 17.5%;
-    --secondary-foreground: 210 40% 98%;
+    /* Secondary in Dark */
+    --secondary: 24 100% 60%;
+    --secondary-foreground: 210 100% 4%;
+    --secondary-hover: 24 100% 55%;
+    --secondary-muted: 24 50% 15%;
 
-    --muted: 217.2 32.6% 17.5%;
-    --muted-foreground: 215 20.2% 65.1%;
+    /* Accent in Dark */
+    --accent: 260 100% 75%;
+    --accent-foreground: 210 100% 4%;
+    --accent-muted: 260 50% 15%;
 
-    --accent: 217.2 32.6% 17.5%;
-    --accent-foreground: 210 40% 98%;
+    /* Success in Dark */
+    --success: 142 76% 45%;
+    --success-foreground: 210 100% 4%;
+    --success-muted: 142 50% 15%;
 
-    --destructive: 0 62.8% 30.6%;
-    --destructive-foreground: 210 40% 98%;
+    /* Muted in Dark */
+    --muted: 210 20% 15%;
+    --muted-foreground: 210 20% 65%;
 
-    --border: 217.2 32.6% 17.5%;
-    --input: 217.2 32.6% 17.5%;
-    --ring: 212.7 26.8% 83.9%;
-    --sidebar-background: 240 5.9% 10%;
-    --sidebar-foreground: 240 4.8% 95.9%;
-    --sidebar-primary: 224.3 76.3% 48%;
-    --sidebar-primary-foreground: 0 0% 100%;
-    --sidebar-accent: 240 3.7% 15.9%;
-    --sidebar-accent-foreground: 240 4.8% 95.9%;
-    --sidebar-border: 240 3.7% 15.9%;
-    --sidebar-ring: 217.2 91.2% 59.8%;
+    /* Interactive in Dark */
+    --border: 210 30% 18%;
+    --input: 210 30% 18%;
+    --ring: 195 100% 50%;
+
+    /* Destructive in Dark */
+    --destructive: 0 84.2% 60.2%;
+    --destructive-foreground: 210 100% 4%;
+
+    /* Country Colors Dark */
+    --country-badge: 195 50% 20%;
+    --country-text: 195 100% 70%;
   }
 }
 
@@ -100,6 +145,83 @@ All colors MUST be HSL.
   }
 
   body {
-    @apply bg-background text-foreground;
+    @apply bg-background text-foreground font-sans antialiased;
+  }
+
+  /* Cultural Typography */
+  .text-cultural-gradient {
+    @apply bg-gradient-to-r from-primary via-secondary to-accent bg-clip-text text-transparent;
+  }
+
+  .text-hero {
+    @apply text-4xl md:text-6xl font-bold tracking-tight;
+  }
+
+  .text-cultural-warm {
+    @apply text-lg leading-relaxed text-muted-foreground;
+  }
+}
+
+@layer components {
+  /* Cultural Button Variants */
+  .btn-cultural {
+    @apply bg-gradient-to-r from-primary to-primary-cultural text-primary-foreground shadow-cultural hover:shadow-warm transition-all duration-300 transform hover:scale-105;
+  }
+
+  .btn-warm {
+    @apply bg-gradient-to-r from-secondary to-secondary-hover text-secondary-foreground shadow-warm hover:shadow-accent transition-all duration-300;
+  }
+
+  .btn-hero {
+    @apply bg-gradient-to-r from-primary via-secondary to-accent text-white shadow-lg hover:shadow-cultural transition-all duration-300 transform hover:scale-105;
+  }
+
+  /* Cultural Cards */
+  .card-cultural {
+    @apply bg-card-cultural border border-border/50 shadow-cultural rounded-cultural transition-all duration-300 hover:shadow-warm hover:border-primary/20;
+  }
+
+  .card-warm {
+    @apply bg-gradient-to-br from-secondary-muted to-accent-muted border border-border/30 shadow-warm rounded-cultural;
+  }
+
+  /* Cultural Badges */
+  .badge-country {
+    @apply bg-country-badge text-country-text border border-primary/20 rounded-full px-3 py-1 text-sm font-medium;
+  }
+
+  .badge-language-native {
+    @apply bg-success/10 text-success border border-success/20 rounded-full px-3 py-1 text-sm font-medium;
+  }
+
+  .badge-language-learning {
+    @apply bg-secondary/10 text-secondary border border-secondary/20 rounded-full px-3 py-1 text-sm font-medium;
+  }
+
+  /* Cultural Animations */
+  .animate-cultural-float {
+    animation: cultural-float 6s ease-in-out infinite;
+  }
+
+  .animate-cultural-pulse {
+    animation: cultural-pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+  }
+}
+
+@keyframes cultural-float {
+  0%, 100% {
+    transform: translateY(0px);
+  }
+  50% {
+    transform: translateY(-10px);
+  }
+}
+
+@keyframes cultural-pulse {
+  0%, 100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.8;
   }
 }

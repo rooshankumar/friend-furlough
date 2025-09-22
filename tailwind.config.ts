@@ -22,10 +22,24 @@ export default {
         primary: {
           DEFAULT: "hsl(var(--primary))",
           foreground: "hsl(var(--primary-foreground))",
+          hover: "hsl(var(--primary-hover))",
+          cultural: "hsl(var(--primary-cultural))",
         },
         secondary: {
           DEFAULT: "hsl(var(--secondary))",
           foreground: "hsl(var(--secondary-foreground))",
+          hover: "hsl(var(--secondary-hover))",
+          muted: "hsl(var(--secondary-muted))",
+        },
+        accent: {
+          DEFAULT: "hsl(var(--accent))",
+          foreground: "hsl(var(--accent-foreground))",
+          muted: "hsl(var(--accent-muted))",
+        },
+        success: {
+          DEFAULT: "hsl(var(--success))",
+          foreground: "hsl(var(--success-foreground))",
+          muted: "hsl(var(--success-muted))",
         },
         destructive: {
           DEFAULT: "hsl(var(--destructive))",
@@ -35,10 +49,6 @@ export default {
           DEFAULT: "hsl(var(--muted))",
           foreground: "hsl(var(--muted-foreground))",
         },
-        accent: {
-          DEFAULT: "hsl(var(--accent))",
-          foreground: "hsl(var(--accent-foreground))",
-        },
         popover: {
           DEFAULT: "hsl(var(--popover))",
           foreground: "hsl(var(--popover-foreground))",
@@ -46,6 +56,16 @@ export default {
         card: {
           DEFAULT: "hsl(var(--card))",
           foreground: "hsl(var(--card-foreground))",
+          cultural: "hsl(var(--card-cultural))",
+        },
+        country: {
+          badge: "hsl(var(--country-badge))",
+          text: "hsl(var(--country-text))",
+        },
+        language: {
+          native: "hsl(var(--language-native))",
+          learning: "hsl(var(--language-learning))",
+          beginner: "hsl(var(--language-beginner))",
         },
         sidebar: {
           DEFAULT: "hsl(var(--sidebar-background))",
@@ -62,6 +82,23 @@ export default {
         lg: "var(--radius)",
         md: "calc(var(--radius) - 2px)",
         sm: "calc(var(--radius) - 4px)",
+        cultural: "var(--radius-cultural)",
+      },
+      backgroundImage: {
+        'gradient-primary': 'var(--gradient-primary)',
+        'gradient-secondary': 'var(--gradient-secondary)',
+        'gradient-cultural': 'var(--gradient-cultural)',
+        'gradient-warm': 'var(--gradient-warm)',
+        'gradient-hero': 'var(--gradient-hero)',
+      },
+      boxShadow: {
+        'cultural': 'var(--shadow-cultural)',
+        'warm': 'var(--shadow-warm)',
+        'accent': 'var(--shadow-accent)',
+      },
+      transitionTimingFunction: {
+        'cultural': 'var(--transition-cultural)',
+        'smooth': 'var(--transition-smooth)',
       },
       keyframes: {
         "accordion-down": {

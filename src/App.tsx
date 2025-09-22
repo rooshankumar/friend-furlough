@@ -7,6 +7,10 @@ import HomePage from "./pages/HomePage";
 import ExplorePage from "./pages/ExplorePage";
 import NotFound from "./pages/NotFound";
 import Navigation from "./components/Navigation";
+import SignUpPage from "./pages/auth/SignUpPage";
+import SignInPage from "./pages/auth/SignInPage";
+import CulturalProfilePage from "./pages/onboarding/CulturalProfilePage";
+import LearningGoalsPage from "./pages/onboarding/LearningGoalsPage";
 
 const queryClient = new QueryClient();
 
@@ -21,6 +25,15 @@ const App = () => (
           <Routes>
             <Route path="/" element={<HomePage />} />
             <Route path="/explore" element={<ExplorePage />} />
+            
+            {/* Authentication Routes */}
+            <Route path="/auth/signup" element={<SignUpPage />} />
+            <Route path="/auth/signin" element={<SignInPage />} />
+            
+            {/* Onboarding Routes */}
+            <Route path="/onboarding/cultural-profile" element={<CulturalProfilePage />} />
+            <Route path="/onboarding/learning-goals" element={<LearningGoalsPage />} />
+            
             {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
             <Route path="*" element={<NotFound />} />
           </Routes>

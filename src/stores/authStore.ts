@@ -103,10 +103,14 @@ export const useAuthStore = create<AuthState>()(
         set({ isLoading: true });
         try {
           const user = await mockAuth.signIn(email, password);
+          const existingUsers = JSON.parse(localStorage.getItem('mockUsers') || '[]');
+          const fullUser = existingUsers.find((u: any) => u.email === email);
+          
           set({ 
-            user, 
+            user: fullUser || user, 
             isAuthenticated: true, 
-            isLoading: false 
+            isLoading: false,
+            onboardingCompleted: fullUser?.onboardingCompleted || false
           });
         } catch (error) {
           set({ isLoading: false });
@@ -144,6 +148,18 @@ export const useAuthStore = create<AuthState>()(
       },
       
       completeOnboarding: () => {
+        const { user } = get();
+        if (user) {
+          const updatedUser = { ...user, onboardingCompleted: true };
+          
+          // Update in mock storage
+          const existingUsers = JSON.parse(localStorage.getItem('mockUsers') || '[]');
+          const userIndex = existingUsers.findIndex((u: any) => u.id === user.id);
+          if (userIndex !== -1) {
+            existingUsers[userIndex] = updatedUser;
+            localStorage.setItem('mockUsers', JSON.stringify(existingUsers));
+          }
+        }
         set({ onboardingCompleted: true, onboardingStep: 1 });
       }
     }),

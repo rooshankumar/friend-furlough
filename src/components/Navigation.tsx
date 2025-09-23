@@ -1,12 +1,21 @@
 import { Button } from "@/components/ui/button";
-import { Globe, MessageCircle, Users, User, Search } from "lucide-react";
-import { Link, useLocation } from "react-router-dom";
+import { Globe, MessageCircle, Users, User, Search, LogOut } from "lucide-react";
+import { Link, useLocation, useNavigate } from "react-router-dom";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { useAuthStore } from "@/stores/authStore";
 import roshLinguaLogo from "@/assets/roshlingua-logo.png";
 
 const Navigation = () => {
   const location = useLocation();
+  const navigate = useNavigate();
+  const { user, isAuthenticated, signOut } = useAuthStore();
 
   const isActive = (path: string) => location.pathname === path;
+
+  const handleSignOut = () => {
+    signOut();
+    navigate('/');
+  };
 
   return (
     <nav className="border-b border-border/50 bg-card/50 backdrop-blur-sm sticky top-0 z-50">
@@ -71,14 +80,45 @@ const Navigation = () => {
             </Button>
           </div>
 
-          {/* Auth Buttons */}
+          {/* Auth Section */}
           <div className="flex items-center space-x-2">
-            <Button variant="outline" size="sm" asChild>
-              <Link to="/auth/signin">Sign In</Link>
-            </Button>
-            <Button variant="cultural" size="sm" asChild>
-              <Link to="/auth/signup">Join Community</Link>
-            </Button>
+            {isAuthenticated && user ? (
+              <div className="flex items-center space-x-3">
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  asChild
+                  className="hidden sm:flex"
+                >
+                  <Link to="/profile" className="flex items-center space-x-2">
+                    <Avatar className="h-7 w-7">
+                      <AvatarImage src="/placeholder-user.jpg" />
+                      <AvatarFallback className="bg-gradient-cultural text-white text-xs">
+                        {user.name[0]}
+                      </AvatarFallback>
+                    </Avatar>
+                    <span>{user.name}</span>
+                  </Link>
+                </Button>
+                <Button 
+                  variant="ghost" 
+                  size="sm"
+                  onClick={handleSignOut}
+                  className="text-muted-foreground hover:text-foreground"
+                >
+                  <LogOut className="h-4 w-4" />
+                </Button>
+              </div>
+            ) : (
+              <>
+                <Button variant="outline" size="sm" asChild>
+                  <Link to="/auth/signin">Sign In</Link>
+                </Button>
+                <Button variant="cultural" size="sm" asChild>
+                  <Link to="/auth/signup">Join Community</Link>
+                </Button>
+              </>
+            )}
           </div>
         </div>
 

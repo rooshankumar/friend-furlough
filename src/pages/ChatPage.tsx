@@ -34,12 +34,18 @@ const ChatPage = () => {
     conversations, 
     messages, 
     sendMessage, 
+    loadConversations,
     loadMessages,
     markAsRead,
     setTypingStatus 
   } = useChatStore();
   
   const { user } = useAuthStore();
+
+  // Load conversations on mount
+  useEffect(() => {
+    loadConversations();
+  }, [loadConversations]);
 
   const currentConversation = conversationId 
     ? conversations.find(c => c.id === conversationId)
@@ -130,7 +136,7 @@ const ChatPage = () => {
                               {conversation.lastMessage.content}
                             </p>
                             <div className="flex items-center gap-2 mt-2">
-                              <CulturalBadge country="BR" />
+                              <CulturalBadge type="country" flag="🇧🇷">Brazil</CulturalBadge>
                               <Badge variant="secondary" className="text-xs">
                                 <Languages className="h-3 w-3 mr-1" />
                                 Portuguese ↔ English
@@ -236,7 +242,7 @@ const ChatPage = () => {
                     <div>
                       <h3 className="font-semibold">Maria Santos</h3>
                       <div className="flex items-center gap-2">
-                        <CulturalBadge country="BR" />
+                        <CulturalBadge type="country" flag="🇧🇷">Brazil</CulturalBadge>
                         <span className="text-sm text-muted-foreground">Online</span>
                         {isTyping && (
                           <span className="text-sm text-primary">typing...</span>

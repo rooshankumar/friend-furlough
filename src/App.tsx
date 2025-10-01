@@ -13,6 +13,7 @@ import NotFound from "./pages/NotFound";
 import Navigation from "./components/Navigation";
 import SignUpPage from "./pages/auth/SignUpPage";
 import SignInPage from "./pages/auth/SignInPage";
+import WelcomePage from "./pages/onboarding/WelcomePage";
 import CulturalProfilePage from "./pages/onboarding/CulturalProfilePage";
 import LearningGoalsPage from "./pages/onboarding/LearningGoalsPage";
 
@@ -48,6 +49,7 @@ const App = () => (
             <Route path="/auth/signin" element={<SignInPage />} />
             
             {/* Onboarding Routes */}
+            <Route path="/onboarding/welcome" element={<WelcomePage />} />
             <Route path="/onboarding/cultural-profile" element={<CulturalProfilePage />} />
             <Route path="/onboarding/learning-goals" element={<LearningGoalsPage />} />
             

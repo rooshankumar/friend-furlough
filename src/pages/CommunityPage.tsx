@@ -252,7 +252,7 @@ const CommunityPage = () => {
                     <div className="flex-1">
                       <div className="flex items-center gap-2">
                         <h3 className="font-semibold">Maria Santos</h3>
-                        <CulturalBadge country="BR" />
+                        <CulturalBadge type="country" flag="🇧🇷">Brazil</CulturalBadge>
                         <Badge variant="outline" className="text-xs">
                           <Languages className="h-3 w-3 mr-1" />
                           Portuguese
@@ -386,7 +386,7 @@ const CommunityPage = () => {
                           <div className="flex-1 bg-accent/50 rounded-lg p-3">
                             <div className="flex items-center gap-2 mb-1">
                               <span className="font-medium text-sm">João Silva</span>
-                              <CulturalBadge country="PT" />
+                              <CulturalBadge type="country" flag="🇵🇹">Portugal</CulturalBadge>
                               <span className="text-xs text-muted-foreground">
                                 {new Date(comment.timestamp).toLocaleTimeString()}
                               </span>

@@ -68,7 +68,7 @@ const LearningGoalsPage = () => {
         description: "Your cultural profile is complete. Start exploring and connecting!",
       });
       
-      navigate('/onboarding/welcome');
+      navigate('/explore');
     } catch (error) {
       toast({
         title: "Update failed",

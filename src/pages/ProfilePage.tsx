@@ -143,7 +143,7 @@ const ProfilePage = () => {
                       {profileUser.name}
                     </h1>
                     <div className="flex items-center gap-3 flex-wrap">
-                      <CulturalBadge country={profileUser.countryCode} />
+                      <CulturalBadge type="country" flag={profileUser.countryFlag}>{profileUser.country}</CulturalBadge>
                       <Badge variant="outline" className="text-xs">
                         Age {profileUser.age}
                       </Badge>

@@ -188,7 +188,7 @@ const CommunityPage = () => {
                 <Avatar className="h-10 w-10">
                   <AvatarImage src="/placeholder-user.jpg" />
                   <AvatarFallback className="bg-gradient-cultural text-white">
-                    {user?.name?.[0] || 'U'}
+                    {user?.email?.[0]?.toUpperCase() || 'U'}
                   </AvatarFallback>
                 </Avatar>
                 <div className="flex-1">
@@ -403,7 +403,7 @@ const CommunityPage = () => {
                     <Avatar className="h-8 w-8">
                       <AvatarImage src="/placeholder-user.jpg" />
                       <AvatarFallback className="bg-gradient-cultural text-white text-xs">
-                        {user?.name?.[0] || 'U'}
+                        {user?.email?.[0]?.toUpperCase() || 'U'}
                       </AvatarFallback>
                     </Avatar>
                     <div className="flex-1 flex items-center space-x-2">

@@ -51,7 +51,7 @@ export const useChatStore = create<ChatState>((set, get) => ({
     try {
       // Get user's conversation participants
       const { data: participantData, error: participantError } = await supabase
-        .from('conversation_participants')
+        .from('conversation_participants' as any)
         .select(`
           conversation_id,
           unread_count,
@@ -74,13 +74,13 @@ export const useChatStore = create<ChatState>((set, get) => ({
         
         // Get all participants for this conversation
         const { data: allParticipants } = await supabase
-          .from('conversation_participants')
+          .from('conversation_participants' as any)
           .select('user_id, profiles(id, name, avatar_url, country_flag)')
           .eq('conversation_id', conversation.id);
         
         // Get last message
         const { data: lastMessageData } = await supabase
-          .from('messages')
+          .from('messages' as any)
           .select('*')
           .eq('conversation_id', conversation.id)
           .order('created_at', { ascending: false })
@@ -105,7 +105,7 @@ export const useChatStore = create<ChatState>((set, get) => ({
   loadMessages: async (conversationId: string) => {
     try {
       const { data, error } = await supabase
-        .from('messages')
+        .from('messages' as any)
         .select('*')
         .eq('conversation_id', conversationId)
         .order('created_at', { ascending: true });
@@ -126,13 +126,13 @@ export const useChatStore = create<ChatState>((set, get) => ({
   sendMessage: async (conversationId: string, senderId: string, content: string) => {
     try {
       const { data, error } = await supabase
-        .from('messages')
+        .from('messages' as any)
         .insert({
           conversation_id: conversationId,
           sender_id: senderId,
           content,
           type: 'text'
-        })
+        } as any)
         .select()
         .single();
       
@@ -154,8 +154,8 @@ export const useChatStore = create<ChatState>((set, get) => ({
   markAsRead: async (conversationId: string, userId: string) => {
     try {
       await supabase
-        .from('conversation_participants')
-        .update({ unread_count: 0 })
+        .from('conversation_participants' as any)
+        .update({ unread_count: 0 } as any)
         .eq('conversation_id', conversationId)
         .eq('user_id', userId);
       

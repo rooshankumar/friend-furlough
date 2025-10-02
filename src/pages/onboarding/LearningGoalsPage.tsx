@@ -37,15 +37,15 @@ const lookingForOptions = [
 const LearningGoalsPage = () => {
   const navigate = useNavigate();
   const { toast } = useToast();
-  const { user, updateProfile, completeOnboarding } = useAuthStore();
+  const { profile, updateProfile, completeOnboarding } = useAuthStore();
   
   const form = useForm<LearningGoalsFormData>({
     resolver: zodResolver(learningGoalsSchema),
     defaultValues: {
-      learningLanguages: user?.learningLanguages || [],
-      culturalInterests: user?.culturalInterests || [],
-      bio: user?.bio || '',
-      lookingFor: user?.lookingFor || [],
+      learningLanguages: [],
+      culturalInterests: [],
+      bio: profile?.bio || '',
+      lookingFor: [],
     },
   });
   
@@ -54,11 +54,8 @@ const LearningGoalsPage = () => {
   const onSubmit = async (data: LearningGoalsFormData) => {
     try {
       // Update user profile with learning goals
-      updateProfile({
-        learningLanguages: data.learningLanguages,
-        culturalInterests: data.culturalInterests,
+      await updateProfile({
         bio: data.bio,
-        lookingFor: data.lookingFor,
       });
       
       completeOnboarding();

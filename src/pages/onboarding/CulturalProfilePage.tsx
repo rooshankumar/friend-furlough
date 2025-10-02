@@ -27,16 +27,16 @@ type CulturalProfileFormData = z.infer<typeof culturalProfileSchema>;
 const CulturalProfilePage = () => {
   const navigate = useNavigate();
   const { toast } = useToast();
-  const { user, updateProfile, setOnboardingStep } = useAuthStore();
+  const { profile, updateProfile, setOnboardingStep } = useAuthStore();
   const [selectedCountry, setSelectedCountry] = useState<any>(null);
   
   const form = useForm<CulturalProfileFormData>({
     resolver: zodResolver(culturalProfileSchema),
     defaultValues: {
-      country: user?.countryCode || '',
-      city: user?.city || '',
-      nativeLanguages: user?.nativeLanguages || [],
-      age: user?.age || 0,
+      country: profile?.country_code || '',
+      city: '',
+      nativeLanguages: [],
+      age: profile?.age || 0,
     },
   });
   
@@ -54,12 +54,10 @@ const CulturalProfilePage = () => {
     
     try {
       // Update user profile with cultural data
-      updateProfile({
-        countryCode: data.country,
+      await updateProfile({
+        country_code: data.country,
         country: selectedCountry.name,
-        countryFlag: selectedCountry.flag,
-        city: data.city,
-        nativeLanguages: data.nativeLanguages,
+        country_flag: selectedCountry.flag,
         age: data.age,
       });
       

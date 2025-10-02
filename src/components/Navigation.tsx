@@ -94,10 +94,10 @@ const Navigation = () => {
                     <Avatar className="h-7 w-7">
                       <AvatarImage src="/placeholder-user.jpg" />
                       <AvatarFallback className="bg-gradient-cultural text-white text-xs">
-                        {user.name[0]}
+                        {user.email?.[0]?.toUpperCase() || 'U'}
                       </AvatarFallback>
                     </Avatar>
-                    <span>{user.name}</span>
+                    <span>{user.email?.split('@')[0] || 'User'}</span>
                   </Link>
                 </Button>
                 <Button 

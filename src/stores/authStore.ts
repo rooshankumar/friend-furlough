@@ -58,7 +58,7 @@ export const useAuthStore = create<AuthState>()(
           if (session?.user) {
             // Fetch profile data
             const { data: profile } = await supabase
-              .from('profiles')
+              .from('profiles' as any)
               .select('*')
               .eq('id', session.user.id)
               .single();
@@ -82,7 +82,7 @@ export const useAuthStore = create<AuthState>()(
         const { data: { session } } = await supabase.auth.getSession();
         if (session?.user) {
           const { data: profile } = await supabase
-            .from('profiles')
+            .from('profiles' as any)
             .select('*')
             .eq('id', session.user.id)
             .single();
@@ -114,14 +114,24 @@ export const useAuthStore = create<AuthState>()(
           
           if (error) throw error;
           
-          set({ 
-            user: data.user,
-            session: data.session,
-            isAuthenticated: true,
-            isLoading: false,
-            onboardingStep: 2,
-            onboardingCompleted: false
-          });
+          // Fetch profile after signup
+          if (data.user) {
+            const { data: profile } = await supabase
+              .from('profiles' as any)
+              .select('*')
+              .eq('id', data.user.id)
+              .single();
+            
+            set({ 
+              user: data.user,
+              session: data.session,
+              profile,
+              isAuthenticated: true,
+              isLoading: false,
+              onboardingStep: 2,
+              onboardingCompleted: false
+            });
+          }
         } catch (error) {
           set({ isLoading: false });
           throw error;
@@ -139,7 +149,7 @@ export const useAuthStore = create<AuthState>()(
           if (error) throw error;
           
           const { data: profile } = await supabase
-            .from('profiles')
+            .from('profiles' as any)
             .select('*')
             .eq('id', data.user.id)
             .single();
@@ -175,14 +185,14 @@ export const useAuthStore = create<AuthState>()(
         if (!user) throw new Error('No user logged in');
         
         const { error } = await supabase
-          .from('profiles')
-          .update(updates)
+          .from('profiles' as any)
+          .update(updates as any)
           .eq('id', user.id);
         
         if (error) throw error;
         
         const { data: profile } = await supabase
-          .from('profiles')
+          .from('profiles' as any)
           .select('*')
           .eq('id', user.id)
           .single();

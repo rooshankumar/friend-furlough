@@ -8,7 +8,7 @@ import roshLinguaLogo from '@/assets/roshlingua-logo.png';
 
 const WelcomePage = () => {
   const navigate = useNavigate();
-  const { user, isAuthenticated } = useAuthStore();
+  const { user, profile, isAuthenticated } = useAuthStore();
 
   useEffect(() => {
     if (!isAuthenticated) {
@@ -51,7 +51,7 @@ const WelcomePage = () => {
                 className="h-24 w-24 mx-auto mb-6 animate-cultural-float"
               />
               <h1 className="text-4xl font-bold text-cultural-gradient mb-4">
-                Welcome to roshLingua, {user?.name}! 🎉
+                Welcome to roshLingua, {user?.email?.split('@')[0] || 'Friend'}! 🎉
               </h1>
               <p className="text-lg text-muted-foreground">
                 Let's set up your cultural profile and start your global journey

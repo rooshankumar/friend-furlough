@@ -36,11 +36,11 @@ const ProfilePage = () => {
   const [isEditing, setIsEditing] = useState(false);
   const { toast } = useToast();
   
-  const { user } = useAuthStore();
+  const { user, profile } = useAuthStore();
 
   useEffect(() => {
     // Check if viewing own profile
-    setIsOwnProfile(!username || username === user?.name?.toLowerCase().replace(/\s+/g, ''));
+    setIsOwnProfile(!username || username === user?.email?.split('@')[0]?.toLowerCase());
   }, [username, user]);
 
   // Mock user data - in real app this would come from API

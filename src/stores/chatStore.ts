@@ -1,291 +1,201 @@
 import { create } from 'zustand';
-import { persist } from 'zustand/middleware';
-import { Message, Conversation } from '@/types';
+import { supabase } from '@/integrations/supabase/client';
 
-interface ChatState {
-  conversations: Conversation[];
-  messages: { [conversationId: string]: Message[] };
-  typingUsers: { [conversationId: string]: string[] };
-  
-  // Actions
-  loadConversations: () => void;
-  loadMessages: (conversationId: string) => void;
-  sendMessage: (message: Omit<Message, 'id' | 'timestamp' | 'readBy' | 'reactions'>) => Promise<void>;
-  markAsRead: (conversationId: string) => void;
-  setTypingStatus: (conversationId: string, userId: string, isTyping: boolean) => void;
-  addReaction: (messageId: string, reaction: { userId: string; emoji: string }) => void;
+interface DbMessage {
+  id: string;
+  conversation_id: string;
+  sender_id: string;
+  content: string;
+  created_at: string;
+  type: string;
+  language?: string;
+  translation?: string;
+  media_url?: string;
 }
 
-// Mock data
-const mockConversations: Conversation[] = [
-  {
-    id: '1',
-    participants: ['user1', 'maria-santos'],
-    lastMessage: {
-      id: 'msg1',
-      conversationId: '1',
-      senderId: 'maria-santos',
-      content: '¡Hola! How do you celebrate New Year in your country? 🎉',
-      timestamp: new Date(Date.now() - 30 * 60 * 1000).toISOString(),
-      type: 'text',
-      readBy: ['maria-santos'],
-    },
-    unreadCount: 1,
-    createdAt: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString(),
-    updatedAt: new Date(Date.now() - 30 * 60 * 1000).toISOString(),
-    language: 'spanish',
-    isLanguageExchange: true
-  },
-  {
-    id: '2',
-    participants: ['user1', 'yuki-tanaka'],
-    lastMessage: {
-      id: 'msg2',
-      conversationId: '2',
-      senderId: 'user1',
-      content: 'Thank you for explaining the tea ceremony! It was fascinating 🍵',
-      timestamp: new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString(),
-      type: 'text',
-      readBy: ['user1', 'yuki-tanaka'],
-    },
-    unreadCount: 0,
-    createdAt: new Date(Date.now() - 14 * 24 * 60 * 60 * 1000).toISOString(),
-    updatedAt: new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString(),
-    language: 'japanese',
-    isLanguageExchange: true
-  },
-  {
-    id: '3',
-    participants: ['user1', 'ahmed-hassan'],
-    lastMessage: {
-      id: 'msg3',
-      conversationId: '3',
-      senderId: 'ahmed-hassan',
-      content: 'The photos of your local festival look amazing! I would love to visit someday.',
-      timestamp: new Date(Date.now() - 5 * 60 * 60 * 1000).toISOString(),
-      type: 'text',
-      readBy: ['ahmed-hassan'],
-    },
-    unreadCount: 0,
-    createdAt: new Date(Date.now() - 21 * 24 * 60 * 60 * 1000).toISOString(),
-    updatedAt: new Date(Date.now() - 5 * 60 * 60 * 1000).toISOString(),
-    isLanguageExchange: false
-  }
-];
+interface DbConversation {
+  id: string;
+  created_at: string;
+  updated_at: string;
+  is_language_exchange: boolean;
+  language?: string;
+}
 
-const mockMessages: { [key: string]: Message[] } = {
-  '1': [
-    {
-      id: 'msg1-1',
-      conversationId: '1',
-      senderId: 'maria-santos',
-      content: 'Hello! I saw your profile and noticed you\'re learning Spanish. I\'m from Brazil and would love to help you practice! 😊',
-      timestamp: new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString(),
-      type: 'text',
-      readBy: ['maria-santos', 'user1'],
-    },
-    {
-      id: 'msg1-2',
-      conversationId: '1',
-      senderId: 'user1',
-      content: 'That\'s wonderful! I\'m really excited to learn Spanish. Could you tell me about some Brazilian traditions?',
-      timestamp: new Date(Date.now() - 23 * 60 * 60 * 1000).toISOString(),
-      type: 'text',
-      readBy: ['maria-santos', 'user1'],
-    },
-    {
-      id: 'msg1-3',
-      conversationId: '1',
-      senderId: 'maria-santos',
-      content: 'Of course! We have many beautiful festivals here. Carnival is probably the most famous, but we also have Festa Junina which celebrates rural traditions with food, music, and dancing! 🎭🎵',
-      timestamp: new Date(Date.now() - 22 * 60 * 60 * 1000).toISOString(),
-      type: 'text',
-      language: 'portuguese',
-      translation: 'Of course! We have many beautiful festivals here...',
-      readBy: ['maria-santos', 'user1'],
-    },
-    {
-      id: 'msg1-4',
-      conversationId: '1',
-      senderId: 'user1',
-      content: 'That sounds amazing! I love learning about different cultural celebrations. What kind of food do you eat during Festa Junina?',
-      timestamp: new Date(Date.now() - 21 * 60 * 60 * 1000).toISOString(),
-      type: 'text',
-      readBy: ['maria-santos', 'user1'],
-    },
-    {
-      id: 'msg1-5',
-      conversationId: '1',
-      senderId: 'maria-santos',
-      content: '¡Hola! How do you celebrate New Year in your country? 🎉',
-      timestamp: new Date(Date.now() - 30 * 60 * 1000).toISOString(),
-      type: 'text',
-      readBy: ['maria-santos'],
-    }
-  ],
-  '2': [
-    {
-      id: 'msg2-1',
-      conversationId: '2',
-      senderId: 'yuki-tanaka',
-      content: 'こんにちは！I noticed you\'re interested in Japanese culture. Would you like to learn about the tea ceremony?',
-      timestamp: new Date(Date.now() - 6 * 60 * 60 * 1000).toISOString(),
-      type: 'text',
-      language: 'japanese',
-      translation: 'Hello! I noticed you\'re interested in Japanese culture...',
-      readBy: ['yuki-tanaka', 'user1'],
-    },
-    {
-      id: 'msg2-2',
-      conversationId: '2',
-      senderId: 'user1',
-      content: 'Yes, absolutely! I find Japanese traditions so fascinating. Could you explain the significance behind it?',
-      timestamp: new Date(Date.now() - 5 * 60 * 60 * 1000).toISOString(),
-      type: 'text',
-      readBy: ['yuki-tanaka', 'user1'],
-    },
-    {
-      id: 'msg2-3',
-      conversationId: '2',
-      senderId: 'user1',
-      content: 'Thank you for explaining the tea ceremony! It was fascinating 🍵',
-      timestamp: new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString(),
-      type: 'text',
-      readBy: ['user1', 'yuki-tanaka'],
-    }
-  ]
-};
+interface ConversationWithDetails extends DbConversation {
+  participants: any[];
+  lastMessage?: DbMessage;
+  unreadCount: number;
+}
 
-export const useChatStore = create<ChatState>()(
-  persist(
-    (set, get) => ({
-      conversations: [],
-      messages: {},
-      typingUsers: {},
+interface ChatState {
+  conversations: ConversationWithDetails[];
+  messages: { [conversationId: string]: DbMessage[] };
+  isLoading: boolean;
+  
+  // Actions
+  loadConversations: (userId: string) => Promise<void>;
+  loadMessages: (conversationId: string) => Promise<void>;
+  sendMessage: (conversationId: string, senderId: string, content: string) => Promise<void>;
+  markAsRead: (conversationId: string, userId: string) => Promise<void>;
+  subscribeToMessages: (conversationId: string) => void;
+  unsubscribeFromMessages: () => void;
+}
+
+export const useChatStore = create<ChatState>((set, get) => ({
+  conversations: [],
+  messages: {},
+  isLoading: false,
+  
+  loadConversations: async (userId: string) => {
+    set({ isLoading: true });
+    try {
+      // Get user's conversation participants
+      const { data: participantData, error: participantError } = await supabase
+        .from('conversation_participants')
+        .select(`
+          conversation_id,
+          unread_count,
+          conversations (
+            id,
+            created_at,
+            updated_at,
+            is_language_exchange,
+            language
+          )
+        `)
+        .eq('user_id', userId);
       
-      loadConversations: () => {
-        // Simulate API call
-        setTimeout(() => {
-          set({ conversations: mockConversations });
-        }, 500);
-      },
+      if (participantError) throw participantError;
       
-      loadMessages: (conversationId: string) => {
-        // Simulate API call
-        setTimeout(() => {
-          const currentMessages = get().messages;
-          set({
-            messages: {
-              ...currentMessages,
-              [conversationId]: mockMessages[conversationId] || []
-            }
-          });
-        }, 300);
-      },
+      const conversationsWithDetails: ConversationWithDetails[] = [];
       
-      sendMessage: async (messageData) => {
-        const { conversationId } = messageData;
-        const newMessage: Message = {
-          ...messageData,
-          id: Date.now().toString(),
-          timestamp: new Date().toISOString(),
-          readBy: [messageData.senderId]
-        };
+      for (const participant of participantData || []) {
+        const conversation = participant.conversations as unknown as DbConversation;
         
-        // Add message to state
-        const currentMessages = get().messages;
-        const conversationMessages = currentMessages[conversationId] || [];
+        // Get all participants for this conversation
+        const { data: allParticipants } = await supabase
+          .from('conversation_participants')
+          .select('user_id, profiles(id, name, avatar_url, country_flag)')
+          .eq('conversation_id', conversation.id);
         
-        set({
-          messages: {
-            ...currentMessages,
-            [conversationId]: [...conversationMessages, newMessage]
-          }
+        // Get last message
+        const { data: lastMessageData } = await supabase
+          .from('messages')
+          .select('*')
+          .eq('conversation_id', conversation.id)
+          .order('created_at', { ascending: false })
+          .limit(1)
+          .single();
+        
+        conversationsWithDetails.push({
+          ...conversation,
+          participants: allParticipants || [],
+          lastMessage: lastMessageData || undefined,
+          unreadCount: participant.unread_count || 0
         });
-        
-        // Update conversation last message
-        const conversations = get().conversations;
-        const updatedConversations = conversations.map(conv => 
-          conv.id === conversationId 
-            ? { 
-                ...conv, 
-                lastMessage: newMessage, 
-                updatedAt: new Date().toISOString() 
-              }
-            : conv
-        );
-        
-        set({ conversations: updatedConversations });
-        
-        // Simulate real-time response
-        setTimeout(() => {
-          const responses = [
-            'That\'s really interesting! Tell me more about that.',
-            'I love learning about different cultures! 🌍',
-            'What a fascinating tradition! We have something similar here.',
-            'Thank you for sharing that with me! 😊',
-            'I\'d love to experience that someday!'
-          ];
-          
-          const responseMessage: Message = {
-            id: (Date.now() + 1).toString(),
-            conversationId,
-            senderId: conversationId === '1' ? 'maria-santos' : 'yuki-tanaka',
-            content: responses[Math.floor(Math.random() * responses.length)],
-            timestamp: new Date().toISOString(),
-            type: 'text',
-            readBy: []
-          };
-          
-          const currentMessages = get().messages;
-          const conversationMessages = currentMessages[conversationId] || [];
-          
-          set({
-            messages: {
-              ...currentMessages,
-              [conversationId]: [...conversationMessages, responseMessage]
-            }
-          });
-        }, 2000);
-      },
-      
-      markAsRead: (conversationId: string) => {
-        const conversations = get().conversations;
-        const updatedConversations = conversations.map(conv => 
-          conv.id === conversationId 
-            ? { ...conv, unreadCount: 0 }
-            : conv
-        );
-        set({ conversations: updatedConversations });
-      },
-      
-      setTypingStatus: (conversationId: string, userId: string, isTyping: boolean) => {
-        const typingUsers = get().typingUsers;
-        const currentTyping = typingUsers[conversationId] || [];
-        
-        const updatedTyping = isTyping
-          ? [...currentTyping.filter(id => id !== userId), userId]
-          : currentTyping.filter(id => id !== userId);
-        
-        set({
-          typingUsers: {
-            ...typingUsers,
-            [conversationId]: updatedTyping
-          }
-        });
-      },
-      
-      addReaction: (messageId: string, reaction) => {
-        // Implementation for adding reactions to messages
-        console.log('Adding reaction:', messageId, reaction);
       }
-    }),
-    {
-      name: 'chat-storage',
-      partialize: (state) => ({
-        conversations: state.conversations,
-        messages: state.messages
-      })
+      
+      set({ conversations: conversationsWithDetails, isLoading: false });
+    } catch (error) {
+      console.error('Error loading conversations:', error);
+      set({ isLoading: false });
     }
-  )
-);
+  },
+  
+  loadMessages: async (conversationId: string) => {
+    try {
+      const { data, error } = await supabase
+        .from('messages')
+        .select('*')
+        .eq('conversation_id', conversationId)
+        .order('created_at', { ascending: true });
+      
+      if (error) throw error;
+      
+      set(state => ({
+        messages: {
+          ...state.messages,
+          [conversationId]: data || []
+        }
+      }));
+    } catch (error) {
+      console.error('Error loading messages:', error);
+    }
+  },
+  
+  sendMessage: async (conversationId: string, senderId: string, content: string) => {
+    try {
+      const { data, error } = await supabase
+        .from('messages')
+        .insert({
+          conversation_id: conversationId,
+          sender_id: senderId,
+          content,
+          type: 'text'
+        })
+        .select()
+        .single();
+      
+      if (error) throw error;
+      
+      // Optimistically add message to local state
+      set(state => ({
+        messages: {
+          ...state.messages,
+          [conversationId]: [...(state.messages[conversationId] || []), data]
+        }
+      }));
+    } catch (error) {
+      console.error('Error sending message:', error);
+      throw error;
+    }
+  },
+  
+  markAsRead: async (conversationId: string, userId: string) => {
+    try {
+      await supabase
+        .from('conversation_participants')
+        .update({ unread_count: 0 })
+        .eq('conversation_id', conversationId)
+        .eq('user_id', userId);
+      
+      set(state => ({
+        conversations: state.conversations.map(conv =>
+          conv.id === conversationId ? { ...conv, unreadCount: 0 } : conv
+        )
+      }));
+    } catch (error) {
+      console.error('Error marking as read:', error);
+    }
+  },
+  
+  subscribeToMessages: (conversationId: string) => {
+    const channel = supabase
+      .channel(`messages:${conversationId}`)
+      .on(
+        'postgres_changes',
+        {
+          event: 'INSERT',
+          schema: 'public',
+          table: 'messages',
+          filter: `conversation_id=eq.${conversationId}`
+        },
+        (payload) => {
+          const newMessage = payload.new as DbMessage;
+          set(state => ({
+            messages: {
+              ...state.messages,
+              [conversationId]: [...(state.messages[conversationId] || []), newMessage]
+            }
+          }));
+        }
+      )
+      .subscribe();
+    
+    return channel;
+  },
+  
+  unsubscribeFromMessages: () => {
+    supabase.removeAllChannels();
+  }
+}));

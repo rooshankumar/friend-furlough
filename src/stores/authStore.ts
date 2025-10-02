@@ -1,94 +1,123 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
-import { User } from '@/types';
+import { supabase } from '@/integrations/supabase/client';
+import type { User as SupabaseUser, Session } from '@supabase/supabase-js';
+
+interface Profile {
+  id: string;
+  name: string;
+  avatar_url?: string;
+  bio?: string;
+  country?: string;
+  country_code?: string;
+  country_flag?: string;
+  age?: number;
+  online: boolean;
+  last_seen?: string;
+  created_at: string;
+  updated_at: string;
+}
 
 interface AuthState {
-  user: User | null;
+  user: SupabaseUser | null;
+  session: Session | null;
+  profile: Profile | null;
   isAuthenticated: boolean;
   isLoading: boolean;
   onboardingStep: number;
   onboardingCompleted: boolean;
   
   // Actions
+  initialize: () => Promise<void>;
   signUp: (email: string, password: string, name: string) => Promise<void>;
   signIn: (email: string, password: string) => Promise<void>;
-  signOut: () => void;
-  updateProfile: (updates: Partial<User>) => void;
+  signOut: () => Promise<void>;
+  updateProfile: (updates: Partial<Profile>) => Promise<void>;
   setOnboardingStep: (step: number) => void;
-  completeOnboarding: () => void;
+  completeOnboarding: () => Promise<void>;
 }
-
-// Mock authentication service
-const mockAuth = {
-  signUp: async (email: string, password: string, name: string): Promise<User> => {
-    // Simulate API delay
-    await new Promise(resolve => setTimeout(resolve, 1000));
-    
-    // Check if user already exists (mock)
-    const existingUsers = JSON.parse(localStorage.getItem('mockUsers') || '[]');
-    if (existingUsers.find((u: any) => u.email === email)) {
-      throw new Error('User already exists');
-    }
-    
-    const newUser: User = {
-      id: Date.now().toString(),
-      name,
-      email,
-      country: '',
-      countryCode: '',
-      countryFlag: '',
-      nativeLanguages: [],
-      learningLanguages: [],
-      culturalInterests: [],
-      bio: '',
-      age: 0,
-      online: true,
-      joinedDate: new Date().toISOString(),
-    };
-    
-    // Save to mock storage
-    existingUsers.push(newUser);
-    localStorage.setItem('mockUsers', JSON.stringify(existingUsers));
-    
-    return newUser;
-  },
-  
-  signIn: async (email: string, password: string): Promise<User> => {
-    // Simulate API delay
-    await new Promise(resolve => setTimeout(resolve, 1000));
-    
-    const existingUsers = JSON.parse(localStorage.getItem('mockUsers') || '[]');
-    const user = existingUsers.find((u: any) => u.email === email);
-    
-    if (!user) {
-      throw new Error('User not found');
-    }
-    
-    // Mock password validation (in real app, this would be handled securely)
-    if (password.length < 6) {
-      throw new Error('Invalid password');
-    }
-    
-    return user;
-  }
-};
 
 export const useAuthStore = create<AuthState>()(
   persist(
     (set, get) => ({
       user: null,
+      session: null,
+      profile: null,
       isAuthenticated: false,
       isLoading: false,
       onboardingStep: 1,
       onboardingCompleted: false,
       
+      initialize: async () => {
+        set({ isLoading: true });
+        
+        // Set up auth state listener
+        supabase.auth.onAuthStateChange(async (event, session) => {
+          set({ session, user: session?.user ?? null });
+          
+          if (session?.user) {
+            // Fetch profile data
+            const { data: profile } = await supabase
+              .from('profiles')
+              .select('*')
+              .eq('id', session.user.id)
+              .single();
+            
+            set({ 
+              profile,
+              isAuthenticated: true,
+              onboardingCompleted: profile?.country ? true : false
+            });
+          } else {
+            set({ 
+              profile: null, 
+              isAuthenticated: false,
+              onboardingCompleted: false
+            });
+          }
+          set({ isLoading: false });
+        });
+        
+        // Check for existing session
+        const { data: { session } } = await supabase.auth.getSession();
+        if (session?.user) {
+          const { data: profile } = await supabase
+            .from('profiles')
+            .select('*')
+            .eq('id', session.user.id)
+            .single();
+          
+          set({ 
+            session,
+            user: session.user,
+            profile,
+            isAuthenticated: true,
+            onboardingCompleted: profile?.country ? true : false,
+            isLoading: false
+          });
+        } else {
+          set({ isLoading: false });
+        }
+      },
+      
       signUp: async (email, password, name) => {
         set({ isLoading: true });
         try {
-          const user = await mockAuth.signUp(email, password, name);
+          const { data, error } = await supabase.auth.signUp({
+            email,
+            password,
+            options: {
+              data: { name },
+              emailRedirectTo: `${window.location.origin}/`
+            }
+          });
+          
+          if (error) throw error;
+          
           set({ 
-            user, 
-            isAuthenticated: true, 
+            user: data.user,
+            session: data.session,
+            isAuthenticated: true,
             isLoading: false,
             onboardingStep: 2,
             onboardingCompleted: false
@@ -102,15 +131,26 @@ export const useAuthStore = create<AuthState>()(
       signIn: async (email, password) => {
         set({ isLoading: true });
         try {
-          const user = await mockAuth.signIn(email, password);
-          const existingUsers = JSON.parse(localStorage.getItem('mockUsers') || '[]');
-          const fullUser = existingUsers.find((u: any) => u.email === email);
+          const { data, error } = await supabase.auth.signInWithPassword({
+            email,
+            password
+          });
+          
+          if (error) throw error;
+          
+          const { data: profile } = await supabase
+            .from('profiles')
+            .select('*')
+            .eq('id', data.user.id)
+            .single();
           
           set({ 
-            user: fullUser || user, 
-            isAuthenticated: true, 
+            user: data.user,
+            session: data.session,
+            profile,
+            isAuthenticated: true,
             isLoading: false,
-            onboardingCompleted: fullUser?.onboardingCompleted || false
+            onboardingCompleted: profile?.country ? true : false
           });
         } catch (error) {
           set({ isLoading: false });
@@ -118,56 +158,52 @@ export const useAuthStore = create<AuthState>()(
         }
       },
       
-      signOut: () => {
+      signOut: async () => {
+        await supabase.auth.signOut();
         set({ 
-          user: null, 
+          user: null,
+          session: null,
+          profile: null,
           isAuthenticated: false,
           onboardingStep: 1,
           onboardingCompleted: false
         });
       },
       
-      updateProfile: (updates) => {
+      updateProfile: async (updates) => {
         const { user } = get();
-        if (user) {
-          const updatedUser = { ...user, ...updates };
-          set({ user: updatedUser });
-          
-          // Update in mock storage
-          const existingUsers = JSON.parse(localStorage.getItem('mockUsers') || '[]');
-          const userIndex = existingUsers.findIndex((u: any) => u.id === user.id);
-          if (userIndex !== -1) {
-            existingUsers[userIndex] = updatedUser;
-            localStorage.setItem('mockUsers', JSON.stringify(existingUsers));
-          }
-        }
+        if (!user) throw new Error('No user logged in');
+        
+        const { error } = await supabase
+          .from('profiles')
+          .update(updates)
+          .eq('id', user.id);
+        
+        if (error) throw error;
+        
+        const { data: profile } = await supabase
+          .from('profiles')
+          .select('*')
+          .eq('id', user.id)
+          .single();
+        
+        set({ profile });
       },
       
       setOnboardingStep: (step) => {
         set({ onboardingStep: step });
       },
       
-      completeOnboarding: () => {
+      completeOnboarding: async () => {
         const { user } = get();
-        if (user) {
-          const updatedUser = { ...user, onboardingCompleted: true };
-          
-          // Update in mock storage
-          const existingUsers = JSON.parse(localStorage.getItem('mockUsers') || '[]');
-          const userIndex = existingUsers.findIndex((u: any) => u.id === user.id);
-          if (userIndex !== -1) {
-            existingUsers[userIndex] = updatedUser;
-            localStorage.setItem('mockUsers', JSON.stringify(existingUsers));
-          }
-        }
+        if (!user) return;
+        
         set({ onboardingCompleted: true, onboardingStep: 1 });
       }
     }),
     {
       name: 'auth-storage',
       partialize: (state) => ({
-        user: state.user,
-        isAuthenticated: state.isAuthenticated,
         onboardingStep: state.onboardingStep,
         onboardingCompleted: state.onboardingCompleted,
       }),

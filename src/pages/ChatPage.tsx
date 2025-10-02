@@ -1,11 +1,10 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { useParams } from 'react-router-dom';
+import { useParams, Link } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
-import { Separator } from '@/components/ui/separator';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { 
   Send, 
@@ -26,7 +25,6 @@ import { CulturalBadge } from '@/components/CulturalBadge';
 const ChatPage = () => {
   const { conversationId } = useParams();
   const [newMessage, setNewMessage] = useState('');
-  const [isTyping, setIsTyping] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const { toast } = useToast();
   
@@ -37,45 +35,41 @@ const ChatPage = () => {
     loadConversations,
     loadMessages,
     markAsRead,
-    setTypingStatus 
+    subscribeToMessages,
+    unsubscribeFromMessages
   } = useChatStore();
   
-  const { user } = useAuthStore();
+  const { user, profile } = useAuthStore();
 
   // Load conversations on mount
   useEffect(() => {
-    loadConversations();
-  }, [loadConversations]);
-
-  const currentConversation = conversationId 
-    ? conversations.find(c => c.id === conversationId)
-    : null;
-
-  const conversationMessages = conversationId 
-    ? messages[conversationId] || []
-    : [];
-
-  useEffect(() => {
-    if (conversationId) {
-      loadMessages(conversationId);
-      markAsRead(conversationId);
+    if (user) {
+      loadConversations(user.id);
     }
-  }, [conversationId, loadMessages, markAsRead]);
+  }, [user, loadConversations]);
+
+  // Load messages and subscribe to real-time updates
+  useEffect(() => {
+    if (conversationId && user) {
+      loadMessages(conversationId);
+      markAsRead(conversationId, user.id);
+      const channel = subscribeToMessages(conversationId);
+      
+      return () => {
+        unsubscribeFromMessages();
+      };
+    }
+  }, [conversationId, user]);
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-  }, [conversationMessages]);
+  }, [messages[conversationId || '']]);
 
   const handleSendMessage = async () => {
     if (!newMessage.trim() || !conversationId || !user) return;
 
     try {
-      await sendMessage({
-        conversationId,
-        senderId: user.id,
-        content: newMessage.trim(),
-        type: 'text'
-      });
+      await sendMessage(conversationId, user.id, newMessage.trim());
       setNewMessage('');
     } catch (error) {
       toast({
@@ -92,6 +86,18 @@ const ChatPage = () => {
       handleSendMessage();
     }
   };
+
+  const currentConversation = conversationId 
+    ? conversations.find(c => c.id === conversationId)
+    : null;
+
+  const conversationMessages = conversationId 
+    ? messages[conversationId] || []
+    : [];
+    
+  const otherParticipant = currentConversation?.participants.find(
+    p => p.user_id !== user?.id
+  );
 
   if (!conversationId) {
     return (
@@ -114,43 +120,50 @@ const ChatPage = () => {
                 </CardHeader>
                 <CardContent className="p-0">
                   <ScrollArea className="h-[calc(100vh-16rem)]">
-                    {conversations.map((conversation) => (
-                      <div key={conversation.id} className="p-4 hover:bg-accent/50 cursor-pointer border-b border-border/50">
-                        <div className="flex items-start space-x-3">
-                          <Avatar className="h-12 w-12">
-                            <AvatarImage src="/placeholder-user.jpg" />
-                            <AvatarFallback className="bg-gradient-cultural text-white">
-                              {conversation.participants[0]?.[0]}
-                            </AvatarFallback>
-                          </Avatar>
-                          <div className="flex-1 min-w-0">
-                            <div className="flex items-center justify-between mb-1">
-                              <p className="font-medium truncate">
-                                Cultural Exchange Partner
-                              </p>
-                              <span className="text-xs text-muted-foreground">
-                                {new Date(conversation.updatedAt).toLocaleTimeString()}
-                              </span>
-                            </div>
-                            <p className="text-sm text-muted-foreground truncate">
-                              {conversation.lastMessage.content}
-                            </p>
-                            <div className="flex items-center gap-2 mt-2">
-                              <CulturalBadge type="country" flag="🇧🇷">Brazil</CulturalBadge>
-                              <Badge variant="secondary" className="text-xs">
-                                <Languages className="h-3 w-3 mr-1" />
-                                Portuguese ↔ English
-                              </Badge>
+                    {conversations.map((conversation) => {
+                      const otherUser = conversation.participants.find(p => p.user_id !== user?.id);
+                      const participantProfile = otherUser?.profiles;
+                      
+                      return (
+                        <Link key={conversation.id} to={`/chat/${conversation.id}`}>
+                          <div className="p-4 hover:bg-accent/50 cursor-pointer border-b border-border/50">
+                            <div className="flex items-start space-x-3">
+                              <Avatar className="h-12 w-12">
+                                <AvatarImage src={participantProfile?.avatar_url} />
+                                <AvatarFallback className="bg-gradient-cultural text-white">
+                                  {participantProfile?.name?.[0] || '?'}
+                                </AvatarFallback>
+                              </Avatar>
+                              <div className="flex-1 min-w-0">
+                                <div className="flex items-center justify-between mb-1">
+                                  <p className="font-medium truncate">
+                                    {participantProfile?.name || 'Unknown User'}
+                                  </p>
+                                  <span className="text-xs text-muted-foreground">
+                                    {conversation.lastMessage ? new Date(conversation.lastMessage.created_at).toLocaleTimeString() : ''}
+                                  </span>
+                                </div>
+                                <p className="text-sm text-muted-foreground truncate">
+                                  {conversation.lastMessage?.content || 'No messages yet'}
+                                </p>
+                                {participantProfile?.country_flag && (
+                                  <div className="flex items-center gap-2 mt-2">
+                                    <CulturalBadge type="country" flag={participantProfile.country_flag}>
+                                      {participantProfile.country_flag}
+                                    </CulturalBadge>
+                                  </div>
+                                )}
+                              </div>
+                              {conversation.unreadCount > 0 && (
+                                <Badge className="bg-primary text-primary-foreground">
+                                  {conversation.unreadCount}
+                                </Badge>
+                              )}
                             </div>
                           </div>
-                          {conversation.unreadCount > 0 && (
-                            <Badge className="bg-primary text-primary-foreground">
-                              {conversation.unreadCount}
-                            </Badge>
-                          )}
-                        </div>
-                      </div>
-                    ))}
+                        </Link>
+                      );
+                    })}
                   </ScrollArea>
                 </CardContent>
               </Card>
@@ -196,31 +209,38 @@ const ChatPage = () => {
               </CardHeader>
               <CardContent className="p-0">
                 <ScrollArea className="h-[calc(100vh-16rem)]">
-                  {conversations.map((conversation) => (
-                    <div key={conversation.id} className={`p-4 hover:bg-accent/50 cursor-pointer border-b border-border/50 ${conversation.id === conversationId ? 'bg-accent/30' : ''}`}>
-                      <div className="flex items-start space-x-3">
-                        <Avatar className="h-12 w-12">
-                          <AvatarImage src="/placeholder-user.jpg" />
-                          <AvatarFallback className="bg-gradient-cultural text-white">
-                            {conversation.participants[0]?.[0]}
-                          </AvatarFallback>
-                        </Avatar>
-                        <div className="flex-1 min-w-0">
-                          <div className="flex items-center justify-between mb-1">
-                            <p className="font-medium truncate">
-                              Cultural Partner
-                            </p>
-                            <span className="text-xs text-muted-foreground">
-                              {new Date(conversation.updatedAt).toLocaleTimeString()}
-                            </span>
+                  {conversations.map((conversation) => {
+                    const otherUser = conversation.participants.find(p => p.user_id !== user?.id);
+                    const participantProfile = otherUser?.profiles;
+                    
+                    return (
+                      <Link key={conversation.id} to={`/chat/${conversation.id}`}>
+                        <div className={`p-4 hover:bg-accent/50 cursor-pointer border-b border-border/50 ${conversation.id === conversationId ? 'bg-accent/30' : ''}`}>
+                          <div className="flex items-start space-x-3">
+                            <Avatar className="h-12 w-12">
+                              <AvatarImage src={participantProfile?.avatar_url} />
+                              <AvatarFallback className="bg-gradient-cultural text-white">
+                                {participantProfile?.name?.[0] || '?'}
+                              </AvatarFallback>
+                            </Avatar>
+                            <div className="flex-1 min-w-0">
+                              <div className="flex items-center justify-between mb-1">
+                                <p className="font-medium truncate">
+                                  {participantProfile?.name || 'Unknown User'}
+                                </p>
+                                <span className="text-xs text-muted-foreground">
+                                  {conversation.lastMessage ? new Date(conversation.lastMessage.created_at).toLocaleTimeString() : ''}
+                                </span>
+                              </div>
+                              <p className="text-sm text-muted-foreground truncate">
+                                {conversation.lastMessage?.content || 'No messages yet'}
+                              </p>
+                            </div>
                           </div>
-                          <p className="text-sm text-muted-foreground truncate">
-                            {conversation.lastMessage.content}
-                          </p>
                         </div>
-                      </div>
-                    </div>
-                  ))}
+                      </Link>
+                    );
+                  })}
                 </ScrollArea>
               </CardContent>
             </Card>
@@ -234,19 +254,22 @@ const ChatPage = () => {
                 <div className="flex items-center justify-between">
                   <div className="flex items-center space-x-3">
                     <Avatar className="h-10 w-10">
-                      <AvatarImage src="/placeholder-user.jpg" />
+                      <AvatarImage src={otherParticipant?.profiles?.avatar_url} />
                       <AvatarFallback className="bg-gradient-cultural text-white">
-                        M
+                        {otherParticipant?.profiles?.name?.[0] || '?'}
                       </AvatarFallback>
                     </Avatar>
                     <div>
-                      <h3 className="font-semibold">Maria Santos</h3>
+                      <h3 className="font-semibold">{otherParticipant?.profiles?.name || 'Unknown User'}</h3>
                       <div className="flex items-center gap-2">
-                        <CulturalBadge type="country" flag="🇧🇷">Brazil</CulturalBadge>
-                        <span className="text-sm text-muted-foreground">Online</span>
-                        {isTyping && (
-                          <span className="text-sm text-primary">typing...</span>
+                        {otherParticipant?.profiles?.country_flag && (
+                          <CulturalBadge type="country" flag={otherParticipant.profiles.country_flag}>
+                            {otherParticipant.profiles.country_flag}
+                          </CulturalBadge>
                         )}
+                        <span className="text-sm text-muted-foreground">
+                          {otherParticipant?.profiles?.online ? 'Online' : 'Offline'}
+                        </span>
                       </div>
                     </div>
                   </div>
@@ -274,16 +297,16 @@ const ChatPage = () => {
                     {conversationMessages.map((message) => (
                       <div 
                         key={message.id} 
-                        className={`flex ${message.senderId === user?.id ? 'justify-end' : 'justify-start'}`}
+                        className={`flex ${message.sender_id === user?.id ? 'justify-end' : 'justify-start'}`}
                       >
-                        <div className={`max-w-[70%] ${message.senderId === user?.id 
+                        <div className={`max-w-[70%] ${message.sender_id === user?.id 
                           ? 'bg-primary text-primary-foreground' 
                           : 'bg-accent text-accent-foreground'
                         } rounded-lg p-3`}>
                           <p>{message.content}</p>
                           <div className="flex items-center justify-between mt-2">
                             <span className="text-xs opacity-70">
-                              {new Date(message.timestamp).toLocaleTimeString()}
+                              {new Date(message.created_at).toLocaleTimeString()}
                             </span>
                             {message.language && (
                               <Badge variant="outline" className="text-xs ml-2">

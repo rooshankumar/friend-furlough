@@ -1,3 +1,4 @@
+import React from 'react';
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -33,65 +34,74 @@ const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
   return <>{children}</>;
 };
 
-const App = () => (
-  <QueryClientProvider client={queryClient}>
-    <TooltipProvider>
-      <Toaster />
-      <Sonner />
-        <BrowserRouter>
-        <div className="min-h-screen bg-background">
-          <Navigation />
-          <Routes>
-            <Route path="/" element={<HomePage />} />
-            
-            {/* Authentication Routes */}
-            <Route path="/auth/signup" element={<SignUpPage />} />
-            <Route path="/auth/signin" element={<SignInPage />} />
-            
-            {/* Onboarding Routes */}
-            <Route path="/onboarding/welcome" element={<WelcomePage />} />
-            <Route path="/onboarding/cultural-profile" element={<CulturalProfilePage />} />
-            <Route path="/onboarding/learning-goals" element={<LearningGoalsPage />} />
-            
-            {/* Protected Routes */}
-            <Route path="/explore" element={
-              <ProtectedRoute>
-                <ExplorePage />
-              </ProtectedRoute>
-            } />
-            <Route path="/chat" element={
-              <ProtectedRoute>
-                <ChatPage />
-              </ProtectedRoute>
-            } />
-            <Route path="/chat/:conversationId" element={
-              <ProtectedRoute>
-                <ChatPage />
-              </ProtectedRoute>
-            } />
-            <Route path="/community" element={
-              <ProtectedRoute>
-                <CommunityPage />
-              </ProtectedRoute>
-            } />
-            <Route path="/profile" element={
-              <ProtectedRoute>
-                <ProfilePage />
-              </ProtectedRoute>
-            } />
-            <Route path="/profile/:username" element={
-              <ProtectedRoute>
-                <ProfilePage />
-              </ProtectedRoute>
-            } />
-            
-            {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
-            <Route path="*" element={<NotFound />} />
-          </Routes>
-        </div>
-      </BrowserRouter>
-    </TooltipProvider>
-  </QueryClientProvider>
-);
+const App = () => {
+  const { initialize } = useAuthStore();
+  
+  // Initialize auth on mount
+  React.useEffect(() => {
+    initialize();
+  }, [initialize]);
+  
+  return (
+    <QueryClientProvider client={queryClient}>
+      <TooltipProvider>
+        <Toaster />
+        <Sonner />
+          <BrowserRouter>
+          <div className="min-h-screen bg-background">
+            <Navigation />
+            <Routes>
+              <Route path="/" element={<HomePage />} />
+              
+              {/* Authentication Routes */}
+              <Route path="/auth/signup" element={<SignUpPage />} />
+              <Route path="/auth/signin" element={<SignInPage />} />
+              
+              {/* Onboarding Routes */}
+              <Route path="/onboarding/welcome" element={<WelcomePage />} />
+              <Route path="/onboarding/cultural-profile" element={<CulturalProfilePage />} />
+              <Route path="/onboarding/learning-goals" element={<LearningGoalsPage />} />
+              
+              {/* Protected Routes */}
+              <Route path="/explore" element={
+                <ProtectedRoute>
+                  <ExplorePage />
+                </ProtectedRoute>
+              } />
+              <Route path="/chat" element={
+                <ProtectedRoute>
+                  <ChatPage />
+                </ProtectedRoute>
+              } />
+              <Route path="/chat/:conversationId" element={
+                <ProtectedRoute>
+                  <ChatPage />
+                </ProtectedRoute>
+              } />
+              <Route path="/community" element={
+                <ProtectedRoute>
+                  <CommunityPage />
+                </ProtectedRoute>
+              } />
+              <Route path="/profile" element={
+                <ProtectedRoute>
+                  <ProfilePage />
+                </ProtectedRoute>
+              } />
+              <Route path="/profile/:username" element={
+                <ProtectedRoute>
+                  <ProfilePage />
+                </ProtectedRoute>
+              } />
+              
+              {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
+              <Route path="*" element={<NotFound />} />
+            </Routes>
+          </div>
+        </BrowserRouter>
+      </TooltipProvider>
+    </QueryClientProvider>
+  );
+};
 
 export default App;

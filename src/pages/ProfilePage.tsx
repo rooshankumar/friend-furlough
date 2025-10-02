@@ -61,7 +61,7 @@ const ProfilePage = () => {
       setError(null);
       
       try {
-        const { fetchProfileById } = await import('@/integrations/supabase/fetchProfileById.tsx');
+        const { fetchProfileById } = await import('@/integrations/supabase/fetchProfileById');
         const profile = await fetchProfileById(user.id);
         
         if (!profile) {

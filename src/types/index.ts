@@ -19,6 +19,7 @@ export interface User {
   lookingFor?: string[];
   teachingExperience?: boolean;
   countriesVisited?: string[];
+  posts?: any[]; // Add posts array
 }
 
 export interface Message {

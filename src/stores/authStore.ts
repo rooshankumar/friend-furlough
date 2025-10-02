@@ -56,43 +56,39 @@ export const useAuthStore = create<AuthState>()(
       isLoading: false,
       onboardingStep: 1,
       onboardingCompleted: false,
-      
+
       initialize: async () => {
         set({ isLoading: true });
-        // Set up auth state listener
+        // Only listen for SIGNED_IN and SIGNED_OUT events to avoid unwanted resets
         supabase.auth.onAuthStateChange(async (event, session) => {
-          set({ session, user: session?.user ?? null });
-          if (session?.user) {
-            // Fetch profile data
+          if (event === 'SIGNED_IN' && session?.user) {
             const { data: profile } = await supabase
               .from('profiles')
               .select('*')
               .eq('id', session.user.id)
               .single();
-            if (isValidProfile(profile)) {
-              set({
-                profile,
-                isAuthenticated: true,
-                onboardingCompleted: profile.country ? true : false
-              });
-            } else {
-              set({
-                profile: null,
-                isAuthenticated: false,
-                onboardingCompleted: false
-              });
-            }
-          } else {
-            set({ 
-              profile: null, 
+            set({
+              session,
+              user: session.user,
+              profile: isValidProfile(profile) ? profile : null,
+              isAuthenticated: isValidProfile(profile),
+              onboardingCompleted: isValidProfile(profile) && profile.country ? true : false,
+              isLoading: false
+            });
+          } else if (event === 'SIGNED_OUT') {
+            set({
+              user: null,
+              session: null,
+              profile: null,
               isAuthenticated: false,
-              onboardingCompleted: false
+              onboardingStep: 1,
+              onboardingCompleted: false,
+              isLoading: false
             });
           }
-          set({ isLoading: false });
         });
-        
-        // Check for existing session
+
+        // Check for existing session on load
         const { data: { session } } = await supabase.auth.getSession();
         if (session?.user) {
           const { data: profile } = await supabase
@@ -100,13 +96,12 @@ export const useAuthStore = create<AuthState>()(
             .select('*')
             .eq('id', session.user.id)
             .single();
-          
-          set({ 
+          set({
             session,
             user: session.user,
-            profile,
-            isAuthenticated: true,
-            onboardingCompleted: profile && profile.country ? true : false,
+            profile: isValidProfile(profile) ? profile : null,
+            isAuthenticated: isValidProfile(profile),
+            onboardingCompleted: isValidProfile(profile) && profile.country ? true : false,
             isLoading: false
           });
         } else {
@@ -236,7 +231,12 @@ export const useAuthStore = create<AuthState>()(
     }),
     {
       name: 'auth-storage',
+      // Persist all relevant auth state for session continuity
       partialize: (state) => ({
+        user: state.user,
+        session: state.session,
+        profile: state.profile,
+        isAuthenticated: state.isAuthenticated,
         onboardingStep: state.onboardingStep,
         onboardingCompleted: state.onboardingCompleted,
       }),

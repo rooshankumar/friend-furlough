@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useParams } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
+import { User } from '@/types';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
@@ -36,40 +37,58 @@ const ProfilePage = () => {
   const [isEditing, setIsEditing] = useState(false);
   const { toast } = useToast();
   
-  const { user, profile } = useAuthStore();
+  const { user } = useAuthStore();
 
   useEffect(() => {
-    // Check if viewing own profile
     setIsOwnProfile(!username || username === user?.email?.split('@')[0]?.toLowerCase());
   }, [username, user]);
 
-
-  // Fetch user profile from Supabase
-  const [profileUser, setProfileUser] = useState<any | null>(null);
+  const [profileUser, setProfileUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
+    if (!user?.id) {
+      console.log('No authenticated user found');
+      setError('Please sign in to view profiles');
+      setLoading(false);
+      return;
+    }
+    
     async function fetchProfile() {
+      console.log('Fetching profile for user:', user.id);
       setLoading(true);
       setError(null);
+      
       try {
-        // Import fetchProfiles dynamically to avoid circular deps
-        const { fetchProfiles } = await import('@/integrations/supabase/fetchProfiles');
-        const profiles = await fetchProfiles();
-        let foundProfile = null;
-        if (username) {
-          foundProfile = profiles.find((p: any) => p.name.toLowerCase().replace(/\s/g, '-') === username.toLowerCase());
-        } else if (user) {
-          foundProfile = profiles.find((p: any) => p.id === user.id);
+        const { fetchProfileById } = await import('@/integrations/supabase/fetchProfileById.tsx');
+        const profile = await fetchProfileById(user.id);
+        
+        if (!profile) {
+          console.error('No profile found for user:', user.id);
+          setError('Profile not found');
+          setProfileUser(null);
+          return;
         }
-        setProfileUser(foundProfile);
-      } catch (e: any) {
-        setError('Failed to load profile.');
+
+        // Merge auth user data with profile data
+        const fullProfile: User = {
+          ...profile,
+          email: user.email || '',  // Get email from auth user
+        };
+
+        console.log('Setting profile data:', fullProfile);
+        setProfileUser(fullProfile);
+        
+      } catch (error: any) {
+        console.error('Profile fetch error:', error);
+        setError(error.message || 'Failed to load profile');
+        setProfileUser(null);
       } finally {
         setLoading(false);
       }
     }
+    
     fetchProfile();
   }, [username, user]);
 
@@ -83,9 +102,59 @@ const ProfilePage = () => {
   };
   const languageProgress = [];
 
-  if (loading) return <div className="p-8 text-center">Loading profile...</div>;
-  if (error) return <div className="p-8 text-center text-red-500">{error}</div>;
-  if (!profileUser) return <div className="p-8 text-center">Profile not found.</div>;
+
+  if (!user) return (
+    <div className="p-8 text-center">
+      <p className="text-red-500">Please sign in to view profiles</p>
+    </div>
+  );
+
+  if (loading) return (
+    <div className="p-8 text-center">
+      <p>Loading profile...</p>
+      <p className="text-sm text-gray-500">User ID: {user?.id}</p>
+    </div>
+  );
+  
+  if (error) return (
+    <div className="p-8 text-center">
+      <p className="text-red-500">{error}</p>
+      <p className="text-sm text-gray-500">User ID: {user?.id}</p>
+      <pre className="mt-4 text-left text-xs text-gray-600 bg-gray-100 p-4 rounded">
+        Debug info:
+        {JSON.stringify({ user, profileUser }, null, 2)}
+      </pre>
+      <button 
+        className="mt-4 text-blue-500 text-sm"
+        onClick={() => window.location.reload()}
+      >
+        Retry loading profile
+      </button>
+    </div>
+  );
+  
+  if (!profileUser) return (
+    <div className="p-8 text-center">
+      <p>Profile not found</p>
+      <p className="text-sm text-gray-500">User ID: {user?.id}</p>
+      <button 
+        className="mt-4 text-blue-500 text-sm"
+        onClick={() => window.location.reload()}
+      >
+        Retry loading profile
+      </button>
+    </div>
+  );
+
+  // Debug: show raw profile data if something is wrong
+  if (profileUser && typeof profileUser === 'object' && !profileUser.name) {
+    return (
+      <div className="p-8 text-center text-yellow-600">
+        Profile loaded but missing expected fields.<br />
+        <pre style={{textAlign:'left',margin:'1em auto',maxWidth:600,overflow:'auto',background:'#f9f9f9',padding:'1em',borderRadius:'8px'}}>{JSON.stringify(profileUser, null, 2)}</pre>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-gradient-subtle">
@@ -118,7 +187,7 @@ const ProfilePage = () => {
                   </div>
                   <div className="flex items-center justify-center lg:justify-start gap-2 text-muted-foreground">
                     <MapPin className="h-4 w-4" />
-                    <span className="text-sm">{profileUser.city}, {profileUser.country}</span>
+                    <span className="text-sm">{profileUser.city || ''}, {profileUser.country || ''}</span>
                   </div>
                   <div className="flex items-center justify-center lg:justify-start gap-2 text-muted-foreground">
                     <Calendar className="h-4 w-4" />
@@ -135,9 +204,9 @@ const ProfilePage = () => {
                       {profileUser.name}
                     </h1>
                     <div className="flex items-center gap-3 flex-wrap">
-                      <CulturalBadge type="country" flag={profileUser.countryFlag}>{profileUser.country}</CulturalBadge>
+                      <CulturalBadge type="country" flag={profileUser.countryFlag || ''}>{profileUser.country || ''}</CulturalBadge>
                       <Badge variant="outline" className="text-xs">
-                        Age {profileUser.age}
+                        Age {profileUser.age || ''}
                       </Badge>
                       {profileUser.teachingExperience && (
                         <Badge className="bg-gradient-cultural text-white text-xs">
@@ -198,7 +267,7 @@ const ProfilePage = () => {
                       Native Languages
                     </h3>
                     <div className="flex flex-wrap gap-2">
-                      {profileUser.nativeLanguages.map((lang) => (
+                      {(profileUser.nativeLanguages || []).map((lang: string) => (
                         <Badge key={lang} className="bg-gradient-cultural text-white">
                           {lang}
                         </Badge>
@@ -211,7 +280,7 @@ const ProfilePage = () => {
                       Learning Languages
                     </h3>
                     <div className="flex flex-wrap gap-2">
-                      {profileUser.learningLanguages.map((lang) => (
+                      {(profileUser.learningLanguages || []).map((lang: string) => (
                         <Badge key={lang} variant="outline">
                           {lang}
                         </Badge>
@@ -227,7 +296,7 @@ const ProfilePage = () => {
                     Cultural Interests
                   </h3>
                   <div className="flex flex-wrap gap-2">
-                    {profileUser.culturalInterests.map((interest) => (
+                    {(profileUser.culturalInterests || []).map((interest: string) => (
                       <Badge key={interest} variant="secondary" className="text-xs">
                         #{interest}
                       </Badge>
@@ -270,46 +339,49 @@ const ProfilePage = () => {
 
           {/* Posts Tab */}
           <TabsContent value="posts" className="space-y-6">
-            {profileUser.posts.map((post) => (
-              <Card key={post.id}>
-                <CardHeader className="pb-3">
-                  <div className="flex items-start justify-between">
-                    <div className="flex items-start space-x-3">
-                      <Avatar className="h-10 w-10">
-                        <AvatarImage src={profileUser.profilePhoto} />
-                        <AvatarFallback className="bg-gradient-cultural text-white">
-                          {profileUser.name[0]}
-                        </AvatarFallback>
-                      </Avatar>
-                      <div>
-                        <h3 className="font-semibold">{profileUser.name}</h3>
-                        <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                          <span>{new Date(post.timestamp).toLocaleDateString()}</span>
+            {(profileUser.posts || []).length === 0 ? (
+              <div className="text-center text-muted-foreground">No posts yet.</div>
+            ) : (
+              (profileUser.posts || []).map((post: any) => (
+                <Card key={post.id}>
+                  <CardHeader className="pb-3">
+                    <div className="flex items-start justify-between">
+                      <div className="flex items-start space-x-3">
+                        <Avatar className="h-10 w-10">
+                          <AvatarImage src={profileUser.profilePhoto} />
+                          <AvatarFallback className="bg-gradient-cultural text-white">
+                            {profileUser.name[0]}
+                          </AvatarFallback>
+                        </Avatar>
+                        <div>
+                          <h3 className="font-semibold">{profileUser.name}</h3>
+                          <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                            <span>{post.timestamp ? new Date(post.timestamp).toLocaleDateString() : ''}</span>
+                          </div>
                         </div>
                       </div>
                     </div>
-                  </div>
-                </CardHeader>
-                <CardContent>
-                  <p className="text-foreground leading-relaxed mb-4">
-                    {post.content}
-                  </p>
-                  
-                  <div className="flex items-center justify-between text-sm text-muted-foreground border-t border-border/50 pt-3">
-                    <div className="flex items-center gap-4">
-                      <span className="flex items-center gap-1">
-                        <Heart className="h-4 w-4" />
-                        {post.reactions}
-                      </span>
-                      <span className="flex items-center gap-1">
-                        <MessageCircle className="h-4 w-4" />
-                        {post.comments}
-                      </span>
+                  </CardHeader>
+                  <CardContent>
+                    <p className="text-foreground leading-relaxed mb-4">
+                      {post.content}
+                    </p>
+                    <div className="flex items-center justify-between text-sm text-muted-foreground border-t border-border/50 pt-3">
+                      <div className="flex items-center gap-4">
+                        <span className="flex items-center gap-1">
+                          <Heart className="h-4 w-4" />
+                          {Array.isArray(post.reactions) ? post.reactions.length : 0}
+                        </span>
+                        <span className="flex items-center gap-1">
+                          <MessageCircle className="h-4 w-4" />
+                          {Array.isArray(post.comments) ? post.comments.length : 0}
+                        </span>
+                      </div>
                     </div>
-                  </div>
-                </CardContent>
-              </Card>
-            ))}
+                  </CardContent>
+                </Card>
+              ))
+            )}
           </TabsContent>
 
           {/* Languages Tab */}
@@ -322,34 +394,42 @@ const ProfilePage = () => {
                 </CardTitle>
               </CardHeader>
               <CardContent className="space-y-6">
-                {languageProgress.map((lang) => (
-                  <div key={lang.language} className="space-y-2">
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-2">
-                        <span className="font-medium">{lang.language}</span>
-                        <Badge variant="outline" className="text-xs">
-                          {lang.level}
-                        </Badge>
+                {(languageProgress || []).length === 0 ? (
+                  <div className="text-center text-muted-foreground">No language progress data.</div>
+                ) : (
+                  (languageProgress || []).map((lang: any) => (
+                    <div key={lang.language} className="space-y-2">
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-2">
+                          <span className="font-medium">{lang.language}</span>
+                          <Badge variant="outline" className="text-xs">
+                            {lang.level}
+                          </Badge>
+                        </div>
+                        <span className="text-sm text-muted-foreground">
+                          {lang.progress}%
+                        </span>
                       </div>
-                      <span className="text-sm text-muted-foreground">
-                        {lang.progress}%
-                      </span>
+                      <Progress value={lang.progress} className="h-2" />
                     </div>
-                    <Progress value={lang.progress} className="h-2" />
-                  </div>
-                ))}
+                  ))
+                )}
                 
                 {/* Language Goals */}
                 <Separator />
                 <div>
                   <h3 className="font-semibold mb-3">Language Goals</h3>
                   <div className="space-y-2">
-                    {profileUser.languageGoals.map((goal, index) => (
-                      <div key={index} className="flex items-center gap-2">
-                        <div className="w-2 h-2 bg-primary rounded-full"></div>
-                        <span className="text-sm">{goal}</span>
-                      </div>
-                    ))}
+                    {(profileUser.languageGoals || []).length === 0 ? (
+                      <div className="text-center text-muted-foreground">No language goals set.</div>
+                    ) : (
+                      (profileUser.languageGoals || []).map((goal: string, index: number) => (
+                        <div key={index} className="flex items-center gap-2">
+                          <div className="w-2 h-2 bg-primary rounded-full"></div>
+                          <span className="text-sm">{goal}</span>
+                        </div>
+                      ))
+                    )}
                   </div>
                 </div>
               </CardContent>
@@ -384,7 +464,7 @@ const ProfilePage = () => {
                       Countries Visited
                     </h4>
                     <div className="flex flex-wrap gap-2">
-                      {profileUser.countriesVisited.map((country) => (
+                      {(profileUser.countriesVisited || []).map((country: string) => (
                         <Badge key={country} variant="outline" className="text-xs">
                           {country}
                         </Badge>

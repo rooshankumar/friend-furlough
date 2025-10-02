@@ -1,3 +1,12 @@
+// Type guard for Profile
+function isValidProfile(profile: any): profile is Profile {
+  return (
+    profile &&
+    typeof profile === 'object' &&
+    typeof profile.id === 'string' &&
+    typeof profile.name === 'string'
+  );
+}
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import { supabase } from '@/integrations/supabase/client';
@@ -50,24 +59,29 @@ export const useAuthStore = create<AuthState>()(
       
       initialize: async () => {
         set({ isLoading: true });
-        
         // Set up auth state listener
         supabase.auth.onAuthStateChange(async (event, session) => {
           set({ session, user: session?.user ?? null });
-          
           if (session?.user) {
             // Fetch profile data
             const { data: profile } = await supabase
-              .from('profiles' as any)
+              .from('profiles')
               .select('*')
               .eq('id', session.user.id)
               .single();
-            
-            set({ 
-              profile,
-              isAuthenticated: true,
-              onboardingCompleted: profile?.country ? true : false
-            });
+            if (isValidProfile(profile)) {
+              set({
+                profile,
+                isAuthenticated: true,
+                onboardingCompleted: profile.country ? true : false
+              });
+            } else {
+              set({
+                profile: null,
+                isAuthenticated: false,
+                onboardingCompleted: false
+              });
+            }
           } else {
             set({ 
               profile: null, 
@@ -82,7 +96,7 @@ export const useAuthStore = create<AuthState>()(
         const { data: { session } } = await supabase.auth.getSession();
         if (session?.user) {
           const { data: profile } = await supabase
-            .from('profiles' as any)
+            .from('profiles')
             .select('*')
             .eq('id', session.user.id)
             .single();
@@ -92,7 +106,7 @@ export const useAuthStore = create<AuthState>()(
             user: session.user,
             profile,
             isAuthenticated: true,
-            onboardingCompleted: profile?.country ? true : false,
+            onboardingCompleted: profile && profile.country ? true : false,
             isLoading: false
           });
         } else {
@@ -122,11 +136,11 @@ export const useAuthStore = create<AuthState>()(
               .eq('id', data.user.id)
               .single();
             
-            set({ 
+            set({
               user: data.user,
               session: data.session,
-              profile,
-              isAuthenticated: true,
+              profile: isValidProfile(profile) ? profile : null,
+              isAuthenticated: isValidProfile(profile),
               isLoading: false,
               onboardingStep: 2,
               onboardingCompleted: false
@@ -145,26 +159,35 @@ export const useAuthStore = create<AuthState>()(
             email,
             password
           });
-          
-          if (error) throw error;
-          
-          const { data: profile } = await supabase
-            .from('profiles' as any)
+          if (error) {
+            console.error('Supabase signIn error:', error);
+            throw error;
+          }
+          if (!data.user) {
+            console.error('No user returned from signInWithPassword:', data);
+            throw new Error('No user returned from sign in');
+          }
+          const { data: profile, error: profileError } = await supabase
+            .from('profiles')
             .select('*')
             .eq('id', data.user.id)
             .single();
-          
-          set({ 
+          if (profileError) {
+            console.error('Profile fetch error after sign in:', profileError);
+            throw profileError;
+          }
+          set({
             user: data.user,
             session: data.session,
-            profile,
-            isAuthenticated: true,
-            isLoading: false,
-            onboardingCompleted: profile?.country ? true : false
+            profile: isValidProfile(profile) ? profile : null,
+            isAuthenticated: isValidProfile(profile),
+            onboardingCompleted: isValidProfile(profile) && profile.country ? true : false
           });
         } catch (error) {
-          set({ isLoading: false });
+          console.error('SignIn error:', error);
           throw error;
+        } finally {
+          set({ isLoading: false });
         }
       },
       
@@ -192,12 +215,12 @@ export const useAuthStore = create<AuthState>()(
         if (error) throw error;
         
         const { data: profile } = await supabase
-          .from('profiles' as any)
+          .from('profiles')
           .select('*')
           .eq('id', user.id)
           .single();
         
-        set({ profile });
+  set({ profile: isValidProfile(profile) ? profile : null });
       },
       
       setOnboardingStep: (step) => {

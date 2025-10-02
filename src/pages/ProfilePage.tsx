@@ -43,57 +43,49 @@ const ProfilePage = () => {
     setIsOwnProfile(!username || username === user?.email?.split('@')[0]?.toLowerCase());
   }, [username, user]);
 
-  // Mock user data - in real app this would come from API
-  const profileUser = {
-    id: '1',
-    name: 'Maria Santos',
-    email: 'maria@example.com',
-    country: 'Brazil',
-    countryCode: 'BR',
-    countryFlag: '🇧🇷',
-    city: 'São Paulo',
-    nativeLanguages: ['Portuguese'],
-    learningLanguages: ['English', 'Spanish'],
-    culturalInterests: ['music', 'food', 'festivals', 'travel', 'art'],
-    bio: 'Passionate about sharing Brazilian culture and learning about the world! I love teaching Portuguese and learning English. Always excited to make new international friends and explore different traditions.',
-    age: 25,
-    profilePhoto: '/placeholder-user.jpg',
-    online: true,
-    joinedDate: '2024-01-15',
-    languageGoals: ['Fluent English conversation', 'Spanish for travel'],
-    lookingFor: ['Language practice', 'Cultural exchange', 'Travel tips'],
-    teachingExperience: true,
-    countriesVisited: ['Portugal', 'Argentina', 'Chile'],
-    posts: [
-      {
-        id: '1',
-        content: 'Just celebrated Festa Junina! 🎉 The traditional Brazilian festival with amazing food, music and dancing. Who wants to learn about our cultural celebrations?',
-        images: ['festa1.jpg', 'festa2.jpg'],
-        timestamp: '2024-01-15T10:30:00Z',
-        reactions: 24,
-        comments: 8
-      },
-      {
-        id: '2', 
-        content: 'Learning English idioms today! "Break a leg" doesn\'t mean what I thought 😅 Language learning is full of surprises!',
-        timestamp: '2024-01-14T15:20:00Z',
-        reactions: 15,
-        comments: 5
+
+  // Fetch user profile from Supabase
+  const [profileUser, setProfileUser] = useState<any | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    async function fetchProfile() {
+      setLoading(true);
+      setError(null);
+      try {
+        // Import fetchProfiles dynamically to avoid circular deps
+        const { fetchProfiles } = await import('@/integrations/supabase/fetchProfiles');
+        const profiles = await fetchProfiles();
+        let foundProfile = null;
+        if (username) {
+          foundProfile = profiles.find((p: any) => p.name.toLowerCase().replace(/\s/g, '-') === username.toLowerCase());
+        } else if (user) {
+          foundProfile = profiles.find((p: any) => p.id === user.id);
+        }
+        setProfileUser(foundProfile);
+      } catch (e: any) {
+        setError('Failed to load profile.');
+      } finally {
+        setLoading(false);
       }
-    ]
-  };
+    }
+    fetchProfile();
+  }, [username, user]);
 
+
+  // Placeholder stats and languageProgress until real data is available
   const stats = {
-    friendsCount: 127,
-    postsCount: 45,
-    languagesLearning: 2,
-    culturalExchanges: 89
+    friendsCount: 0,
+    postsCount: 0,
+    languagesLearning: profileUser?.learningLanguages?.length || 0,
+    culturalExchanges: 0
   };
+  const languageProgress = [];
 
-  const languageProgress = [
-    { language: 'English', level: 'Intermediate', progress: 65 },
-    { language: 'Spanish', level: 'Beginner', progress: 30 }
-  ];
+  if (loading) return <div className="p-8 text-center">Loading profile...</div>;
+  if (error) return <div className="p-8 text-center text-red-500">{error}</div>;
+  if (!profileUser) return <div className="p-8 text-center">Profile not found.</div>;
 
   return (
     <div className="min-h-screen bg-gradient-subtle">

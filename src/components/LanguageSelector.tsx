@@ -5,7 +5,6 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem } from '@/components/ui/command';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
-import { mockLanguages } from '@/data/mockData';
 import { CulturalBadge } from '@/components/CulturalBadge';
 
 interface LanguageSelectorProps {
@@ -27,9 +26,8 @@ export const LanguageSelector = ({
 }: LanguageSelectorProps) => {
   const [open, setOpen] = useState(false);
   
-  const availableLanguages = mockLanguages.filter(
-    lang => !selectedLanguages.includes(lang.name)
-  );
+    // TODO: Fetch availableLanguages from Supabase or API
+    const availableLanguages = [];
   
   const handleLanguageSelect = (languageName: string) => {
     if (selectedLanguages.length < maxSelection) {

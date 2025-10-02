@@ -14,7 +14,271 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      conversation_participants: {
+        Row: {
+          conversation_id: string | null
+          id: string
+          joined_at: string | null
+          unread_count: number | null
+          user_id: string | null
+        }
+        Insert: {
+          conversation_id?: string | null
+          id?: string
+          joined_at?: string | null
+          unread_count?: number | null
+          user_id?: string | null
+        }
+        Update: {
+          conversation_id?: string | null
+          id?: string
+          joined_at?: string | null
+          unread_count?: number | null
+          user_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "conversation_participants_conversation_id_fkey"
+            columns: ["conversation_id"]
+            isOneToOne: false
+            referencedRelation: "conversations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "conversation_participants_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      conversations: {
+        Row: {
+          created_at: string | null
+          id: string
+          is_language_exchange: boolean | null
+          language: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          id?: string
+          is_language_exchange?: boolean | null
+          language?: string | null
+          updated_at?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          id?: string
+          is_language_exchange?: boolean | null
+          language?: string | null
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
+      cultural_interests: {
+        Row: {
+          created_at: string | null
+          id: string
+          interest: string
+          user_id: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          id?: string
+          interest: string
+          user_id?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          id?: string
+          interest?: string
+          user_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "cultural_interests_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      languages: {
+        Row: {
+          created_at: string | null
+          id: string
+          is_learning: boolean | null
+          is_native: boolean | null
+          language_code: string
+          language_name: string
+          proficiency_level: string | null
+          user_id: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          id?: string
+          is_learning?: boolean | null
+          is_native?: boolean | null
+          language_code: string
+          language_name: string
+          proficiency_level?: string | null
+          user_id?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          id?: string
+          is_learning?: boolean | null
+          is_native?: boolean | null
+          language_code?: string
+          language_name?: string
+          proficiency_level?: string | null
+          user_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "languages_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      message_reads: {
+        Row: {
+          id: string
+          message_id: string | null
+          read_at: string | null
+          user_id: string | null
+        }
+        Insert: {
+          id?: string
+          message_id?: string | null
+          read_at?: string | null
+          user_id?: string | null
+        }
+        Update: {
+          id?: string
+          message_id?: string | null
+          read_at?: string | null
+          user_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "message_reads_message_id_fkey"
+            columns: ["message_id"]
+            isOneToOne: false
+            referencedRelation: "messages"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "message_reads_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      messages: {
+        Row: {
+          content: string
+          conversation_id: string | null
+          created_at: string | null
+          id: string
+          language: string | null
+          media_url: string | null
+          sender_id: string | null
+          translation: string | null
+          type: string | null
+        }
+        Insert: {
+          content: string
+          conversation_id?: string | null
+          created_at?: string | null
+          id?: string
+          language?: string | null
+          media_url?: string | null
+          sender_id?: string | null
+          translation?: string | null
+          type?: string | null
+        }
+        Update: {
+          content?: string
+          conversation_id?: string | null
+          created_at?: string | null
+          id?: string
+          language?: string | null
+          media_url?: string | null
+          sender_id?: string | null
+          translation?: string | null
+          type?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "messages_conversation_id_fkey"
+            columns: ["conversation_id"]
+            isOneToOne: false
+            referencedRelation: "conversations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "messages_sender_id_fkey"
+            columns: ["sender_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      profiles: {
+        Row: {
+          age: number | null
+          avatar_url: string | null
+          bio: string | null
+          country: string | null
+          country_code: string | null
+          country_flag: string | null
+          created_at: string | null
+          id: string
+          last_seen: string | null
+          name: string
+          online: boolean | null
+          updated_at: string | null
+        }
+        Insert: {
+          age?: number | null
+          avatar_url?: string | null
+          bio?: string | null
+          country?: string | null
+          country_code?: string | null
+          country_flag?: string | null
+          created_at?: string | null
+          id: string
+          last_seen?: string | null
+          name: string
+          online?: boolean | null
+          updated_at?: string | null
+        }
+        Update: {
+          age?: number | null
+          avatar_url?: string | null
+          bio?: string | null
+          country?: string | null
+          country_code?: string | null
+          country_flag?: string | null
+          created_at?: string | null
+          id?: string
+          last_seen?: string | null
+          name?: string
+          online?: boolean | null
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never

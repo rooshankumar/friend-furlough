@@ -4,7 +4,6 @@ import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem } from '@/components/ui/command';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
-import { mockCountries } from '@/data/mockData';
 import { Country } from '@/types';
 
 interface CountrySelectorProps {
@@ -22,7 +21,9 @@ export const CountrySelector = ({
 }: CountrySelectorProps) => {
   const [open, setOpen] = useState(false);
   
-  const selectedCountry = mockCountries.find(country => country.code === value);
+  // TODO: Replace with real country list or fetch from API
+  const countries: Country[] = [];
+  const selectedCountry = countries.find(country => country.code === value);
   
   return (
     <Popover open={open} onOpenChange={setOpen}>
@@ -49,7 +50,7 @@ export const CountrySelector = ({
           <CommandInput placeholder="Search countries..." className="h-9" />
           <CommandEmpty>No country found.</CommandEmpty>
           <CommandGroup className="max-h-[300px] overflow-auto">
-            {mockCountries.map((country) => (
+            {countries.map((country) => (
               <CommandItem
                 key={country.code}
                 value={`${country.name} ${country.code}`}

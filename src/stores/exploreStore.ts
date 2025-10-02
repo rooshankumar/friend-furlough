@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 import { User } from '@/types';
-import { mockUsers } from '@/data/mockData';
+import { fetchProfiles } from '@/integrations/supabase/fetchProfiles';
 
 interface ExploreFilters {
   countries: string[];
@@ -49,14 +49,18 @@ export const useExploreStore = create<ExploreState>((set, get) => ({
   
   loadUsers: async () => {
     set({ isLoading: true });
-    // Simulate API delay
-    await new Promise(resolve => setTimeout(resolve, 800));
-    
-    set({ 
-      users: mockUsers,
-      filteredUsers: mockUsers,
-      isLoading: false 
-    });
+    try {
+      const users = await fetchProfiles();
+      set({
+        users,
+        filteredUsers: users,
+        isLoading: false
+      });
+    } catch (error) {
+      set({ isLoading: false });
+      // Optionally handle error (e.g., set error state)
+      console.error('Failed to load users:', error);
+    }
   },
   
   setFilters: (newFilters) => {

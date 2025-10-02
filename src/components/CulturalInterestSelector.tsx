@@ -4,7 +4,6 @@ import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem } from '@/components/ui/command';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
-import { mockCulturalInterests } from '@/data/mockData';
 import { CulturalBadge } from '@/components/CulturalBadge';
 
 interface CulturalInterestSelectorProps {
@@ -24,9 +23,8 @@ export const CulturalInterestSelector = ({
 }: CulturalInterestSelectorProps) => {
   const [open, setOpen] = useState(false);
   
-  const availableInterests = mockCulturalInterests.filter(
-    interest => !selectedInterests.includes(interest.id)
-  );
+    // TODO: Fetch availableInterests from Supabase or API
+    const availableInterests = [];
   
   const handleInterestSelect = (interestId: string) => {
     if (selectedInterests.length < maxSelection) {
@@ -40,7 +38,8 @@ export const CulturalInterestSelector = ({
   };
   
   const getInterestById = (id: string) => {
-    return mockCulturalInterests.find(interest => interest.id === id);
+      // TODO: Fetch interest by id from Supabase or API
+      return undefined;
   };
   
   return (

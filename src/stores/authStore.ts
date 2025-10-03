@@ -123,10 +123,13 @@ export const useAuthStore = create<AuthState>()(
           
           if (error) throw error;
           
+          // Wait a bit for the profile to be created by the trigger
+          await new Promise(resolve => setTimeout(resolve, 1000));
+          
           // Fetch profile after signup
           if (data.user) {
             const { data: profile } = await supabase
-              .from('profiles' as any)
+              .from('profiles')
               .select('*')
               .eq('id', data.user.id)
               .single();
@@ -135,9 +138,9 @@ export const useAuthStore = create<AuthState>()(
               user: data.user,
               session: data.session,
               profile: isValidProfile(profile) ? profile : null,
-              isAuthenticated: isValidProfile(profile),
+              isAuthenticated: true,
               isLoading: false,
-              onboardingStep: 2,
+              onboardingStep: 1,
               onboardingCompleted: false
             });
           }
@@ -203,8 +206,8 @@ export const useAuthStore = create<AuthState>()(
         if (!user) throw new Error('No user logged in');
         
         const { error } = await supabase
-          .from('profiles' as any)
-          .update(updates as any)
+          .from('profiles')
+          .update(updates)
           .eq('id', user.id);
         
         if (error) throw error;
@@ -215,7 +218,7 @@ export const useAuthStore = create<AuthState>()(
           .eq('id', user.id)
           .single();
         
-  set({ profile: isValidProfile(profile) ? profile : null });
+        set({ profile: isValidProfile(profile) ? profile : null });
       },
       
       setOnboardingStep: (step) => {
@@ -223,10 +226,16 @@ export const useAuthStore = create<AuthState>()(
       },
       
       completeOnboarding: async () => {
-        const { user } = get();
+        const { user, profile } = get();
         if (!user) return;
         
-        set({ onboardingCompleted: true, onboardingStep: 1 });
+        // Check if profile has all required fields
+        const isComplete = profile && profile.country && profile.name;
+        
+        set({ 
+          onboardingCompleted: isComplete ? true : false, 
+          onboardingStep: 1 
+        });
       }
     }),
     {

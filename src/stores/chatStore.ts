@@ -51,18 +51,8 @@ export const useChatStore = create<ChatState>((set, get) => ({
     try {
       // Get user's conversation participants
       const { data: participantData, error: participantError } = await supabase
-        .from('conversation_participants' as any)
-        .select(`
-          conversation_id,
-          unread_count,
-          conversations (
-            id,
-            created_at,
-            updated_at,
-            is_language_exchange,
-            language
-          )
-        `)
+        .from('conversation_participants')
+        .select('conversation_id, unread_count')
         .eq('user_id', userId);
       
       if (participantError) throw participantError;
@@ -70,26 +60,46 @@ export const useChatStore = create<ChatState>((set, get) => ({
       const conversationsWithDetails: ConversationWithDetails[] = [];
       
       for (const participant of participantData || []) {
-        const conversation = participant.conversations as unknown as DbConversation;
+        // Get conversation details
+        const { data: conversation } = await supabase
+          .from('conversations')
+          .select('*')
+          .eq('id', participant.conversation_id)
+          .single();
+        
+        if (!conversation) continue;
         
         // Get all participants for this conversation
-        const { data: allParticipants } = await supabase
-          .from('conversation_participants' as any)
-          .select('user_id, profiles(id, name, avatar_url, country_flag)')
+        const { data: participantProfiles } = await supabase
+          .from('conversation_participants')
+          .select('user_id')
           .eq('conversation_id', conversation.id);
+        
+        const participants = [];
+        for (const p of participantProfiles || []) {
+          const { data: profile } = await supabase
+            .from('profiles')
+            .select('id, name, avatar_url, country_flag')
+            .eq('id', p.user_id)
+            .single();
+          
+          if (profile) {
+            participants.push({ user_id: p.user_id, profiles: profile });
+          }
+        }
         
         // Get last message
         const { data: lastMessageData } = await supabase
-          .from('messages' as any)
+          .from('messages')
           .select('*')
           .eq('conversation_id', conversation.id)
           .order('created_at', { ascending: false })
           .limit(1)
-          .single();
+          .maybeSingle();
         
         conversationsWithDetails.push({
           ...conversation,
-          participants: allParticipants || [],
+          participants,
           lastMessage: lastMessageData || undefined,
           unreadCount: participant.unread_count || 0
         });
@@ -105,7 +115,7 @@ export const useChatStore = create<ChatState>((set, get) => ({
   loadMessages: async (conversationId: string) => {
     try {
       const { data, error } = await supabase
-        .from('messages' as any)
+        .from('messages')
         .select('*')
         .eq('conversation_id', conversationId)
         .order('created_at', { ascending: true });
@@ -126,13 +136,13 @@ export const useChatStore = create<ChatState>((set, get) => ({
   sendMessage: async (conversationId: string, senderId: string, content: string) => {
     try {
       const { data, error } = await supabase
-        .from('messages' as any)
+        .from('messages')
         .insert({
           conversation_id: conversationId,
           sender_id: senderId,
           content,
           type: 'text'
-        } as any)
+        })
         .select()
         .single();
       
@@ -154,8 +164,8 @@ export const useChatStore = create<ChatState>((set, get) => ({
   markAsRead: async (conversationId: string, userId: string) => {
     try {
       await supabase
-        .from('conversation_participants' as any)
-        .update({ unread_count: 0 } as any)
+        .from('conversation_participants')
+        .update({ unread_count: 0 })
         .eq('conversation_id', conversationId)
         .eq('user_id', userId);
       

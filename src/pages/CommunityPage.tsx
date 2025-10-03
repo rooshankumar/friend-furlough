@@ -1,450 +1,266 @@
-import React, { useState, useEffect } from 'react';
-import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { Badge } from '@/components/ui/badge';
-import { Textarea } from '@/components/ui/textarea';
-import { Input } from '@/components/ui/input';
-import { Separator } from '@/components/ui/separator';
-import { ScrollArea } from '@/components/ui/scroll-area';
-import { 
-  Heart, 
-  MessageCircle, 
-  Share, 
-  Image, 
-  Globe, 
-  Camera,
-  MapPin,
-  Languages,
-  Plus,
-  Filter,
-  Bookmark,
-  MoreHorizontal,
-  Send,
-  Smile
-} from 'lucide-react';
-import { useToast } from '@/hooks/use-toast';
-import { useCommunityStore } from '@/stores/communityStore';
+import { useState, useEffect } from 'react';
+import { supabase } from '@/integrations/supabase/client';
 import { useAuthStore } from '@/stores/authStore';
-import { CulturalBadge } from '@/components/CulturalBadge';
+import { Card } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import { Textarea } from '@/components/ui/textarea';
+import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
+import { Heart, MessageCircle, Share2, Upload } from 'lucide-react';
+import { useToast } from '@/hooks/use-toast';
+import { uploadPostImage } from '@/lib/storage';
+import { Skeleton } from '@/components/ui/skeleton';
 
-const CommunityPage = () => {
-  const [postContent, setPostContent] = useState('');
-  const [selectedImages, setSelectedImages] = useState<File[]>([]);
-  const [showPostComposer, setShowPostComposer] = useState(false);
-  const [commentInputs, setCommentInputs] = useState<{[key: string]: string}>({});
+interface Post {
+  id: string;
+  content: string;
+  image_url?: string;
+  created_at: string;
+  user_id: string;
+  profiles?: {
+    name: string;
+    avatar_url?: string;
+    country_flag?: string;
+  };
+}
+
+export default function CommunityPage() {
+  const { user, profile } = useAuthStore();
   const { toast } = useToast();
-  
-  const { 
-    posts, 
-    createPost, 
-    addComment, 
-    addReaction, 
-    loadPosts 
-  } = useCommunityStore();
-  
-  const { user } = useAuthStore();
+  const [posts, setPosts] = useState<Post[]>([]);
+  const [newPost, setNewPost] = useState('');
+  const [selectedImage, setSelectedImage] = useState<File | null>(null);
+  const [imagePreview, setImagePreview] = useState<string>('');
+  const [isLoading, setIsLoading] = useState(true);
+  const [isPosting, setIsPosting] = useState(false);
 
   useEffect(() => {
     loadPosts();
-  }, [loadPosts]);
+  }, []);
+
+  const loadPosts = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('community_posts' as any)
+        .select(`
+          *,
+          profiles (name, avatar_url, country_flag)
+        `)
+        .order('created_at', { ascending: false })
+        .limit(50);
+
+      if (error) throw error;
+      setPosts(data as any || []);
+    } catch (error) {
+      console.error('Error loading posts:', error);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleImageSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      setSelectedImage(file);
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setImagePreview(reader.result as string);
+      };
+      reader.readAsDataURL(file);
+    }
+  };
 
   const handleCreatePost = async () => {
-    if (!postContent.trim() || !user) return;
+    if (!newPost.trim() && !selectedImage) {
+      toast({
+        title: "Content required",
+        description: "Please add some content or an image",
+        variant: "destructive",
+      });
+      return;
+    }
 
+    setIsPosting(true);
     try {
-      await createPost({
-        authorId: user.id,
-        content: postContent.trim(),
-        type: 'cultural-moment',
-        culturalTags: ['daily-life'],
-        languageTags: ['english'],
-        images: selectedImages.map((_, index) => `image-${index}.jpg`)
-      });
+      let imageUrl = '';
       
-      setPostContent('');
-      setSelectedImages([]);
-      setShowPostComposer(false);
-      
+      if (selectedImage && user) {
+        imageUrl = await uploadPostImage(selectedImage, user.id);
+      }
+
+      const { error } = await supabase
+        .from('community_posts' as any)
+        .insert({
+          user_id: user!.id,
+          content: newPost,
+          image_url: imageUrl || null,
+        });
+
+      if (error) throw error;
+
       toast({
-        title: "Post shared!",
-        description: "Your cultural moment has been shared with the community.",
+        title: "Post created",
+        description: "Your post has been shared with the community",
       });
+
+      setNewPost('');
+      setSelectedImage(null);
+      setImagePreview('');
+      loadPosts();
     } catch (error) {
+      console.error('Error creating post:', error);
       toast({
-        title: "Failed to create post",
-        description: "Please try again",
-        variant: "destructive"
+        title: "Error",
+        description: "Failed to create post",
+        variant: "destructive",
       });
+    } finally {
+      setIsPosting(false);
     }
   };
 
-  const handleAddComment = async (postId: string) => {
-    const comment = commentInputs[postId];
-    if (!comment?.trim() || !user) return;
-
-    try {
-      await addComment(postId, {
-        authorId: user.id,
-        content: comment.trim()
-      });
-      
-      setCommentInputs(prev => ({ ...prev, [postId]: '' }));
-      
-      toast({
-        title: "Comment added!",
-        description: "Your comment has been shared.",
-      });
-    } catch (error) {
-      toast({
-        title: "Failed to add comment",
-        description: "Please try again",
-        variant: "destructive"
-      });
-    }
-  };
-
-  const handleReaction = async (postId: string, type: 'appreciate' | 'learn' | 'support' | 'love') => {
-    if (!user) return;
-
-    try {
-      await addReaction(postId, {
-        userId: user.id,
-        type
-      });
-    } catch (error) {
-      toast({
-        title: "Failed to react",
-        description: "Please try again",
-        variant: "destructive"
-      });
-    }
-  };
+  if (isLoading) {
+    return (
+      <div className="container mx-auto px-4 py-8 max-w-2xl">
+        <Skeleton className="h-40 w-full mb-6" />
+        {[1, 2, 3].map((i) => (
+          <Card key={i} className="p-6 mb-4">
+            <div className="flex items-start gap-4">
+              <Skeleton className="h-12 w-12 rounded-full" />
+              <div className="flex-1">
+                <Skeleton className="h-4 w-32 mb-2" />
+                <Skeleton className="h-20 w-full" />
+              </div>
+            </div>
+          </Card>
+        ))}
+      </div>
+    );
+  }
 
   return (
-    <div className="min-h-screen bg-gradient-subtle">
-      <div className="container mx-auto px-4 py-8 max-w-4xl">
-        {/* Header */}
-        <div className="mb-8">
-          <div className="flex items-center justify-between mb-4">
-            <div>
-              <h1 className="text-3xl font-bold text-foreground mb-2">
-                Cultural Community
-              </h1>
-              <p className="text-muted-foreground">
-                Share your culture, discover others, and build global friendships
-              </p>
-            </div>
-            <div className="flex items-center gap-2">
-              <Button variant="outline" size="sm">
-                <Filter className="h-4 w-4 mr-2" />
-                Filter
-              </Button>
-              <Button 
-                onClick={() => setShowPostComposer(!showPostComposer)}
-                className="bg-gradient-cultural text-white"
+    <div className="container mx-auto px-4 py-8 max-w-2xl">
+      <h1 className="text-3xl font-bold mb-8">Community Feed</h1>
+
+      <Card className="p-6 mb-6">
+        <div className="flex items-start gap-4">
+          <Avatar>
+            <AvatarImage src={profile?.avatar_url} />
+            <AvatarFallback>{profile?.name?.[0] || '?'}</AvatarFallback>
+          </Avatar>
+          <div className="flex-1">
+            <Textarea
+              placeholder="Share your language learning journey..."
+              value={newPost}
+              onChange={(e) => setNewPost(e.target.value)}
+              className="mb-4"
+              rows={3}
+            />
+            {imagePreview && (
+              <div className="relative mb-4">
+                <img
+                  src={imagePreview}
+                  alt="Preview"
+                  className="rounded-lg max-h-64 object-cover"
+                />
+                <Button
+                  variant="destructive"
+                  size="sm"
+                  className="absolute top-2 right-2"
+                  onClick={() => {
+                    setSelectedImage(null);
+                    setImagePreview('');
+                  }}
+                >
+                  Remove
+                </Button>
+              </div>
+            )}
+            <div className="flex gap-2">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => document.getElementById('post-image')?.click()}
               >
-                <Plus className="h-4 w-4 mr-2" />
-                Share Culture
+                <Upload className="h-4 w-4 mr-2" />
+                Add Image
+              </Button>
+              <input
+                id="post-image"
+                type="file"
+                accept="image/*"
+                className="hidden"
+                onChange={handleImageSelect}
+              />
+              <Button
+                onClick={handleCreatePost}
+                disabled={isPosting}
+                className="ml-auto"
+              >
+                {isPosting ? 'Posting...' : 'Post'}
               </Button>
             </div>
           </div>
-          
-          {/* Quick Filters */}
-          <div className="flex items-center gap-2 flex-wrap">
-            <Badge variant="secondary" className="cursor-pointer">
-              <Globe className="h-3 w-3 mr-1" />
-              All Cultures
-            </Badge>
-            <Badge variant="outline" className="cursor-pointer">
-              🍜 Food
-            </Badge>
-            <Badge variant="outline" className="cursor-pointer">
-              🎵 Music
-            </Badge>
-            <Badge variant="outline" className="cursor-pointer">
-              🎭 Traditions
-            </Badge>
-            <Badge variant="outline" className="cursor-pointer">
-              🌍 Travel
-            </Badge>
-            <Badge variant="outline" className="cursor-pointer">
-              📚 Language Learning
-            </Badge>
-          </div>
         </div>
+      </Card>
 
-        {/* Post Composer */}
-        {showPostComposer && (
-          <Card className="mb-6">
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Globe className="h-5 w-5 text-primary" />
-                Share Your Cultural Moment
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="flex items-start space-x-3">
-                <Avatar className="h-10 w-10">
-                  <AvatarImage src="/placeholder-user.jpg" />
-                  <AvatarFallback className="bg-gradient-cultural text-white">
-                    {user?.email?.[0]?.toUpperCase() || 'U'}
-                  </AvatarFallback>
-                </Avatar>
-                <div className="flex-1">
-                  <Textarea
-                    value={postContent}
-                    onChange={(e) => setPostContent(e.target.value)}
-                    placeholder="What cultural moment would you like to share today? Tell us about your traditions, daily life, or something interesting from your culture..."
-                    className="min-h-[100px] resize-none"
-                  />
-                </div>
-              </div>
-              
-              <div className="flex items-center justify-between">
+      <div className="space-y-4">
+        {posts.map((post) => (
+          <Card key={post.id} className="p-6">
+            <div className="flex items-start gap-4 mb-4">
+              <Avatar>
+                <AvatarImage src={post.profiles?.avatar_url} />
+                <AvatarFallback>{post.profiles?.name?.[0] || '?'}</AvatarFallback>
+              </Avatar>
+              <div className="flex-1">
                 <div className="flex items-center gap-2">
-                  <Button variant="ghost" size="sm">
-                    <Camera className="h-4 w-4 mr-2" />
-                    Add Photos
-                  </Button>
-                  <Button variant="ghost" size="sm">
-                    <MapPin className="h-4 w-4 mr-2" />
-                    Location
-                  </Button>
-                  <Button variant="ghost" size="sm">
-                    <Languages className="h-4 w-4 mr-2" />
-                    Language
-                  </Button>
+                  <h3 className="font-semibold">{post.profiles?.name}</h3>
+                  {post.profiles?.country_flag && (
+                    <span>{post.profiles.country_flag}</span>
+                  )}
                 </div>
-                <div className="flex items-center gap-2">
-                  <Button 
-                    variant="outline" 
-                    onClick={() => setShowPostComposer(false)}
-                  >
-                    Cancel
-                  </Button>
-                  <Button 
-                    onClick={handleCreatePost}
-                    disabled={!postContent.trim()}
-                    className="bg-gradient-cultural text-white"
-                  >
-                    Share
-                  </Button>
-                </div>
+                <p className="text-sm text-muted-foreground">
+                  {new Date(post.created_at).toLocaleDateString()}
+                </p>
               </div>
-            </CardContent>
+            </div>
+
+            <p className="mb-4 whitespace-pre-wrap">{post.content}</p>
+
+            {post.image_url && (
+              <img
+                src={post.image_url}
+                alt="Post"
+                className="rounded-lg w-full mb-4"
+              />
+            )}
+
+            <div className="flex items-center gap-4 text-muted-foreground">
+              <Button variant="ghost" size="sm">
+                <Heart className="h-4 w-4 mr-2" />
+                Like
+              </Button>
+              <Button variant="ghost" size="sm">
+                <MessageCircle className="h-4 w-4 mr-2" />
+                Comment
+              </Button>
+              <Button variant="ghost" size="sm">
+                <Share2 className="h-4 w-4 mr-2" />
+                Share
+              </Button>
+            </div>
           </Card>
-        )}
-
-        {/* Posts Feed */}
-        <div className="space-y-6">
-          {posts.map((post) => (
-            <Card key={post.id} className="overflow-hidden">
-              <CardHeader className="pb-3">
-                <div className="flex items-start justify-between">
-                  <div className="flex items-start space-x-3">
-                    <Avatar className="h-10 w-10">
-                      <AvatarImage src="/placeholder-user.jpg" />
-                      <AvatarFallback className="bg-gradient-cultural text-white">
-                        M
-                      </AvatarFallback>
-                    </Avatar>
-                    <div className="flex-1">
-                      <div className="flex items-center gap-2">
-                        <h3 className="font-semibold">Maria Santos</h3>
-                        <CulturalBadge type="country" flag="🇧🇷">Brazil</CulturalBadge>
-                        <Badge variant="outline" className="text-xs">
-                          <Languages className="h-3 w-3 mr-1" />
-                          Portuguese
-                        </Badge>
-                      </div>
-                      <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                        <span>{new Date(post.timestamp).toLocaleDateString()}</span>
-                        <span>•</span>
-                        <MapPin className="h-3 w-3" />
-                        <span>São Paulo, Brazil</span>
-                      </div>
-                    </div>
-                  </div>
-                  <Button variant="ghost" size="sm">
-                    <MoreHorizontal className="h-4 w-4" />
-                  </Button>
-                </div>
-              </CardHeader>
-
-              <CardContent className="pt-0">
-                <div className="space-y-4">
-                  {/* Post Content */}
-                  <p className="text-foreground leading-relaxed">
-                    {post.content}
-                  </p>
-
-                  {/* Cultural & Language Tags */}
-                  <div className="flex items-center gap-2 flex-wrap">
-                    {post.culturalTags.map((tag) => (
-                      <Badge key={tag} variant="secondary" className="text-xs">
-                        #{tag}
-                      </Badge>
-                    ))}
-                    {post.languageTags.map((tag) => (
-                      <Badge key={tag} variant="outline" className="text-xs">
-                        <Languages className="h-3 w-3 mr-1" />
-                        {tag}
-                      </Badge>
-                    ))}
-                  </div>
-
-                  {/* Post Images */}
-                  {post.images && post.images.length > 0 && (
-                    <div className="grid grid-cols-2 gap-2 rounded-lg overflow-hidden">
-                      {post.images.slice(0, 4).map((image, index) => (
-                        <div 
-                          key={index} 
-                          className="aspect-square bg-gradient-cultural/20 flex items-center justify-center rounded-lg"
-                        >
-                          <Image className="h-8 w-8 text-muted-foreground" />
-                        </div>
-                      ))}
-                    </div>
-                  )}
-
-                  <Separator />
-
-                  {/* Post Stats */}
-                  <div className="flex items-center justify-between text-sm text-muted-foreground">
-                    <div className="flex items-center gap-4">
-                      <span>{post.reactions.length} reactions</span>
-                      <span>{post.comments.length} comments</span>
-                      <span>{post.shareCount} shares</span>
-                    </div>
-                  </div>
-
-                  {/* Action Buttons */}
-                  <div className="flex items-center justify-between border-t border-border/50 pt-3">
-                    <div className="flex items-center gap-1">
-                      <Button 
-                        variant="ghost" 
-                        size="sm"
-                        onClick={() => handleReaction(post.id, 'appreciate')}
-                        className="text-muted-foreground hover:text-primary"
-                      >
-                        <Globe className="h-4 w-4 mr-2" />
-                        Appreciate
-                      </Button>
-                      <Button 
-                        variant="ghost" 
-                        size="sm"
-                        onClick={() => handleReaction(post.id, 'learn')}
-                        className="text-muted-foreground hover:text-primary"
-                      >
-                        📚 Learn
-                      </Button>
-                      <Button 
-                        variant="ghost" 
-                        size="sm"
-                        onClick={() => handleReaction(post.id, 'support')}
-                        className="text-muted-foreground hover:text-primary"
-                      >
-                        🤝 Support
-                      </Button>
-                      <Button 
-                        variant="ghost" 
-                        size="sm"
-                        onClick={() => handleReaction(post.id, 'love')}
-                        className="text-muted-foreground hover:text-red-500"
-                      >
-                        <Heart className="h-4 w-4 mr-1" />
-                        Love
-                      </Button>
-                    </div>
-                    <div className="flex items-center gap-1">
-                      <Button variant="ghost" size="sm">
-                        <MessageCircle className="h-4 w-4 mr-2" />
-                        Comment
-                      </Button>
-                      <Button variant="ghost" size="sm">
-                        <Share className="h-4 w-4 mr-2" />
-                        Share
-                      </Button>
-                      <Button variant="ghost" size="sm">
-                        <Bookmark className="h-4 w-4" />
-                      </Button>
-                    </div>
-                  </div>
-
-                  {/* Comments Section */}
-                  {post.comments.length > 0 && (
-                    <div className="space-y-3 border-t border-border/50 pt-3">
-                      {post.comments.slice(0, 3).map((comment) => (
-                        <div key={comment.id} className="flex items-start space-x-3">
-                          <Avatar className="h-8 w-8">
-                            <AvatarImage src="/placeholder-user.jpg" />
-                            <AvatarFallback className="bg-gradient-cultural text-white text-xs">
-                              J
-                            </AvatarFallback>
-                          </Avatar>
-                          <div className="flex-1 bg-accent/50 rounded-lg p-3">
-                            <div className="flex items-center gap-2 mb-1">
-                              <span className="font-medium text-sm">João Silva</span>
-                              <CulturalBadge type="country" flag="🇵🇹">Portugal</CulturalBadge>
-                              <span className="text-xs text-muted-foreground">
-                                {new Date(comment.timestamp).toLocaleTimeString()}
-                              </span>
-                            </div>
-                            <p className="text-sm">{comment.content}</p>
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  )}
-
-                  {/* Add Comment */}
-                  <div className="flex items-center space-x-3 border-t border-border/50 pt-3">
-                    <Avatar className="h-8 w-8">
-                      <AvatarImage src="/placeholder-user.jpg" />
-                      <AvatarFallback className="bg-gradient-cultural text-white text-xs">
-                        {user?.email?.[0]?.toUpperCase() || 'U'}
-                      </AvatarFallback>
-                    </Avatar>
-                    <div className="flex-1 flex items-center space-x-2">
-                      <Input
-                        value={commentInputs[post.id] || ''}
-                        onChange={(e) => setCommentInputs(prev => ({ 
-                          ...prev, 
-                          [post.id]: e.target.value 
-                        }))}
-                        placeholder="Add a cultural comment..."
-                        className="flex-1"
-                        onKeyPress={(e) => {
-                          if (e.key === 'Enter') {
-                            handleAddComment(post.id);
-                          }
-                        }}
-                      />
-                      <Button 
-                        size="sm"
-                        onClick={() => handleAddComment(post.id)}
-                        disabled={!commentInputs[post.id]?.trim()}
-                      >
-                        <Send className="h-4 w-4" />
-                      </Button>
-                    </div>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-          ))}
-        </div>
-
-        {/* Load More */}
-        <div className="text-center py-8">
-          <Button variant="outline" className="px-8">
-            Load More Cultural Posts
-          </Button>
-        </div>
+        ))}
       </div>
+
+      {posts.length === 0 && (
+        <div className="text-center py-12">
+          <MessageCircle className="h-12 w-12 mx-auto mb-4 text-muted-foreground" />
+          <h3 className="text-xl font-semibold mb-2">No posts yet</h3>
+          <p className="text-muted-foreground">
+            Be the first to share something with the community!
+          </p>
+        </div>
+      )}
     </div>
   );
-};
-
-export default CommunityPage;
+}

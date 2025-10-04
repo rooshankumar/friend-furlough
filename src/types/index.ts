@@ -96,7 +96,7 @@ export interface Country {
   name: string;
   flag: string;
   region: string;
-  languages: string[];
+  languages?: string[];
 }
 
 export interface Language {

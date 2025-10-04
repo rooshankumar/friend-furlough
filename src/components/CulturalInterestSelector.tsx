@@ -23,8 +23,22 @@ export const CulturalInterestSelector = ({
 }: CulturalInterestSelectorProps) => {
   const [open, setOpen] = useState(false);
   
-    // TODO: Fetch availableInterests from Supabase or API
-    const availableInterests = [];
+  const availableInterests = [
+    { id: "cuisine", name: "Cuisine & Food", emoji: "🍜", category: "food" },
+    { id: "music", name: "Music", emoji: "🎵", category: "music" },
+    { id: "dance", name: "Dance", emoji: "💃", category: "traditions" },
+    { id: "art", name: "Art & Painting", emoji: "🎨", category: "art" },
+    { id: "literature", name: "Literature", emoji: "📚", category: "literature" },
+    { id: "history", name: "History", emoji: "🏛️", category: "traditions" },
+    { id: "festivals", name: "Festivals", emoji: "🎉", category: "festivals" },
+    { id: "crafts", name: "Crafts", emoji: "🧵", category: "art" },
+    { id: "fashion", name: "Fashion", emoji: "👘", category: "art" },
+    { id: "travel", name: "Travel", emoji: "✈️", category: "travel" },
+  ];
+  
+  const getInterestById = (id: string) => {
+    return availableInterests.find(i => i.id === id);
+  };
   
   const handleInterestSelect = (interestId: string) => {
     if (selectedInterests.length < maxSelection) {
@@ -35,11 +49,6 @@ export const CulturalInterestSelector = ({
   
   const handleInterestRemove = (interestId: string) => {
     onInterestsChange(selectedInterests.filter(id => id !== interestId));
-  };
-  
-  const getInterestById = (id: string) => {
-      // TODO: Fetch interest by id from Supabase or API
-      return undefined;
   };
   
   return (
@@ -57,7 +66,7 @@ export const CulturalInterestSelector = ({
                 type="interest"
                 className="group cursor-pointer"
               >
-                <span className="mr-1">{interest.icon}</span>
+                <span className="mr-1">{interest.emoji}</span>
                 <span>{interest.name}</span>
                 <Button
                   variant="ghost"
@@ -94,7 +103,7 @@ export const CulturalInterestSelector = ({
                     onSelect={() => handleInterestSelect(interest.id)}
                   >
                     <div className="flex items-center space-x-2">
-                      <span>{interest.icon}</span>
+                      <span>{interest.emoji}</span>
                       <span>{interest.name}</span>
                       <span className="text-xs text-muted-foreground capitalize">
                         ({interest.category})

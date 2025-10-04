@@ -4,12 +4,14 @@ import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
+import { ThemeProvider } from "@/components/ThemeProvider";
 import { useAuthStore } from "./stores/authStore";
 import HomePage from "./pages/HomePage";
 import ExplorePage from "./pages/ExplorePage";
 import ChatPage from "./pages/ChatPage";
 import CommunityPage from "./pages/CommunityPage";
 import ProfilePage from "./pages/ProfilePage";
+import SettingsPage from "./pages/SettingsPage";
 import NotFound from "./pages/NotFound";
 import Navigation from "./components/Navigation";
 import SignUpPage from "./pages/auth/SignUpPage";
@@ -45,12 +47,13 @@ const App = () => {
   return (
     <QueryClientProvider client={queryClient}>
       <TooltipProvider>
-        <Toaster />
-        <Sonner />
+        <ThemeProvider defaultTheme="system">
+          <Toaster />
+          <Sonner />
           <BrowserRouter>
-          <div className="min-h-screen bg-background">
-            <Navigation />
-            <Routes>
+            <div className="min-h-screen bg-background">
+              <Navigation />
+              <Routes>
               <Route path="/" element={<HomePage />} />
               
               {/* Authentication Routes */}
@@ -93,12 +96,18 @@ const App = () => {
                   <ProfilePage />
                 </ProtectedRoute>
               } />
+              <Route path="/settings" element={
+                <ProtectedRoute>
+                  <SettingsPage />
+                </ProtectedRoute>
+              } />
               
               {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
               <Route path="*" element={<NotFound />} />
-            </Routes>
-          </div>
-        </BrowserRouter>
+              </Routes>
+            </div>
+          </BrowserRouter>
+        </ThemeProvider>
       </TooltipProvider>
     </QueryClientProvider>
   );

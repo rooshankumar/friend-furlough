@@ -261,6 +261,62 @@ export type Database = {
           },
         ]
       }
+      posts: {
+        Row: {
+          author_id: string
+          comments: Json[] | null
+          content: string
+          cultural_tags: string[] | null
+          id: string
+          images: string[] | null
+          language_tags: string[] | null
+          location: string | null
+          reactions: Json[] | null
+          saved_by: string[]
+          share_count: number
+          timestamp: string
+          type: string
+        }
+        Insert: {
+          author_id: string
+          comments?: Json[] | null
+          content: string
+          cultural_tags?: string[] | null
+          id?: string
+          images?: string[] | null
+          language_tags?: string[] | null
+          location?: string | null
+          reactions?: Json[] | null
+          saved_by?: string[]
+          share_count?: number
+          timestamp?: string
+          type: string
+        }
+        Update: {
+          author_id?: string
+          comments?: Json[] | null
+          content?: string
+          cultural_tags?: string[] | null
+          id?: string
+          images?: string[] | null
+          language_tags?: string[] | null
+          location?: string | null
+          reactions?: Json[] | null
+          saved_by?: string[]
+          share_count?: number
+          timestamp?: string
+          type?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "posts_author_id_fkey"
+            columns: ["author_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       profiles: {
         Row: {
           age: number | null
@@ -273,6 +329,7 @@ export type Database = {
           id: string
           last_seen: string | null
           name: string
+          onboarding_completed: boolean
           online: boolean | null
           updated_at: string | null
         }
@@ -287,6 +344,7 @@ export type Database = {
           id: string
           last_seen?: string | null
           name: string
+          onboarding_completed?: boolean
           online?: boolean | null
           updated_at?: string | null
         }
@@ -301,6 +359,7 @@ export type Database = {
           id?: string
           last_seen?: string | null
           name?: string
+          onboarding_completed?: boolean
           online?: boolean | null
           updated_at?: string | null
         }

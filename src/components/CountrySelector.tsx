@@ -21,8 +21,23 @@ export const CountrySelector = ({
 }: CountrySelectorProps) => {
   const [open, setOpen] = useState(false);
   
-  // TODO: Replace with real country list or fetch from API
-  const countries: Country[] = [];
+  const countries: Country[] = [
+    { code: "US", name: "United States", flag: "🇺🇸", region: "Americas" },
+    { code: "GB", name: "United Kingdom", flag: "🇬🇧", region: "Europe" },
+    { code: "CA", name: "Canada", flag: "🇨🇦", region: "Americas" },
+    { code: "AU", name: "Australia", flag: "🇦🇺", region: "Oceania" },
+    { code: "IN", name: "India", flag: "🇮🇳", region: "Asia" },
+    { code: "MX", name: "Mexico", flag: "🇲🇽", region: "Americas" },
+    { code: "BR", name: "Brazil", flag: "🇧🇷", region: "Americas" },
+    { code: "ES", name: "Spain", flag: "🇪🇸", region: "Europe" },
+    { code: "FR", name: "France", flag: "🇫🇷", region: "Europe" },
+    { code: "DE", name: "Germany", flag: "🇩🇪", region: "Europe" },
+    { code: "IT", name: "Italy", flag: "🇮🇹", region: "Europe" },
+    { code: "PT", name: "Portugal", flag: "🇵🇹", region: "Europe" },
+    { code: "CN", name: "China", flag: "🇨🇳", region: "Asia" },
+    { code: "JP", name: "Japan", flag: "🇯🇵", region: "Asia" },
+    { code: "KR", name: "South Korea", flag: "🇰🇷", region: "Asia" },
+  ];
   const selectedCountry = countries.find(country => country.code === value);
   
   return (

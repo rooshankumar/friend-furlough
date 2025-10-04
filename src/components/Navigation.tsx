@@ -1,7 +1,15 @@
 import { Button } from "@/components/ui/button";
-import { Globe, MessageCircle, Users, User, Search, LogOut } from "lucide-react";
+import { Globe, MessageCircle, Users, User, Search, LogOut, Settings } from "lucide-react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { useAuthStore } from "@/stores/authStore";
 import roshLinguaLogo from "@/assets/roshlingua-logo.png";
 
@@ -84,30 +92,44 @@ const Navigation = () => {
           <div className="flex items-center space-x-2">
             {isAuthenticated && user ? (
               <div className="flex items-center space-x-3">
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  asChild
-                  className="hidden sm:flex"
-                >
-                  <Link to="/profile" className="flex items-center space-x-2">
-                    <Avatar className="h-7 w-7">
-                      <AvatarImage src="/placeholder-user.jpg" />
-                      <AvatarFallback className="bg-gradient-cultural text-white text-xs">
-                        {user.email?.[0]?.toUpperCase() || 'U'}
-                      </AvatarFallback>
-                    </Avatar>
-                    <span>{user.email?.split('@')[0] || 'User'}</span>
-                  </Link>
-                </Button>
-                <Button 
-                  variant="ghost" 
-                  size="sm"
-                  onClick={handleSignOut}
-                  className="text-muted-foreground hover:text-foreground"
-                >
-                  <LogOut className="h-4 w-4" />
-                </Button>
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="hidden sm:flex items-center space-x-2"
+                    >
+                      <Avatar className="h-7 w-7">
+                        <AvatarImage src="/placeholder-user.jpg" />
+                        <AvatarFallback className="bg-gradient-cultural text-white text-xs">
+                          {user.email?.[0]?.toUpperCase() || 'U'}
+                        </AvatarFallback>
+                      </Avatar>
+                      <span>{user.email?.split('@')[0] || 'User'}</span>
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end" className="w-56 bg-card z-50">
+                    <DropdownMenuLabel>My Account</DropdownMenuLabel>
+                    <DropdownMenuSeparator />
+                    <DropdownMenuItem asChild>
+                      <Link to="/profile" className="flex items-center cursor-pointer">
+                        <User className="mr-2 h-4 w-4" />
+                        Profile
+                      </Link>
+                    </DropdownMenuItem>
+                    <DropdownMenuItem asChild>
+                      <Link to="/settings" className="flex items-center cursor-pointer">
+                        <Settings className="mr-2 h-4 w-4" />
+                        Settings
+                      </Link>
+                    </DropdownMenuItem>
+                    <DropdownMenuSeparator />
+                    <DropdownMenuItem onClick={handleSignOut} className="cursor-pointer">
+                      <LogOut className="mr-2 h-4 w-4" />
+                      Sign Out
+                    </DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
               </div>
             ) : (
               <>

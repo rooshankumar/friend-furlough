@@ -48,7 +48,30 @@ export default function ExplorePage() {
 
   const startConversation = async (profileId: string) => {
     try {
-      // Create conversation
+      // Check if conversation already exists
+      const { data: existingParticipants } = await supabase
+        .from('conversation_participants')
+        .select('conversation_id')
+        .eq('user_id', user!.id);
+
+      if (existingParticipants) {
+        for (const participant of existingParticipants) {
+          const { data: otherParticipant } = await supabase
+            .from('conversation_participants')
+            .select('conversation_id')
+            .eq('conversation_id', participant.conversation_id)
+            .eq('user_id', profileId)
+            .maybeSingle();
+
+          if (otherParticipant) {
+            // Conversation already exists
+            navigate(`/chat/${participant.conversation_id}`);
+            return;
+          }
+        }
+      }
+
+      // Create new conversation
       const { data: conversation, error: convError } = await supabase
         .from('conversations')
         .insert({ is_language_exchange: true })

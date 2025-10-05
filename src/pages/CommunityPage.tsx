@@ -43,7 +43,11 @@ export default function CommunityPage() {
         .from('community_posts' as any)
         .select(`
           *,
-          profiles (name, avatar_url, country_flag)
+          profiles!community_posts_user_id_fkey (
+            name,
+            avatar_url,
+            country_flag
+          )
         `)
         .order('created_at', { ascending: false })
         .limit(50);

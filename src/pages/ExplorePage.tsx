@@ -48,6 +48,11 @@ export default function ExplorePage() {
 
   const startConversation = async (profileId: string) => {
     try {
+      // Prevent self-chat
+      if (profileId === user?.id) {
+        return;
+      }
+
       // Check if conversation already exists
       const { data: existingParticipants } = await supabase
         .from('conversation_participants')

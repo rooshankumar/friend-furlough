@@ -54,20 +54,24 @@ export const useAuthStore = create<AuthState>()(
       session: null,
       profile: null,
       isAuthenticated: false,
-      isLoading: false,
+      isLoading: true,
       onboardingStep: 1,
       onboardingCompleted: false,
 
       initialize: async () => {
         set({ isLoading: true });
-        // Only listen for SIGNED_IN and SIGNED_OUT events to avoid unwanted resets
-        supabase.auth.onAuthStateChange(async (event, session) => {
-          if (event === 'SIGNED_IN' && session?.user) {
+        
+        try {
+          // Check for existing session first
+          const { data: { session } } = await supabase.auth.getSession();
+          
+          if (session?.user) {
             const { data: profile } = await supabase
               .from('profiles')
               .select('*')
               .eq('id', session.user.id)
               .single();
+            
             set({
               session,
               user: session.user,
@@ -76,36 +80,43 @@ export const useAuthStore = create<AuthState>()(
               onboardingCompleted: isValidProfile(profile) && profile.country ? true : false,
               isLoading: false
             });
-          } else if (event === 'SIGNED_OUT') {
-            set({
-              user: null,
-              session: null,
-              profile: null,
-              isAuthenticated: false,
-              onboardingStep: 1,
-              onboardingCompleted: false,
-              isLoading: false
-            });
+          } else {
+            set({ isLoading: false });
           }
-        });
 
-        // Check for existing session on load
-        const { data: { session } } = await supabase.auth.getSession();
-        if (session?.user) {
-          const { data: profile } = await supabase
-            .from('profiles')
-            .select('*')
-            .eq('id', session.user.id)
-            .single();
-          set({
-            session,
-            user: session.user,
-            profile: isValidProfile(profile) ? profile : null,
-            isAuthenticated: isValidProfile(profile),
-            onboardingCompleted: isValidProfile(profile) && profile.country ? true : false,
-            isLoading: false
+          // Set up minimal auth state listener
+          supabase.auth.onAuthStateChange(async (event, session) => {
+            if (event === 'SIGNED_IN' && session?.user) {
+              const { data: profile } = await supabase
+                .from('profiles')
+                .select('*')
+                .eq('id', session.user.id)
+                .single();
+              
+              set({
+                session,
+                user: session.user,
+                profile: isValidProfile(profile) ? profile : null,
+                isAuthenticated: isValidProfile(profile),
+                onboardingCompleted: isValidProfile(profile) && profile.country ? true : false,
+                isLoading: false
+              });
+            } else if (event === 'SIGNED_OUT') {
+              set({
+                user: null,
+                session: null,
+                profile: null,
+                isAuthenticated: false,
+                onboardingStep: 1,
+                onboardingCompleted: false,
+                isLoading: false
+              });
+            } else if (event === 'TOKEN_REFRESHED' && session) {
+              set({ session, isLoading: false });
+            }
           });
-        } else {
+        } catch (error) {
+          console.error('Initialize error:', error);
           set({ isLoading: false });
         }
       },
@@ -124,21 +135,12 @@ export const useAuthStore = create<AuthState>()(
           
           if (error) throw error;
           
-          // Wait a bit for the profile to be created by the trigger
-          await new Promise(resolve => setTimeout(resolve, 1000));
-          
-          // Fetch profile after signup
+          // Profile will be created by trigger, just set basic state
           if (data.user) {
-            const { data: profile } = await supabase
-              .from('profiles')
-              .select('*')
-              .eq('id', data.user.id)
-              .single();
-            
             set({
               user: data.user,
               session: data.session,
-              profile: isValidProfile(profile) ? profile : null,
+              profile: null,
               isAuthenticated: true,
               isLoading: false,
               onboardingStep: 1,

@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useParams } from 'react-router-dom';
+import { useParams, useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { User } from '@/types';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -8,6 +8,10 @@ import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Separator } from '@/components/ui/separator';
 import { Progress } from '@/components/ui/progress';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { Input } from '@/components/ui/input';
+import { Textarea } from '@/components/ui/textarea';
+import { Label } from '@/components/ui/label';
 import { 
   MessageCircle, 
   Globe, 
@@ -25,19 +29,26 @@ import {
   Award,
   Plane,
   Music,
-  Utensils
+  Utensils,
+  Loader2
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { useAuthStore } from '@/stores/authStore';
 import { CulturalBadge } from '@/components/CulturalBadge';
+import { uploadAvatar } from '@/lib/storage';
+import { supabase } from '@/integrations/supabase/client';
 
 const ProfilePage = () => {
   const { username } = useParams();
+  const navigate = useNavigate();
   const [isOwnProfile, setIsOwnProfile] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
+  const [editForm, setEditForm] = useState({ name: '', bio: '', age: 0 });
+  const [isUploading, setIsUploading] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
   const { toast } = useToast();
   
-  const { user } = useAuthStore();
+  const { user, updateProfile } = useAuthStore();
 
   useEffect(() => {
     setIsOwnProfile(!username || username === user?.email?.split('@')[0]?.toLowerCase());
@@ -79,6 +90,11 @@ const ProfilePage = () => {
 
         console.log('Setting profile data:', fullProfile);
         setProfileUser(fullProfile);
+        setEditForm({
+          name: fullProfile.name || '',
+          bio: fullProfile.bio || '',
+          age: fullProfile.age || 0
+        });
         
       } catch (error: any) {
         console.error('Profile fetch error:', error);
@@ -92,6 +108,70 @@ const ProfilePage = () => {
     fetchProfile();
   }, [username, user]);
 
+
+  const handleAvatarUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file || !user?.id) return;
+
+    try {
+      setIsUploading(true);
+      const avatarUrl = await uploadAvatar(file, user.id);
+      await updateProfile({ avatar_url: avatarUrl });
+      
+      if (profileUser) {
+        setProfileUser({ ...profileUser, profilePhoto: avatarUrl });
+      }
+      
+      toast({
+        title: "Avatar updated",
+        description: "Your profile photo has been updated successfully."
+      });
+    } catch (error: any) {
+      toast({
+        title: "Upload failed",
+        description: error.message,
+        variant: "destructive"
+      });
+    } finally {
+      setIsUploading(false);
+    }
+  };
+
+  const handleSaveProfile = async () => {
+    if (!user?.id) return;
+
+    try {
+      setIsSaving(true);
+      await updateProfile({
+        name: editForm.name,
+        bio: editForm.bio,
+        age: editForm.age
+      });
+
+      if (profileUser) {
+        setProfileUser({
+          ...profileUser,
+          name: editForm.name,
+          bio: editForm.bio,
+          age: editForm.age
+        });
+      }
+
+      setIsEditing(false);
+      toast({
+        title: "Profile updated",
+        description: "Your changes have been saved successfully."
+      });
+    } catch (error: any) {
+      toast({
+        title: "Update failed",
+        description: error.message,
+        variant: "destructive"
+      });
+    } finally {
+      setIsSaving(false);
+    }
+  };
 
   // Placeholder stats and languageProgress until real data is available
   const stats = {
@@ -173,9 +253,29 @@ const ProfilePage = () => {
                     </AvatarFallback>
                   </Avatar>
                   {isOwnProfile && (
-                    <Button size="sm" className="absolute -bottom-2 -right-2 rounded-full h-8 w-8 p-0">
-                      <Camera className="h-4 w-4" />
-                    </Button>
+                    <label htmlFor="avatar-upload">
+                      <Button 
+                        size="sm" 
+                        className="absolute -bottom-2 -right-2 rounded-full h-8 w-8 p-0"
+                        disabled={isUploading}
+                        asChild
+                      >
+                        <span>
+                          {isUploading ? (
+                            <Loader2 className="h-4 w-4 animate-spin" />
+                          ) : (
+                            <Camera className="h-4 w-4" />
+                          )}
+                        </span>
+                      </Button>
+                      <input
+                        id="avatar-upload"
+                        type="file"
+                        accept="image/*"
+                        className="hidden"
+                        onChange={handleAvatarUpload}
+                      />
+                    </label>
                   )}
                 </div>
                 
@@ -228,7 +328,7 @@ const ProfilePage = () => {
                           <Edit className="h-4 w-4 mr-2" />
                           Edit Profile
                         </Button>
-                        <Button variant="outline">
+                        <Button variant="outline" onClick={() => navigate('/settings')}>
                           <Settings className="h-4 w-4 mr-2" />
                           Settings
                         </Button>
@@ -538,6 +638,69 @@ const ProfilePage = () => {
           </TabsContent>
         </Tabs>
       </div>
+
+      {/* Edit Profile Dialog */}
+      <Dialog open={isEditing} onOpenChange={setIsEditing}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Edit Profile</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div>
+              <Label htmlFor="edit-name">Name</Label>
+              <Input
+                id="edit-name"
+                value={editForm.name}
+                onChange={(e) => setEditForm({ ...editForm, name: e.target.value })}
+                placeholder="Your name"
+              />
+            </div>
+            <div>
+              <Label htmlFor="edit-bio">Bio</Label>
+              <Textarea
+                id="edit-bio"
+                value={editForm.bio}
+                onChange={(e) => setEditForm({ ...editForm, bio: e.target.value })}
+                placeholder="Tell us about yourself"
+                rows={4}
+              />
+            </div>
+            <div>
+              <Label htmlFor="edit-age">Age</Label>
+              <Input
+                id="edit-age"
+                type="number"
+                value={editForm.age || ''}
+                onChange={(e) => setEditForm({ ...editForm, age: parseInt(e.target.value) || 0 })}
+                placeholder="Your age"
+              />
+            </div>
+            <div className="flex gap-2">
+              <Button
+                onClick={handleSaveProfile}
+                disabled={isSaving}
+                className="flex-1"
+              >
+                {isSaving ? (
+                  <>
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    Saving...
+                  </>
+                ) : (
+                  'Save Changes'
+                )}
+              </Button>
+              <Button
+                variant="outline"
+                onClick={() => setIsEditing(false)}
+                disabled={isSaving}
+              >
+                Cancel
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };

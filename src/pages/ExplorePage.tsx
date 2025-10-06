@@ -8,6 +8,7 @@ import { Badge } from '@/components/ui/badge';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { MessageCircle, MapPin, Globe } from 'lucide-react';
 import { Skeleton } from '@/components/ui/skeleton';
+import { toast } from 'sonner';
 
 interface UserProfile {
   id: string;
@@ -48,6 +49,14 @@ export default function ExplorePage() {
 
   const startConversation = async (profileId: string) => {
     try {
+      // Ensure user is authenticated
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) {
+        toast.error('Please sign in to start a conversation');
+        navigate('/auth/signin');
+        return;
+      }
+
       // Prevent self-chat
       if (profileId === user?.id) {
         return;
@@ -81,22 +90,36 @@ export default function ExplorePage() {
         .from('conversations')
         .insert({ 
           is_language_exchange: true,
-          user_id: user!.id
+          user_id: session.user.id
         })
         .select()
         .single();
 
-      if (convError) throw convError;
+      if (convError) {
+        console.error('Conversation creation error:', convError);
+        toast.error('Failed to start conversation. Please try again.');
+        return;
+      }
 
       // Add participants
-      await supabase.from('conversation_participants').insert([
-        { conversation_id: conversation.id, user_id: user!.id },
-        { conversation_id: conversation.id, user_id: profileId }
-      ]);
+      const { error: participantError } = await supabase
+        .from('conversation_participants')
+        .insert([
+          { conversation_id: conversation.id, user_id: session.user.id },
+          { conversation_id: conversation.id, user_id: profileId }
+        ]);
 
+      if (participantError) {
+        console.error('Participant creation error:', participantError);
+        toast.error('Failed to add participants. Please try again.');
+        return;
+      }
+
+      toast.success('Conversation started!');
       navigate(`/chat/${conversation.id}`);
     } catch (error) {
       console.error('Error starting conversation:', error);
+      toast.error('Something went wrong. Please try again.');
     }
   };
 

@@ -14,6 +14,7 @@ import ProfilePage from "./pages/ProfilePage";
 import SettingsPage from "./pages/SettingsPage";
 import NotFound from "./pages/NotFound";
 import Navigation from "./components/Navigation";
+import InstallPWA from "./components/InstallPWA";
 import SignUpPage from "./pages/auth/SignUpPage";
 import SignInPage from "./pages/auth/SignInPage";
 import WelcomePage from "./pages/onboarding/WelcomePage";
@@ -53,6 +54,7 @@ const App = () => {
           <BrowserRouter>
             <div className="min-h-screen bg-background">
               <Navigation />
+              <InstallPWA />
               <Routes>
               <Route path="/" element={<HomePage />} />
               

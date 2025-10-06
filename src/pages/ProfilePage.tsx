@@ -48,7 +48,7 @@ const ProfilePage = () => {
   const [isSaving, setIsSaving] = useState(false);
   const { toast } = useToast();
   
-  const { user, updateProfile } = useAuthStore();
+  const { user, profile: authProfile, updateProfile } = useAuthStore();
 
   useEffect(() => {
     setIsOwnProfile(!username || username === user?.email?.split('@')[0]?.toLowerCase());
@@ -62,6 +62,45 @@ const ProfilePage = () => {
     if (!user?.id) {
       console.log('No authenticated user found');
       setError('Please sign in to view profiles');
+      setLoading(false);
+      return;
+    }
+    
+    // If viewing own profile and authProfile exists, use it directly
+    if (isOwnProfile && authProfile) {
+      console.log('Using authProfile for own profile:', authProfile);
+      const fullProfile: User = {
+        id: authProfile.id,
+        name: authProfile.name || '',
+        email: user.email || '',
+        country: authProfile.country || '',
+        countryCode: authProfile.country_code || '',
+        countryFlag: authProfile.country_flag || '',
+        bio: authProfile.bio || '',
+        age: authProfile.age || 0,
+        avatar_url: authProfile.avatar_url,
+        profilePhoto: authProfile.avatar_url,
+        online: authProfile.online || false,
+        lastSeen: authProfile.last_seen || '',
+        joinedDate: authProfile.created_at || '',
+        city: '',
+        nativeLanguages: [],
+        learningLanguages: [],
+        culturalInterests: [],
+        languageGoals: [],
+        lookingFor: [],
+        teachingExperience: false,
+        countriesVisited: [],
+        posts: []
+      };
+      
+      console.log('Profile Avatar URL:', fullProfile.avatar_url);
+      setProfileUser(fullProfile);
+      setEditForm({
+        name: fullProfile.name || '',
+        bio: fullProfile.bio || '',
+        age: fullProfile.age || 0
+      });
       setLoading(false);
       return;
     }
@@ -86,9 +125,12 @@ const ProfilePage = () => {
         const fullProfile: User = {
           ...profile,
           email: user.email || '',  // Get email from auth user
+          avatar_url: profile.avatar_url || authProfile?.avatar_url,  // Use authProfile as fallback
+          profilePhoto: profile.profilePhoto || authProfile?.avatar_url,
         };
 
         console.log('Setting profile data:', fullProfile);
+        console.log('Avatar URL:', fullProfile.avatar_url);
         setProfileUser(fullProfile);
         setEditForm({
           name: fullProfile.name || '',
@@ -106,7 +148,7 @@ const ProfilePage = () => {
     }
     
     fetchProfile();
-  }, [username, user]);
+  }, [username, user, isOwnProfile, authProfile]);
 
 
   const handleAvatarUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -119,7 +161,7 @@ const ProfilePage = () => {
       await updateProfile({ avatar_url: avatarUrl });
       
       if (profileUser) {
-        setProfileUser({ ...profileUser, profilePhoto: avatarUrl });
+        setProfileUser({ ...profileUser, avatar_url: avatarUrl, profilePhoto: avatarUrl });
       }
       
       toast({
@@ -265,9 +307,9 @@ const ProfilePage = () => {
               <div className="flex flex-col items-center lg:items-start">
                 <div className="relative">
                   <Avatar className="h-32 w-32 border-4 border-primary/20">
-                    <AvatarImage src={profileUser.profilePhoto} />
+                    <AvatarImage src={profileUser.avatar_url || profileUser.profilePhoto} />
                     <AvatarFallback className="bg-gradient-cultural text-white text-2xl">
-                      {profileUser.name[0]}
+                      {profileUser.name?.[0] || 'U'}
                     </AvatarFallback>
                   </Avatar>
                   {isOwnProfile && (
@@ -466,9 +508,9 @@ const ProfilePage = () => {
                     <div className="flex items-start justify-between">
                       <div className="flex items-start space-x-3">
                         <Avatar className="h-10 w-10">
-                          <AvatarImage src={profileUser.profilePhoto} />
+                          <AvatarImage src={profileUser.avatar_url || profileUser.profilePhoto} />
                           <AvatarFallback className="bg-gradient-cultural text-white">
-                            {profileUser.name[0]}
+                            {profileUser.name?.[0] || 'U'}
                           </AvatarFallback>
                         </Avatar>
                         <div>

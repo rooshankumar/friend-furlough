@@ -170,20 +170,22 @@ const ChatPage = () => {
             </div>
           </div>
 
-          {/* Welcome Message */}
-          <div className="flex-1 flex items-center justify-center bg-background">
-            <div className="text-center space-y-4 p-8">
-              <div className="w-24 h-24 mx-auto bg-gradient-cultural rounded-full flex items-center justify-center">
-                <Globe className="h-12 w-12 text-white" />
+          {/* Welcome Message - Only show on desktop or when no conversations */}
+          {(conversations.length === 0 || window.innerWidth >= 768) && (
+            <div className="flex-1 flex items-center justify-center bg-background">
+              <div className="text-center space-y-4 p-8">
+                <div className="w-24 h-24 mx-auto bg-gradient-cultural rounded-full flex items-center justify-center">
+                  <Globe className="h-12 w-12 text-white" />
+                </div>
+                <h2 className="text-2xl font-bold text-foreground">
+                  Start Cultural Conversations
+                </h2>
+                <p className="text-muted-foreground max-w-md">
+                  Select a conversation to start practicing languages and sharing cultures with friends around the world.
+                </p>
               </div>
-              <h2 className="text-2xl font-bold text-foreground">
-                Start Cultural Conversations
-              </h2>
-              <p className="text-muted-foreground max-w-md">
-                Select a conversation to start practicing languages and sharing cultures with friends around the world.
-              </p>
             </div>
-          </div>
+          )}
         </div>
       </div>
     );

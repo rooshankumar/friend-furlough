@@ -12,6 +12,7 @@ export interface User {
   bio: string;
   age: number;
   profilePhoto?: string;
+  avatar_url?: string;
   online: boolean;
   lastSeen?: string;
   joinedDate: string;

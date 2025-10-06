@@ -33,6 +33,7 @@ export const fetchProfileById = async (id: string): Promise<User | null> => {
       bio: profile.bio || "",
       age: profile.age || 0,
       profilePhoto: profile.avatar_url || undefined,
+      avatar_url: profile.avatar_url || undefined,
       online: profile.online || false,
       lastSeen: profile.last_seen || "",
       joinedDate: profile.created_at || "",

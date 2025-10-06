@@ -31,13 +31,14 @@ interface ChatState {
   conversations: ConversationWithDetails[];
   messages: { [conversationId: string]: DbMessage[] };
   isLoading: boolean;
+  activeChannel: any | null;
   
   // Actions
   loadConversations: (userId: string) => Promise<void>;
   loadMessages: (conversationId: string) => Promise<void>;
   sendMessage: (conversationId: string, senderId: string, content: string) => Promise<void>;
   markAsRead: (conversationId: string, userId: string) => Promise<void>;
-  subscribeToMessages: (conversationId: string) => void;
+  subscribeToMessages: (conversationId: string) => any;
   unsubscribeFromMessages: () => void;
 }
 
@@ -45,6 +46,7 @@ export const useChatStore = create<ChatState>((set, get) => ({
   conversations: [],
   messages: {},
   isLoading: false,
+  activeChannel: null,
   
   loadConversations: async (userId: string) => {
     set({ isLoading: true });
@@ -182,6 +184,13 @@ export const useChatStore = create<ChatState>((set, get) => ({
   subscribeToMessages: (conversationId: string) => {
     console.log('Subscribing to messages for conversation:', conversationId);
     
+    // Unsubscribe from previous channel if exists
+    const { activeChannel } = get();
+    if (activeChannel) {
+      console.log('Unsubscribing from previous channel');
+      supabase.removeChannel(activeChannel);
+    }
+    
     const channel = supabase
       .channel(`messages:${conversationId}`)
       .on(
@@ -217,13 +226,20 @@ export const useChatStore = create<ChatState>((set, get) => ({
       )
       .subscribe((status) => {
         console.log('Subscription status:', status);
+        if (status === 'SUBSCRIBED') {
+          set({ activeChannel: channel });
+        }
       });
     
     return channel;
   },
   
   unsubscribeFromMessages: () => {
-    console.log('Unsubscribing from all channels');
-    supabase.removeAllChannels();
+    console.log('Unsubscribing from messages');
+    const { activeChannel } = get();
+    if (activeChannel) {
+      supabase.removeChannel(activeChannel);
+      set({ activeChannel: null });
+    }
   }
 }));

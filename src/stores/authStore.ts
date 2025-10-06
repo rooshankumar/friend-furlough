@@ -1,12 +1,3 @@
-// Type guard for Profile
-function isValidProfile(profile: any): profile is Profile {
-  return (
-    profile &&
-    typeof profile === 'object' &&
-    typeof profile.id === 'string' &&
-    typeof profile.name === 'string'
-  );
-}
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import { supabase } from '@/integrations/supabase/client';
@@ -25,6 +16,16 @@ interface Profile {
   last_seen?: string;
   created_at: string;
   updated_at: string;
+}
+
+// Type guard for Profile
+function isValidProfile(profile: any): profile is Profile {
+  return (
+    profile &&
+    typeof profile === 'object' &&
+    typeof profile.id === 'string' &&
+    typeof profile.name === 'string'
+  );
 }
 
 interface AuthState {

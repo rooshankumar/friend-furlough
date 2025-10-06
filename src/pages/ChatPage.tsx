@@ -10,17 +10,25 @@ import {
   Send, 
   Mic, 
   Image, 
-  Languages, 
   Globe,
   MoreVertical,
   Search,
-  Phone,
-  Video
+  Trash2,
+  Ban,
+  Flag,
+  ArrowLeft
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { useChatStore } from '@/stores/chatStore';
 import { useAuthStore } from '@/stores/authStore';
 import { CulturalBadge } from '@/components/CulturalBadge';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
 
 const ChatPage = () => {
   const { conversationId } = useParams();
@@ -148,9 +156,7 @@ const ChatPage = () => {
                                 </p>
                                 {participantProfile?.country_flag && (
                                   <div className="flex items-center gap-2 mt-2">
-                                    <CulturalBadge type="country" flag={participantProfile.country_flag}>
-                                      {participantProfile.country_flag}
-                                    </CulturalBadge>
+                                    <span className="text-sm">{participantProfile.country_flag}</span>
                                   </div>
                                 )}
                               </div>
@@ -190,13 +196,13 @@ const ChatPage = () => {
   }
 
   return (
-    <div className="h-full bg-gradient-subtle">
-      <div className="container mx-auto px-4 py-8">
-        <div className="grid grid-cols-1 lg:grid-cols-4 gap-6 h-[calc(100vh-12rem)]">
-          {/* Conversations List - Mobile Hidden */}
-          <div className="hidden lg:block lg:col-span-1">
-            <Card className="h-full">
-              <CardHeader className="pb-4">
+    <div className="fixed inset-0 top-0 md:left-16 bg-gradient-subtle pb-16 md:pb-0 pt-0">
+      <div className="h-full">
+        <div className="grid grid-cols-1 lg:grid-cols-4 h-full">
+          {/* Conversations List - Desktop Only */}
+          <div className="hidden lg:block lg:col-span-1 border-r border-border/50 bg-card/30">
+            <div className="h-full flex flex-col">
+              <div className="pb-4 p-4 border-b border-border/50">
                 <div className="flex items-center justify-between">
                   <CardTitle className="flex items-center gap-2">
                     <Globe className="h-5 w-5 text-primary" />
@@ -206,9 +212,9 @@ const ChatPage = () => {
                     <Search className="h-4 w-4" />
                   </Button>
                 </div>
-              </CardHeader>
-              <CardContent className="p-0">
-                <ScrollArea className="h-[calc(100vh-16rem)]">
+              </div>
+              <div className="flex-1 overflow-hidden">
+                <ScrollArea className="h-full">
                   {conversations.map((conversation) => {
                     const otherUser = conversation.participants.find(p => p.user_id !== user?.id);
                     const participantProfile = otherUser?.profiles;
@@ -242,17 +248,22 @@ const ChatPage = () => {
                     );
                   })}
                 </ScrollArea>
-              </CardContent>
-            </Card>
+              </div>
+            </div>
           </div>
 
           {/* Chat Area */}
-          <div className="lg:col-span-3">
-            <Card className="h-full flex flex-col">
+          <div className="lg:col-span-3 bg-background h-full">
+            <div className="h-full flex flex-col">
               {/* Chat Header */}
-              <CardHeader className="border-b border-border/50">
+              <div className="border-b border-border/50 py-3 px-4">
                 <div className="flex items-center justify-between">
                   <div className="flex items-center space-x-3">
+                    <Link to="/chat" className="lg:hidden">
+                      <Button size="sm" variant="ghost" className="h-8 w-8 p-0">
+                        <ArrowLeft className="h-4 w-4" />
+                      </Button>
+                    </Link>
                     <Avatar className="h-10 w-10">
                       <AvatarImage src={otherParticipant?.profiles?.avatar_url} />
                       <AvatarFallback className="bg-gradient-cultural text-white">
@@ -260,98 +271,117 @@ const ChatPage = () => {
                       </AvatarFallback>
                     </Avatar>
                     <div>
-                      <h3 className="font-semibold">{otherParticipant?.profiles?.name || 'Unknown User'}</h3>
+                      <h3 className="font-semibold text-sm md:text-base">{otherParticipant?.profiles?.name || 'Unknown User'}</h3>
                       <div className="flex items-center gap-2">
                         {otherParticipant?.profiles?.country_flag && (
-                          <CulturalBadge type="country" flag={otherParticipant.profiles.country_flag}>
-                            {otherParticipant.profiles.country_flag}
-                          </CulturalBadge>
+                          <span className="text-sm">{otherParticipant.profiles.country_flag}</span>
                         )}
-                        <span className="text-sm text-muted-foreground">
-                          {otherParticipant?.profiles?.online ? 'Online' : 'Offline'}
-                        </span>
+                        {otherParticipant?.profiles?.country && (
+                          <span className="text-xs text-muted-foreground">
+                            {otherParticipant.profiles.country}
+                          </span>
+                        )}
                       </div>
                     </div>
                   </div>
                   <div className="flex items-center gap-2">
-                    <Button size="sm" variant="ghost">
-                      <Phone className="h-4 w-4" />
-                    </Button>
-                    <Button size="sm" variant="ghost">
-                      <Video className="h-4 w-4" />
-                    </Button>
-                    <Button size="sm" variant="ghost">
-                      <Languages className="h-4 w-4" />
-                    </Button>
-                    <Button size="sm" variant="ghost">
-                      <MoreVertical className="h-4 w-4" />
-                    </Button>
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
+                        <Button size="sm" variant="ghost" className="h-8 w-8 p-0">
+                          <MoreVertical className="h-4 w-4" />
+                        </Button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent align="end" className="w-48">
+                        <DropdownMenuItem className="text-destructive cursor-pointer">
+                          <Trash2 className="mr-2 h-4 w-4" />
+                          Delete Conversation
+                        </DropdownMenuItem>
+                        <DropdownMenuSeparator />
+                        <DropdownMenuItem className="cursor-pointer">
+                          <Ban className="mr-2 h-4 w-4" />
+                          Block User
+                        </DropdownMenuItem>
+                        <DropdownMenuItem className="cursor-pointer">
+                          <Flag className="mr-2 h-4 w-4" />
+                          Report
+                        </DropdownMenuItem>
+                      </DropdownMenuContent>
+                    </DropdownMenu>
                   </div>
                 </div>
-              </CardHeader>
+              </div>
 
               {/* Messages */}
-              <CardContent className="flex-1 p-0">
-                <ScrollArea className="h-[calc(100vh-20rem)] p-4">
-                  <div className="space-y-4">
-                    {conversationMessages.map((message) => (
-                      <div 
-                        key={message.id} 
-                        className={`flex ${message.sender_id === user?.id ? 'justify-end' : 'justify-start'}`}
-                      >
-                        <div className={`max-w-[70%] ${message.sender_id === user?.id 
-                          ? 'bg-primary text-primary-foreground' 
-                          : 'bg-accent text-accent-foreground'
-                        } rounded-lg p-3`}>
-                          <p>{message.content}</p>
-                          <div className="flex items-center justify-between mt-2">
-                            <span className="text-xs opacity-70">
-                              {new Date(message.created_at).toLocaleTimeString()}
-                            </span>
-                            {message.language && (
-                              <Badge variant="outline" className="text-xs ml-2">
-                                {message.language}
-                              </Badge>
-                            )}
+              <div className="flex-1 p-0 overflow-hidden">
+                <ScrollArea className="h-full p-4">
+                  <div className="space-y-2">
+                    {conversationMessages.map((message, index) => {
+                      const currentDate = new Date(message.created_at).toDateString();
+                      const previousDate = index > 0 
+                        ? new Date(conversationMessages[index - 1].created_at).toDateString()
+                        : null;
+                      const showDateSeparator = currentDate !== previousDate;
+
+                      return (
+                        <React.Fragment key={message.id}>
+                          {showDateSeparator && (
+                            <div className="flex justify-center my-4">
+                              <span className="text-xs text-muted-foreground bg-muted px-3 py-1 rounded-full">
+                                {new Date(message.created_at).toLocaleDateString('en-US', { 
+                                  day: 'numeric', 
+                                  month: 'short', 
+                                  year: 'numeric' 
+                                })}
+                              </span>
+                            </div>
+                          )}
+                          <div 
+                            className={`flex ${message.sender_id === user?.id ? 'justify-end' : 'justify-start'}`}
+                          >
+                            <div className={`max-w-[75%] sm:max-w-[60%] ${message.sender_id === user?.id 
+                              ? 'bg-primary text-primary-foreground' 
+                              : 'bg-accent text-accent-foreground'
+                            } rounded-2xl px-3 py-2`}>
+                              <p className="text-sm">{message.content}</p>
+                            </div>
                           </div>
-                        </div>
-                      </div>
-                    ))}
+                        </React.Fragment>
+                      );
+                    })}
                     <div ref={messagesEndRef} />
                   </div>
                 </ScrollArea>
-              </CardContent>
+              </div>
 
               {/* Message Input */}
-              <div className="p-4 border-t border-border/50">
-                <div className="flex items-end space-x-2">
+              <div className="p-3 border-t border-border/50">
+                <div className="flex items-center space-x-2">
+                  <Button size="sm" variant="ghost" className="h-9 w-9 p-0 flex-shrink-0">
+                    <Image className="h-4 w-4" />
+                  </Button>
                   <div className="flex-1">
                     <Input
                       value={newMessage}
                       onChange={(e) => setNewMessage(e.target.value)}
                       onKeyPress={handleKeyPress}
-                      placeholder="Share your culture, practice languages..."
-                      className="min-h-[2.5rem]"
+                      placeholder="Type a message..."
+                      className="h-9 text-sm"
                     />
                   </div>
-                  <div className="flex items-center gap-1">
-                    <Button size="sm" variant="ghost" className="h-10 w-10 p-0">
-                      <Image className="h-4 w-4" />
-                    </Button>
-                    <Button size="sm" variant="ghost" className="h-10 w-10 p-0">
-                      <Mic className="h-4 w-4" />
-                    </Button>
-                    <Button 
-                      onClick={handleSendMessage}
-                      disabled={!newMessage.trim()}
-                      className="h-10 w-10 p-0"
-                    >
-                      <Send className="h-4 w-4" />
-                    </Button>
-                  </div>
+                  <Button size="sm" variant="ghost" className="h-9 w-9 p-0 flex-shrink-0">
+                    <Mic className="h-4 w-4" />
+                  </Button>
+                  <Button 
+                    onClick={handleSendMessage}
+                    disabled={!newMessage.trim()}
+                    size="sm"
+                    className="h-9 w-9 p-0 flex-shrink-0"
+                  >
+                    <Send className="h-4 w-4" />
+                  </Button>
                 </div>
               </div>
-            </Card>
+            </div>
           </div>
         </div>
       </div>

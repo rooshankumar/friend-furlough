@@ -251,19 +251,17 @@ const ProfilePage = () => {
     return (
       <div className="p-8 text-center text-yellow-600">
         Profile loaded but missing expected fields.<br />
-        <pre style={{textAlign:'left',margin:'1em auto',maxWidth:600,overflow:'auto',background:'#f9f9f9',padding:'1em',borderRadius:'8px'}}>{JSON.stringify(profileUser, null, 2)}</pre>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-gradient-subtle">
-      <div className="container mx-auto px-4 py-8 max-w-6xl">
+    <div className="fixed inset-0 top-0 md:left-16 bg-gradient-subtle pb-16 md:pb-0 overflow-auto pt-4 md:pt-0">
+      <div className="p-4 md:p-8 max-w-6xl mx-auto">
         {/* Profile Header */}
         <Card className="mb-6">
           <CardContent className="pt-6">
             <div className="flex flex-col lg:flex-row lg:items-start gap-6">
-              {/* Profile Image & Basic Info */}
               <div className="flex flex-col items-center lg:items-start">
                 <div className="relative">
                   <Avatar className="h-32 w-32 border-4 border-primary/20">

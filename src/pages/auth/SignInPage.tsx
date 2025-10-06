@@ -130,7 +130,6 @@ const SignInPage = () => {
                 />
                 
                 <FormField
-                  control={form.control}
                   name="password"
                   render={({ field }) => (
                     <FormItem>
@@ -139,7 +138,8 @@ const SignInPage = () => {
                         <div className="relative">
                           <Input 
                             type={showPassword ? "text" : "password"}
-                            placeholder="Enter your password" 
+                            placeholder="Enter your password"
+                            autoComplete="current-password"
                             {...field} 
                           />
                           <Button

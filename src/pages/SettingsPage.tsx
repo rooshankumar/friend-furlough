@@ -10,15 +10,16 @@ export default function SettingsPage() {
   const { theme, setTheme } = useTheme();
 
   return (
-    <div className="container mx-auto px-4 py-8 max-w-4xl">
-      <div className="mb-8">
-        <h1 className="text-3xl font-bold">Settings</h1>
-        <p className="text-muted-foreground mt-2">
-          Manage your account settings and preferences
-        </p>
-      </div>
+    <div className="fixed inset-0 top-0 md:left-16 bg-gradient-subtle pb-16 md:pb-0 overflow-auto pt-4 md:pt-0">
+      <div className="p-4 md:p-8 max-w-4xl mx-auto">
+        <div className="mb-8">
+          <h1 className="text-3xl font-bold">Settings</h1>
+          <p className="text-muted-foreground mt-2">
+            Manage your account settings and preferences
+          </p>
+        </div>
 
-      <div className="space-y-6">
+        <div className="space-y-6">
         {/* Appearance */}
         <Card>
           <CardHeader>
@@ -169,6 +170,7 @@ export default function SettingsPage() {
             </div>
           </CardContent>
         </Card>
+        </div>
       </div>
     </div>
   );

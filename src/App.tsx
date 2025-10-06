@@ -66,6 +66,11 @@ const App = () => {
               <Route path="/onboarding/learning-goals" element={<LearningGoalsPage />} />
               
               {/* Protected Routes */}
+              <Route path="/dashboard" element={
+                <ProtectedRoute>
+                  <ExplorePage />
+                </ProtectedRoute>
+              } />
               <Route path="/explore" element={
                 <ProtectedRoute>
                   <ExplorePage />

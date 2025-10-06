@@ -86,18 +86,22 @@ export default function ExplorePage() {
       }
 
       // Create new conversation
+      console.log('Creating conversation with user_id:', session.user.id);
+      console.log('Auth session:', session);
+      
+      // Try without explicitly setting user_id - let the database default handle it
       const { data: conversation, error: convError } = await supabase
         .from('conversations')
         .insert({ 
-          is_language_exchange: true,
-          user_id: session.user.id
+          is_language_exchange: true
         })
         .select()
         .single();
 
       if (convError) {
         console.error('Conversation creation error:', convError);
-        toast.error('Failed to start conversation. Please try again.');
+        console.error('Full error details:', JSON.stringify(convError, null, 2));
+        toast.error(`Failed to start conversation: ${convError.message}`);
         return;
       }
 
@@ -125,9 +129,10 @@ export default function ExplorePage() {
 
   if (isLoading) {
     return (
-      <div className="container mx-auto px-4 py-8">
-        <h1 className="text-3xl font-bold mb-8">Explore Language Partners</h1>
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+      <div className="fixed inset-0 top-0 md:left-16 bg-gradient-subtle pb-16 md:pb-0 overflow-auto pt-4 md:pt-0">
+        <div className="p-4 md:p-8">
+          <h1 className="text-3xl font-bold mb-8">Explore Language Partners</h1>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
           {[1, 2, 3, 4, 5, 6].map((i) => (
             <Card key={i} className="p-6">
               <Skeleton className="h-20 w-20 rounded-full mx-auto mb-4" />
@@ -136,19 +141,21 @@ export default function ExplorePage() {
               <Skeleton className="h-10 w-full" />
             </Card>
           ))}
+          </div>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="container mx-auto px-4 py-8">
-      <h1 className="text-3xl font-bold mb-2">Explore Language Partners</h1>
-      <p className="text-muted-foreground mb-8">
-        Connect with people from around the world
-      </p>
+    <div className="fixed inset-0 top-0 md:left-16 bg-gradient-subtle pb-16 md:pb-0 overflow-auto pt-4 md:pt-0">
+      <div className="p-4 md:p-8">
+        <h1 className="text-3xl font-bold mb-2">Explore Language Partners</h1>
+        <p className="text-muted-foreground mb-8">
+          Connect with people from around the world
+        </p>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
         {profiles.map((profile) => (
           <Card key={profile.id} className="p-6 hover:shadow-lg transition-shadow">
             <div className="flex flex-col items-center text-center">
@@ -189,17 +196,18 @@ export default function ExplorePage() {
             </div>
           </Card>
         ))}
-      </div>
 
-      {profiles.length === 0 && (
-        <div className="text-center py-12">
-          <Globe className="h-12 w-12 mx-auto mb-4 text-muted-foreground" />
-          <h3 className="text-xl font-semibold mb-2">No users found</h3>
-          <p className="text-muted-foreground">
-            Be the first to join the community!
-          </p>
+        {profiles.length === 0 && (
+          <div className="text-center py-12 col-span-full">
+            <Globe className="h-12 w-12 mx-auto mb-4 text-muted-foreground" />
+            <h3 className="text-xl font-semibold mb-2">No users found</h3>
+            <p className="text-muted-foreground">
+              Be the first to join the community!
+            </p>
+          </div>
+        )}
         </div>
-      )}
+      </div>
     </div>
   );
 }

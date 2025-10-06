@@ -180,6 +180,8 @@ export const useChatStore = create<ChatState>((set, get) => ({
   },
   
   subscribeToMessages: (conversationId: string) => {
+    console.log('Subscribing to messages for conversation:', conversationId);
+    
     const channel = supabase
       .channel(`messages:${conversationId}`)
       .on(
@@ -191,21 +193,37 @@ export const useChatStore = create<ChatState>((set, get) => ({
           filter: `conversation_id=eq.${conversationId}`
         },
         (payload) => {
+          console.log('New message received:', payload);
           const newMessage = payload.new as DbMessage;
-          set(state => ({
-            messages: {
-              ...state.messages,
-              [conversationId]: [...(state.messages[conversationId] || []), newMessage]
+          set(state => {
+            // Check if message already exists to avoid duplicates
+            const existingMessages = state.messages[conversationId] || [];
+            const messageExists = existingMessages.some(m => m.id === newMessage.id);
+            
+            if (messageExists) {
+              console.log('Message already exists, skipping');
+              return state;
             }
-          }));
+            
+            console.log('Adding new message to state');
+            return {
+              messages: {
+                ...state.messages,
+                [conversationId]: [...existingMessages, newMessage]
+              }
+            };
+          });
         }
       )
-      .subscribe();
+      .subscribe((status) => {
+        console.log('Subscription status:', status);
+      });
     
     return channel;
   },
   
   unsubscribeFromMessages: () => {
+    console.log('Unsubscribing from all channels');
     supabase.removeAllChannels();
   }
 }));

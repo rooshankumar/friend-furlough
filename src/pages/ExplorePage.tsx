@@ -79,7 +79,10 @@ export default function ExplorePage() {
       // Create new conversation
       const { data: conversation, error: convError } = await supabase
         .from('conversations')
-        .insert({ is_language_exchange: true })
+        .insert({ 
+          is_language_exchange: true,
+          user_id: user!.id
+        })
         .select()
         .single();
 

@@ -95,6 +95,7 @@ export type Database = {
           is_language_exchange: boolean | null
           language: string | null
           updated_at: string | null
+          user_id: string | null
         }
         Insert: {
           created_at?: string | null
@@ -102,6 +103,7 @@ export type Database = {
           is_language_exchange?: boolean | null
           language?: string | null
           updated_at?: string | null
+          user_id?: string | null
         }
         Update: {
           created_at?: string | null
@@ -109,6 +111,7 @@ export type Database = {
           is_language_exchange?: boolean | null
           language?: string | null
           updated_at?: string | null
+          user_id?: string | null
         }
         Relationships: []
       }

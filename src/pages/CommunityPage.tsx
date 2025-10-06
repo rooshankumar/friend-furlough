@@ -28,8 +28,8 @@ export default function CommunityPage() {
   const { toast } = useToast();
   const [posts, setPosts] = useState<Post[]>([]);
   const [newPost, setNewPost] = useState('');
-  const [selectedImage, setSelectedImage] = useState<File | null>(null);
-  const [imagePreview, setImagePreview] = useState<string>('');
+  const [selectedImages, setSelectedImages] = useState<File[]>([]);
+  const [imagePreviews, setImagePreviews] = useState<string[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isPosting, setIsPosting] = useState(false);
 
@@ -62,22 +62,42 @@ export default function CommunityPage() {
   };
 
   const handleImageSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (file) {
-      setSelectedImage(file);
+    const files = Array.from(e.target.files || []);
+    if (files.length === 0) return;
+    
+    // Limit to 4 images
+    const filesToAdd = files.slice(0, 4 - selectedImages.length);
+    
+    if (selectedImages.length + files.length > 4) {
+      toast({
+        title: "Image limit",
+        description: "You can upload a maximum of 4 images per post",
+        variant: "destructive",
+      });
+    }
+    
+    setSelectedImages([...selectedImages, ...filesToAdd]);
+    
+    // Generate previews
+    filesToAdd.forEach(file => {
       const reader = new FileReader();
       reader.onloadend = () => {
-        setImagePreview(reader.result as string);
+        setImagePreviews(prev => [...prev, reader.result as string]);
       };
       reader.readAsDataURL(file);
-    }
+    });
+  };
+
+  const removeImage = (index: number) => {
+    setSelectedImages(prev => prev.filter((_, i) => i !== index));
+    setImagePreviews(prev => prev.filter((_, i) => i !== index));
   };
 
   const handleCreatePost = async () => {
-    if (!newPost.trim() && !selectedImage) {
+    if (!newPost.trim() && selectedImages.length === 0) {
       toast({
         title: "Content required",
-        description: "Please add some content or an image",
+        description: "Please add some content or images",
         variant: "destructive",
       });
       return;
@@ -87,8 +107,9 @@ export default function CommunityPage() {
     try {
       let imageUrl = '';
       
-      if (selectedImage && user) {
-        imageUrl = await uploadPostImage(selectedImage, user.id);
+      // Upload the first image (we'll use the first one as the main image_url)
+      if (selectedImages.length > 0 && user) {
+        imageUrl = await uploadPostImage(selectedImages[0], user.id);
       }
 
       const { error } = await supabase
@@ -107,8 +128,8 @@ export default function CommunityPage() {
       });
 
       setNewPost('');
-      setSelectedImage(null);
-      setImagePreview('');
+      setSelectedImages([]);
+      setImagePreviews([]);
       loadPosts();
     } catch (error) {
       console.error('Error creating post:', error);
@@ -159,24 +180,25 @@ export default function CommunityPage() {
               className="mb-4"
               rows={3}
             />
-            {imagePreview && (
-              <div className="relative mb-4">
-                <img
-                  src={imagePreview}
-                  alt="Preview"
-                  className="rounded-lg max-h-64 object-cover"
-                />
-                <Button
-                  variant="destructive"
-                  size="sm"
-                  className="absolute top-2 right-2"
-                  onClick={() => {
-                    setSelectedImage(null);
-                    setImagePreview('');
-                  }}
-                >
-                  Remove
-                </Button>
+            {imagePreviews.length > 0 && (
+              <div className="grid grid-cols-2 gap-2 mb-4">
+                {imagePreviews.map((preview, index) => (
+                  <div key={index} className="relative">
+                    <img
+                      src={preview}
+                      alt={`Preview ${index + 1}`}
+                      className="rounded-lg h-32 w-full object-cover"
+                    />
+                    <Button
+                      variant="destructive"
+                      size="sm"
+                      className="absolute top-2 right-2 h-6 w-6 p-0"
+                      onClick={() => removeImage(index)}
+                    >
+                      ×
+                    </Button>
+                  </div>
+                ))}
               </div>
             )}
             <div className="flex gap-2">
@@ -184,14 +206,16 @@ export default function CommunityPage() {
                 variant="outline"
                 size="sm"
                 onClick={() => document.getElementById('post-image')?.click()}
+                disabled={selectedImages.length >= 4}
               >
                 <Upload className="h-4 w-4 mr-2" />
-                Add Image
+                Add Images ({selectedImages.length}/4)
               </Button>
               <input
                 id="post-image"
                 type="file"
-                accept="image/*"
+                accept="image/*,video/*"
+                multiple
                 className="hidden"
                 onChange={handleImageSelect}
               />

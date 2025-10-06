@@ -62,6 +62,19 @@ export const useAuthStore = create<AuthState>()(
         set({ isLoading: true });
         
         try {
+          // Clear any expired tokens from localStorage
+          const storedAuth = localStorage.getItem('sb-bblrxervgwkphkctdghe-auth-token');
+          if (storedAuth) {
+            try {
+              const parsed = JSON.parse(storedAuth);
+              if (parsed.expires_at && new Date(parsed.expires_at * 1000) < new Date()) {
+                localStorage.removeItem('sb-bblrxervgwkphkctdghe-auth-token');
+              }
+            } catch (e) {
+              localStorage.removeItem('sb-bblrxervgwkphkctdghe-auth-token');
+            }
+          }
+          
           // Check for existing session first
           const { data: { session } } = await supabase.auth.getSession();
           

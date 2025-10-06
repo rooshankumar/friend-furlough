@@ -173,10 +173,30 @@ const ProfilePage = () => {
     }
   };
 
+  // Fetch post count for the user
+  const [postsCount, setPostsCount] = useState(0);
+  
+  useEffect(() => {
+    if (!user?.id) return;
+    
+    async function fetchPostCount() {
+      const { count, error } = await supabase
+        .from('community_posts')
+        .select('*', { count: 'exact', head: true })
+        .eq('user_id', user.id);
+      
+      if (!error && count !== null) {
+        setPostsCount(count);
+      }
+    }
+    
+    fetchPostCount();
+  }, [user?.id]);
+
   // Placeholder stats and languageProgress until real data is available
   const stats = {
     friendsCount: 0,
-    postsCount: 0,
+    postsCount: postsCount,
     languagesLearning: profileUser?.learningLanguages?.length || 0,
     culturalExchanges: 0
   };

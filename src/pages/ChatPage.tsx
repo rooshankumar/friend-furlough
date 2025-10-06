@@ -192,7 +192,7 @@ const ChatPage = () => {
   }
 
   return (
-    <div className="fixed inset-0 top-0 md:left-16 bg-gradient-subtle pb-0 md:pb-0">
+    <div className="fixed inset-0 top-0 md:left-16 bg-gradient-subtle">
       <div className="h-full flex">
         {/* Conversations List - Desktop Only */}
         <div className="hidden lg:flex lg:w-72 border-r border-border/50 bg-card/30 flex-col flex-shrink-0">

@@ -19,6 +19,9 @@ const Navigation = () => {
   const { user, profile, isAuthenticated, signOut } = useAuthStore();
 
   const isActive = (path: string) => location.pathname === path;
+  
+  // Check if we're on a specific chat conversation page (not just /chat)
+  const isInChatConversation = location.pathname.startsWith('/chat/') && location.pathname !== '/chat';
 
   const handleSignOut = () => {
     signOut();
@@ -158,7 +161,7 @@ const Navigation = () => {
       )}
 
       {/* Mobile Navigation - Bottom */}
-      {isAuthenticated && (
+      {isAuthenticated && !isInChatConversation && (
         <nav className="md:hidden fixed bottom-0 left-0 right-0 z-50 border-t border-border/50 bg-card/95 backdrop-blur-sm">
           <div className="flex items-center justify-around py-2 px-4">
             <Button

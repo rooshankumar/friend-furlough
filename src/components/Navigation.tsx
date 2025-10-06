@@ -16,7 +16,7 @@ import roshLinguaLogo from "@/assets/roshlingua-logo.png";
 const Navigation = () => {
   const location = useLocation();
   const navigate = useNavigate();
-  const { user, isAuthenticated, signOut } = useAuthStore();
+  const { user, profile, isAuthenticated, signOut } = useAuthStore();
 
   const isActive = (path: string) => location.pathname === path;
 
@@ -103,9 +103,9 @@ const Navigation = () => {
             <DropdownMenuTrigger asChild>
               <Button variant="ghost" size="icon" className="mt-auto">
                 <Avatar className="h-8 w-8">
-                  <AvatarImage src="/placeholder-user.jpg" />
+                  <AvatarImage src={profile?.avatar_url || user?.user_metadata?.avatar_url} />
                   <AvatarFallback className="bg-gradient-cultural text-white text-xs">
-                    {user?.email?.[0]?.toUpperCase() || 'U'}
+                    {profile?.name?.[0] || user?.email?.[0]?.toUpperCase() || 'U'}
                   </AvatarFallback>
                 </Avatar>
               </Button>

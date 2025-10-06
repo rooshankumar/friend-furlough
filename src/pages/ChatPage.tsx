@@ -109,25 +109,22 @@ const ChatPage = () => {
 
   if (!conversationId) {
     return (
-      <div className="h-full bg-gradient-subtle">
-        <div className="container mx-auto px-4 py-8">
-          <div className="grid grid-cols-1 lg:grid-cols-4 gap-6 h-[calc(100vh-12rem)]">
-            {/* Conversations List */}
-            <div className="lg:col-span-1">
-              <Card className="h-full">
-                <CardHeader className="pb-4">
-                  <div className="flex items-center justify-between">
-                    <CardTitle className="flex items-center gap-2">
-                      <Globe className="h-5 w-5 text-primary" />
-                      Conversations
-                    </CardTitle>
-                    <Button size="sm" variant="outline">
-                      <Search className="h-4 w-4" />
-                    </Button>
-                  </div>
-                </CardHeader>
-                <CardContent className="p-0">
-                  <ScrollArea className="h-[calc(100vh-16rem)]">
+      <div className="fixed inset-0 top-0 md:left-16 bg-gradient-subtle pb-16 md:pb-0">
+        <div className="h-full flex flex-col md:flex-row">
+          {/* Conversations List */}
+          <div className="md:w-96 border-r border-border/50 bg-card/30 h-full flex flex-col">
+            <div className="pb-4 p-4 border-b border-border/50">
+              <div className="flex items-center justify-between">
+                <h2 className="text-lg font-semibold flex items-center gap-2">
+                  <Globe className="h-5 w-5 text-primary" />
+                  Conversations
+                </h2>
+                <Button size="sm" variant="ghost" className="h-8 w-8 p-0">
+                  <Search className="h-4 w-4" />
+                </Button>
+              </div>
+            </div>
+            <div className="flex-1 overflow-y-auto">
                     {conversations.map((conversation) => {
                       const otherUser = conversation.participants.find(p => p.user_id !== user?.id);
                       const participantProfile = otherUser?.profiles;
@@ -170,24 +167,21 @@ const ChatPage = () => {
                         </Link>
                       );
                     })}
-                  </ScrollArea>
-                </CardContent>
-              </Card>
             </div>
+          </div>
 
-            {/* Welcome Message */}
-            <div className="lg:col-span-3 flex items-center justify-center">
-              <div className="text-center space-y-4">
-                <div className="w-24 h-24 mx-auto bg-gradient-cultural rounded-full flex items-center justify-center">
-                  <Globe className="h-12 w-12 text-white" />
-                </div>
-                <h2 className="text-2xl font-bold text-foreground">
-                  Start Cultural Conversations
-                </h2>
-                <p className="text-muted-foreground max-w-md">
-                  Select a conversation to start practicing languages and sharing cultures with friends around the world.
-                </p>
+          {/* Welcome Message */}
+          <div className="flex-1 flex items-center justify-center bg-background">
+            <div className="text-center space-y-4 p-8">
+              <div className="w-24 h-24 mx-auto bg-gradient-cultural rounded-full flex items-center justify-center">
+                <Globe className="h-12 w-12 text-white" />
               </div>
+              <h2 className="text-2xl font-bold text-foreground">
+                Start Cultural Conversations
+              </h2>
+              <p className="text-muted-foreground max-w-md">
+                Select a conversation to start practicing languages and sharing cultures with friends around the world.
+              </p>
             </div>
           </div>
         </div>

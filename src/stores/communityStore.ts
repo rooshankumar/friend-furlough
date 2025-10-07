@@ -26,9 +26,26 @@ export const useCommunityStore = create<CommunityState>()(
         set({ loading: true });
         try {
           const { fetchCommunityPosts } = await import('@/integrations/supabase/fetchCommunityPosts');
-          const posts = await fetchCommunityPosts();
+          const communityPosts = await fetchCommunityPosts();
+          // Transform community_posts format to Post type
+          // Note: community_posts is simpler than the full Post type
+          const posts = communityPosts.map((cp: any) => ({
+            id: cp.id,
+            authorId: cp.user_id,
+            content: cp.content,
+            images: cp.image_url ? [cp.image_url] : [],
+            type: 'cultural-moment' as const,
+            culturalTags: [],
+            languageTags: [],
+            timestamp: cp.created_at,
+            reactions: [],
+            comments: [],
+            shareCount: 0,
+            savedBy: [],
+          }));
           set({ posts, loading: false });
         } catch (e) {
+          console.error('Error loading community posts:', e);
           set({ posts: [], loading: false });
         }
       },

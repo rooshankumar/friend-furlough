@@ -15,6 +15,7 @@ import { LanguageSelector } from '@/components/LanguageSelector';
 import { CulturalInterestSelector } from '@/components/CulturalInterestSelector';
 import { useAuthStore } from '@/stores/authStore';
 import { useToast } from '@/hooks/use-toast';
+import { supabase } from '@/integrations/supabase/client';
 
 const learningGoalsSchema = z.object({
   learningLanguages: z.array(z.string()).min(1, 'Please select at least one language to learn'),
@@ -52,10 +53,78 @@ const LearningGoalsPage = () => {
   const watchedLookingFor = form.watch('lookingFor');
   
   const onSubmit = async (data: LearningGoalsFormData) => {
+    if (!profile?.id) {
+      toast({
+        title: "Error",
+        description: "User profile not found. Please try logging in again.",
+        variant: "destructive",
+      });
+      return;
+    }
+    
     try {
-      // Update user profile with learning goals
+      // Update user profile with bio
       await updateProfile({
         bio: data.bio,
+      });
+      
+      // Save learning languages to languages table
+      // First, delete existing learning languages for this user
+      await supabase
+        .from('languages')
+        .delete()
+        .eq('user_id', profile.id)
+        .eq('is_learning', true);
+      
+      // Insert new learning languages
+      if (data.learningLanguages.length > 0) {
+        const languageRecords = data.learningLanguages.map(langName => ({
+          user_id: profile.id,
+          language_code: langName.toLowerCase().replace(/\s+/g, '_'),
+          language_name: langName,
+          is_native: false,
+          is_learning: true,
+          proficiency_level: 'beginner',
+        }));
+        
+        const { error: langError } = await supabase
+          .from('languages')
+          .insert(languageRecords);
+        
+        if (langError) {
+          console.error('Error saving learning languages:', langError);
+          throw langError;
+        }
+      }
+      
+      // Save cultural interests to cultural_interests table
+      // First, delete existing cultural interests for this user
+      await supabase
+        .from('cultural_interests')
+        .delete()
+        .eq('user_id', profile.id);
+      
+      // Insert new cultural interests
+      if (data.culturalInterests.length > 0) {
+        const interestRecords = data.culturalInterests.map(interest => ({
+          user_id: profile.id,
+          interest: interest,
+        }));
+        
+        const { error: interestError } = await supabase
+          .from('cultural_interests')
+          .insert(interestRecords);
+        
+        if (interestError) {
+          console.error('Error saving cultural interests:', interestError);
+          throw interestError;
+        }
+      }
+      
+      // Mark onboarding as complete and save looking_for preferences
+      await updateProfile({
+        onboarding_completed: true,
+        looking_for: data.lookingFor,
       });
       
       completeOnboarding();
@@ -67,6 +136,7 @@ const LearningGoalsPage = () => {
       
       navigate('/explore');
     } catch (error) {
+      console.error('Onboarding completion error:', error);
       toast({
         title: "Update failed",
         description: "Something went wrong. Please try again.",

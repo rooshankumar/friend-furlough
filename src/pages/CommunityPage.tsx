@@ -6,7 +6,13 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
-import { Heart, MessageCircle, Share2, Upload, ChevronLeft, ChevronRight, Globe } from 'lucide-react';
+import { Heart, MessageCircle, Share2, Upload, ChevronLeft, ChevronRight, Globe, Trash2, MoreHorizontal } from 'lucide-react';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
 import { useToast } from '@/hooks/use-toast';
 import { uploadPostImage } from '@/lib/storage';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -122,6 +128,52 @@ export default function CommunityPage() {
     setImagePreviews(prev => prev.filter((_, i) => i !== index));
   };
 
+  const handleDeletePost = async (postId: string) => {
+    if (!confirm('Are you sure you want to delete this post?')) {
+      return;
+    }
+
+    try {
+      console.log('Deleting post:', postId, 'User ID:', user?.id);
+      
+      const { data, error } = await supabase
+        .from('community_posts' as any)
+        .delete()
+        .eq('id', postId)
+        .eq('user_id', user?.id) // Ensure user can only delete their own posts
+        .select();
+
+      console.log('Delete result:', { data, error });
+
+      if (error) {
+        console.error('Delete error:', error);
+        throw error;
+      }
+
+      // Remove from both lists
+      setPosts(prev => prev.filter(p => p.id !== postId));
+      setMyPosts(prev => prev.filter(p => p.id !== postId));
+
+      toast({
+        title: "Post deleted",
+        description: "Your post has been removed successfully",
+      });
+      
+      // Force reload posts to ensure sync
+      setTimeout(() => {
+        loadPosts();
+        loadMyPosts();
+      }, 500);
+    } catch (error: any) {
+      console.error('Delete failed:', error);
+      toast({
+        title: "Delete failed",
+        description: error.message || "Failed to delete post. Check console for details.",
+        variant: "destructive",
+      });
+    }
+  };
+
   const handleCreatePost = async () => {
     if (!newPost.trim() && selectedImages.length === 0) {
       toast({
@@ -132,27 +184,55 @@ export default function CommunityPage() {
       return;
     }
 
+    if (!user?.id) {
+      toast({
+        title: "Authentication required",
+        description: "Please sign in to create a post",
+        variant: "destructive",
+      });
+      return;
+    }
+
     setIsPosting(true);
     try {
       let imageUrl = '';
       
       // Upload the first image (we'll use the first one as the main image_url)
-      if (selectedImages.length > 0 && user) {
-        imageUrl = await uploadPostImage(selectedImages[0], user.id);
+      if (selectedImages.length > 0) {
+        toast({
+          title: "Uploading image...",
+          description: "Please wait while we process your image",
+        });
+        
+        try {
+          imageUrl = await uploadPostImage(selectedImages[0], user.id);
+        } catch (uploadError: any) {
+          console.error('Image upload error:', uploadError);
+          toast({
+            title: "Image upload failed",
+            description: uploadError.message || "Failed to upload image. Try a smaller file.",
+            variant: "destructive",
+          });
+          setIsPosting(false);
+          return;
+        }
       }
 
       const { error } = await supabase
         .from('community_posts' as any)
         .insert({
-          user_id: user!.id,
+          user_id: user.id,
           content: newPost,
           image_url: imageUrl || null,
         });
 
-      if (error) throw error;
+      if (error) {
+        console.error('Post creation error:', error);
+        throw new Error(error.message || 'Failed to create post');
+      }
 
       toast({
-        title: "Post created",
+        title: "Post created! 🎉",
         description: "Your post has been shared with the community",
       });
 
@@ -161,11 +241,11 @@ export default function CommunityPage() {
       setImagePreviews([]);
       loadPosts();
       loadMyPosts();
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error creating post:', error);
       toast({
-        title: "Error",
-        description: "Failed to create post",
+        title: "Failed to create post",
+        description: error.message || "Something went wrong. Please try again.",
         variant: "destructive",
       });
     } finally {
@@ -298,6 +378,14 @@ export default function CommunityPage() {
                           {new Date(post.created_at).toLocaleDateString()}
                         </p>
                       </div>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="h-6 w-6 p-0"
+                        onClick={() => handleDeletePost(post.id)}
+                      >
+                        <Trash2 className="h-3 w-3 text-destructive" />
+                      </Button>
                     </div>
                     {post.content && (
                       <p className="text-xs line-clamp-2 mb-2">{post.content}</p>
@@ -344,6 +432,24 @@ export default function CommunityPage() {
                       {new Date(post.created_at).toLocaleDateString()}
                     </p>
                   </div>
+                  {post.user_id === user?.id && (
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
+                        <Button variant="ghost" size="sm" className="h-8 w-8 p-0">
+                          <MoreHorizontal className="h-4 w-4" />
+                        </Button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent align="end">
+                        <DropdownMenuItem
+                          className="text-destructive focus:text-destructive"
+                          onClick={() => handleDeletePost(post.id)}
+                        >
+                          <Trash2 className="h-4 w-4 mr-2" />
+                          Delete Post
+                        </DropdownMenuItem>
+                      </DropdownMenuContent>
+                    </DropdownMenu>
+                  )}
                 </div>
 
                 {post.content && (

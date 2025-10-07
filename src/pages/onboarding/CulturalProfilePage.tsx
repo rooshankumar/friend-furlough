@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -9,17 +9,22 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage, FormDescription } from '@/components/ui/form';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Progress } from '@/components/ui/progress';
 import { CountrySelector } from '@/components/CountrySelector';
 import { LanguageSelector } from '@/components/LanguageSelector';
 import { useAuthStore } from '@/stores/authStore';
 import { useToast } from '@/hooks/use-toast';
+import { supabase } from '@/integrations/supabase/client';
 
 const culturalProfileSchema = z.object({
   country: z.string().min(1, 'Please select your country'),
   city: z.string().min(2, 'City must be at least 2 characters'),
   nativeLanguages: z.array(z.string()).min(1, 'Please select at least one native language'),
   age: z.number().min(16, 'You must be at least 16 years old').max(100, 'Please enter a valid age'),
+  gender: z.enum(['male', 'female', 'non-binary', 'prefer-not-to-say'], {
+    required_error: 'Please select your gender',
+  }),
 });
 
 type CulturalProfileFormData = z.infer<typeof culturalProfileSchema>;
@@ -27,20 +32,59 @@ type CulturalProfileFormData = z.infer<typeof culturalProfileSchema>;
 const CulturalProfilePage = () => {
   const navigate = useNavigate();
   const { toast } = useToast();
-  const { profile, updateProfile, setOnboardingStep } = useAuthStore();
+  const { profile, updateProfile, setOnboardingStep, onboardingCompleted } = useAuthStore();
   const [selectedCountry, setSelectedCountry] = useState<any>(null);
+  
+  // Redirect if onboarding already completed
+  useEffect(() => {
+    if (onboardingCompleted) {
+      navigate('/explore');
+    }
+  }, [onboardingCompleted, navigate]);
   
   const form = useForm<CulturalProfileFormData>({
     resolver: zodResolver(culturalProfileSchema),
     defaultValues: {
       country: profile?.country_code || '',
-      city: '',
+      city: (profile as any)?.city || '',
       nativeLanguages: [],
       age: profile?.age || 0,
+      gender: (profile?.gender as any) || 'prefer-not-to-say',
     },
   });
   
   const watchedNativeLanguages = form.watch('nativeLanguages');
+  
+  // Load existing native languages from database
+  useEffect(() => {
+    const loadNativeLanguages = async () => {
+      if (profile?.id) {
+        const { data, error } = await supabase
+          .from('languages')
+          .select('language_name')
+          .eq('user_id', profile.id)
+          .eq('is_native', true);
+        
+        if (data && data.length > 0) {
+          const languageNames = data.map(lang => lang.language_name);
+          form.setValue('nativeLanguages', languageNames);
+        }
+      }
+    };
+    
+    loadNativeLanguages();
+  }, [profile?.id]);
+  
+  // Set selected country if profile has country data
+  useEffect(() => {
+    if (profile?.country && profile?.country_code && profile?.country_flag) {
+      setSelectedCountry({
+        code: profile.country_code,
+        name: profile.country,
+        flag: profile.country_flag
+      });
+    }
+  }, [profile]);
   
   const onSubmit = async (data: CulturalProfileFormData) => {
     if (!selectedCountry) {
@@ -52,14 +96,54 @@ const CulturalProfilePage = () => {
       return;
     }
     
+    if (!profile?.id) {
+      toast({
+        title: "Error",
+        description: "User profile not found. Please try logging in again.",
+        variant: "destructive",
+      });
+      return;
+    }
+    
     try {
       // Update user profile with cultural data
       await updateProfile({
         country_code: data.country,
         country: selectedCountry.name,
         country_flag: selectedCountry.flag,
+        city: data.city,
         age: data.age,
+        gender: data.gender,
       });
+      
+      // Save native languages to languages table
+      // First, delete existing native languages for this user
+      await supabase
+        .from('languages')
+        .delete()
+        .eq('user_id', profile.id)
+        .eq('is_native', true);
+      
+      // Insert new native languages
+      if (data.nativeLanguages.length > 0) {
+        const languageRecords = data.nativeLanguages.map(langName => ({
+          user_id: profile.id,
+          language_code: langName.toLowerCase().replace(/\s+/g, '_'),
+          language_name: langName,
+          is_native: true,
+          is_learning: false,
+          proficiency_level: 'native',
+        }));
+        
+        const { error: langError } = await supabase
+          .from('languages')
+          .insert(languageRecords);
+        
+        if (langError) {
+          console.error('Error saving languages:', langError);
+          throw langError;
+        }
+      }
       
       setOnboardingStep(3);
       toast({
@@ -68,6 +152,7 @@ const CulturalProfilePage = () => {
       });
       navigate('/onboarding/learning-goals');
     } catch (error) {
+      console.error('Onboarding error:', error);
       toast({
         title: "Update failed",
         description: "Something went wrong. Please try again.",
@@ -200,6 +285,31 @@ const CulturalProfilePage = () => {
                         <FormDescription>
                           Helps find age-appropriate cultural exchange partners
                         </FormDescription>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  
+                  {/* Gender */}
+                  <FormField
+                    control={form.control}
+                    name="gender"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Gender</FormLabel>
+                        <Select onValueChange={field.onChange} defaultValue={field.value}>
+                          <FormControl>
+                            <SelectTrigger>
+                              <SelectValue placeholder="Select your gender" />
+                            </SelectTrigger>
+                          </FormControl>
+                          <SelectContent>
+                            <SelectItem value="male">Male</SelectItem>
+                            <SelectItem value="female">Female</SelectItem>
+                            <SelectItem value="non-binary">Non-binary</SelectItem>
+                            <SelectItem value="prefer-not-to-say">Prefer not to say</SelectItem>
+                          </SelectContent>
+                        </Select>
                         <FormMessage />
                       </FormItem>
                     )}

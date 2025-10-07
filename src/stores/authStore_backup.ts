@@ -11,16 +11,10 @@ interface Profile {
   country?: string;
   country_code?: string;
   country_flag?: string;
-  city?: string;
   age?: number;
-  gender?: 'male' | 'female' | 'non-binary' | 'prefer-not-to-say';
   online: boolean;
   last_seen?: string;
   onboarding_completed?: boolean;
-  looking_for?: string[];
-  language_goals?: string[];
-  countries_visited?: string[];
-  teaching_experience?: boolean;
   created_at: string;
   updated_at: string;
 }
@@ -70,6 +64,20 @@ export const useAuthStore = create<AuthState>()(
         set({ isLoading: true });
         
         try {
+          // Clear any expired tokens from localStorage
+          const storedAuth = localStorage.getItem('sb-bblrxervgwkphkctdghe-auth-token');
+          if (storedAuth) {
+            try {
+              const parsed = JSON.parse(storedAuth);
+              if (parsed.expires_at && new Date(parsed.expires_at * 1000) < new Date()) {
+                localStorage.removeItem('sb-bblrxervgwkphkctdghe-auth-token');
+              }
+            } catch (e) {
+              localStorage.removeItem('sb-bblrxervgwkphkctdghe-auth-token');
+            }
+          }
+          
+          // Check for existing session first
           const { data: { session } } = await supabase.auth.getSession();
           
           if (session?.user) {
@@ -91,6 +99,7 @@ export const useAuthStore = create<AuthState>()(
             set({ isLoading: false });
           }
 
+          // Set up minimal auth state listener
           supabase.auth.onAuthStateChange(async (event, session) => {
             if (event === 'SIGNED_IN' && session?.user) {
               const { data: profile } = await supabase
@@ -104,7 +113,7 @@ export const useAuthStore = create<AuthState>()(
                 user: session.user,
                 profile: isValidProfile(profile) ? profile : null,
                 isAuthenticated: isValidProfile(profile),
-                onboardingCompleted: isValidProfile(profile) && profile.onboarding_completed === true,
+                onboardingCompleted: isValidProfile(profile) && profile.country ? true : false,
                 isLoading: false
               });
             } else if (event === 'SIGNED_OUT') {
@@ -117,6 +126,8 @@ export const useAuthStore = create<AuthState>()(
                 onboardingCompleted: false,
                 isLoading: false
               });
+            } else if (event === 'TOKEN_REFRESHED' && session) {
+              set({ session, isLoading: false });
             }
           });
         } catch (error) {
@@ -139,6 +150,7 @@ export const useAuthStore = create<AuthState>()(
           
           if (error) throw error;
           
+          // Profile will be created by trigger, just set basic state
           if (data.user) {
             set({
               user: data.user,
@@ -163,23 +175,32 @@ export const useAuthStore = create<AuthState>()(
             email,
             password
           });
-          if (error) throw error;
-          if (!data.user) throw new Error('No user returned from sign in');
-          
-          const { data: profile } = await supabase
+          if (error) {
+            console.error('Supabase signIn error:', error);
+            throw error;
+          }
+          if (!data.user) {
+            console.error('No user returned from signInWithPassword:', data);
+            throw new Error('No user returned from sign in');
+          }
+          const { data: profile, error: profileError } = await supabase
             .from('profiles')
             .select('*')
             .eq('id', data.user.id)
             .single();
-          
+          if (profileError) {
+            console.error('Profile fetch error after sign in:', profileError);
+            throw profileError;
+          }
           set({
             user: data.user,
             session: data.session,
             profile: isValidProfile(profile) ? profile : null,
             isAuthenticated: isValidProfile(profile),
-            onboardingCompleted: isValidProfile(profile) && profile.onboarding_completed === true
+            onboardingCompleted: isValidProfile(profile) && profile.country ? true : false
           });
         } catch (error) {
+          console.error('SignIn error:', error);
           throw error;
         } finally {
           set({ isLoading: false });
@@ -236,6 +257,7 @@ export const useAuthStore = create<AuthState>()(
         const { user, profile } = get();
         if (!user) return;
         
+        // Check if profile has all required fields
         const isComplete = profile && profile.country && profile.name;
         
         set({ 
@@ -246,6 +268,7 @@ export const useAuthStore = create<AuthState>()(
     }),
     {
       name: 'auth-storage',
+      // Persist all relevant auth state for session continuity
       partialize: (state) => ({
         user: state.user,
         session: state.session,

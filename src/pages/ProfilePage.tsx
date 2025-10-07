@@ -66,51 +66,13 @@ const ProfilePage = () => {
       return;
     }
     
-    // If viewing own profile and authProfile exists, use it directly
-    if (isOwnProfile && authProfile) {
-      console.log('Using authProfile for own profile:', authProfile);
-      const fullProfile: User = {
-        id: authProfile.id,
-        name: authProfile.name || '',
-        email: user.email || '',
-        country: authProfile.country || '',
-        countryCode: authProfile.country_code || '',
-        countryFlag: authProfile.country_flag || '',
-        bio: authProfile.bio || '',
-        age: authProfile.age || 0,
-        avatar_url: authProfile.avatar_url,
-        profilePhoto: authProfile.avatar_url,
-        online: authProfile.online || false,
-        lastSeen: authProfile.last_seen || '',
-        joinedDate: authProfile.created_at || '',
-        city: '',
-        nativeLanguages: [],
-        learningLanguages: [],
-        culturalInterests: [],
-        languageGoals: [],
-        lookingFor: [],
-        teachingExperience: false,
-        countriesVisited: [],
-        posts: []
-      };
-      
-      console.log('Profile Avatar URL:', fullProfile.avatar_url);
-      setProfileUser(fullProfile);
-      setEditForm({
-        name: fullProfile.name || '',
-        bio: fullProfile.bio || '',
-        age: fullProfile.age || 0
-      });
-      setLoading(false);
-      return;
-    }
-    
     async function fetchProfile() {
       console.log('Fetching profile for user:', user.id);
       setLoading(true);
       setError(null);
       
       try {
+        // Always fetch fresh profile data to ensure avatar is up to date
         const { fetchProfileById } = await import('@/integrations/supabase/fetchProfileById');
         const profile = await fetchProfileById(user.id);
         
@@ -125,8 +87,8 @@ const ProfilePage = () => {
         const fullProfile: User = {
           ...profile,
           email: user.email || '',  // Get email from auth user
-          avatar_url: profile.avatar_url || authProfile?.avatar_url,  // Use authProfile as fallback
-          profilePhoto: profile.profilePhoto || authProfile?.avatar_url,
+          avatar_url: profile.avatar_url || profile.profilePhoto,
+          profilePhoto: profile.profilePhoto || profile.avatar_url,
         };
 
         console.log('Setting profile data:', fullProfile);
@@ -148,7 +110,7 @@ const ProfilePage = () => {
     }
     
     fetchProfile();
-  }, [username, user, isOwnProfile, authProfile]);
+  }, [username, user]);
 
 
   const handleAvatarUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -463,6 +425,40 @@ const ProfilePage = () => {
                     ))}
                   </div>
                 </div>
+
+                {/* Looking For */}
+                {profileUser.lookingFor && profileUser.lookingFor.length > 0 && (
+                  <div className="mb-4">
+                    <h3 className="font-semibold mb-2 flex items-center gap-2">
+                      <Users className="h-4 w-4" />
+                      Looking For
+                    </h3>
+                    <div className="flex flex-wrap gap-2">
+                      {profileUser.lookingFor.map((item: string) => (
+                        <Badge key={item} className="bg-primary/10 text-primary border-primary/20">
+                          {item.replace(/-/g, ' ').replace(/\b\w/g, l => l.toUpperCase())}
+                        </Badge>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* Countries Visited */}
+                {profileUser.countriesVisited && profileUser.countriesVisited.length > 0 && (
+                  <div className="mb-4">
+                    <h3 className="font-semibold mb-2 flex items-center gap-2">
+                      <Plane className="h-4 w-4" />
+                      Countries Visited ({profileUser.countriesVisited.length})
+                    </h3>
+                    <div className="flex flex-wrap gap-2">
+                      {profileUser.countriesVisited.map((country: string) => (
+                        <Badge key={country} variant="outline" className="text-xs">
+                          {country}
+                        </Badge>
+                      ))}
+                    </div>
+                  </div>
+                )}
 
                 {/* Stats */}
                 <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">

@@ -12,6 +12,7 @@ import ChatPage from "./pages/ChatPage";
 import CommunityPage from "./pages/CommunityPage";
 import ProfilePage from "./pages/ProfilePage";
 import SettingsPage from "./pages/SettingsPage";
+import EventsPage from "./pages/EventsPage";
 import NotFound from "./pages/NotFound";
 import Navigation from "./components/Navigation";
 import InstallPWA from "./components/InstallPWA";
@@ -106,6 +107,11 @@ const App = () => {
               <Route path="/settings" element={
                 <ProtectedRoute>
                   <SettingsPage />
+                </ProtectedRoute>
+              } />
+              <Route path="/events" element={
+                <ProtectedRoute>
+                  <EventsPage />
                 </ProtectedRoute>
               } />
               

@@ -1,14 +1,16 @@
-import { supabase } from "./client";
-import { User } from "@/types";
+import { supabase } from '@/integrations/supabase/client';
+import { User } from '@/types';
 
-export const fetchProfileById = async (id: string): Promise<User | null> => {
+export async function fetchProfileById(userId: string): Promise<User | null> {
   try {
-    console.log("Fetching profile for ID:", id);
-    
-    const { data: profile, error: profileError } = await supabase
-      .from("profiles")
-      .select("*")
-      .eq("id", id)
+    const { data: profileData, error: profileError } = await supabase
+      .from('profiles')
+      .select(`
+        *,
+        languages(*),
+        cultural_interests(*)
+      `)
+      .eq('id', userId)
       .single();
       
     if (profileError) {
@@ -16,35 +18,46 @@ export const fetchProfileById = async (id: string): Promise<User | null> => {
       throw profileError;
     }
     
-    if (!profile) {
-      console.log("No profile found for ID:", id);
+    if (!profileData) {
       return null;
     }
 
-    console.log("Fetched profile data:", profile);
+    // Extract native and learning languages from joined data
+    const nativeLanguages = (profileData.languages || [])
+      .filter((lang: any) => lang.is_native)
+      .map((lang: any) => lang.language_name);
+    
+    const learningLanguages = (profileData.languages || [])
+      .filter((lang: any) => lang.is_learning)
+      .map((lang: any) => lang.language_name);
+    
+    // Extract cultural interests from joined data
+    const culturalInterests = (profileData.cultural_interests || [])
+      .map((interest: any) => interest.interest);
 
+    // Transform database profile to User type
     const user: User = {
-      id: profile.id,
-      name: profile.name || "",
-      email: "",
-      country: profile.country || "",
-      countryCode: profile.country_code || "",
-      countryFlag: profile.country_flag || "",
-      bio: profile.bio || "",
-      age: profile.age || 0,
-      profilePhoto: profile.avatar_url || undefined,
-      avatar_url: profile.avatar_url || undefined,
-      online: profile.online || false,
-      lastSeen: profile.last_seen || "",
-      joinedDate: profile.created_at || "",
-      city: "",
-      nativeLanguages: [],
-      learningLanguages: [],
-      culturalInterests: [],
-      languageGoals: [],
-      lookingFor: [],
-      teachingExperience: false,
-      countriesVisited: [],
+      id: profileData.id,
+      name: profileData.name,
+      email: '', // Not exposed for privacy
+      country: profileData.country || '',
+      countryCode: profileData.country_code || '',
+      countryFlag: profileData.country_flag || '',
+      city: profileData.city || '',
+      nativeLanguages,
+      learningLanguages,
+      culturalInterests,
+      bio: profileData.bio || '',
+      age: profileData.age || 0,
+      profilePhoto: profileData.avatar_url || '',
+      avatar_url: profileData.avatar_url || '',
+      online: profileData.online || false,
+      lastSeen: profileData.last_seen || '',
+      joinedDate: profileData.created_at || '',
+      languageGoals: profileData.language_goals || [],
+      lookingFor: profileData.looking_for || [],
+      teachingExperience: profileData.teaching_experience || false,
+      countriesVisited: profileData.countries_visited || [],
       posts: []
     };
 

@@ -156,43 +156,99 @@ export const useExploreStore = create<ExploreState>((set, get) => ({
     const { users } = get();
     const currentUser = users.find(u => u.id === currentUserId);
     
-    if (!currentUser) return [];
+    if (!currentUser) {
+      console.log('Current user not found for matching');
+      return [];
+    }
     
-    // Simple matching algorithm based on language exchange potential
+    console.log('Generating matches for user:', currentUser.name);
+    console.log('Current user native languages:', currentUser.nativeLanguages);
+    console.log('Current user learning languages:', currentUser.learningLanguages);
+    console.log('Current user interests:', currentUser.culturalInterests);
+    
+    // Enhanced matching algorithm based on language exchange and cultural fit
     const matches = users
       .filter(user => user.id !== currentUserId)
       .map(user => {
         let score = 0;
+        const matchReasons: string[] = [];
         
-        // Language exchange potential (high priority)
-        const canTeach = currentUser.nativeLanguages.some(lang =>
+        // Language exchange potential (highest priority)
+        const canTeach = currentUser.nativeLanguages.filter(lang =>
           user.learningLanguages.includes(lang)
         );
-        const canLearn = currentUser.learningLanguages.some(lang =>
+        const canLearn = currentUser.learningLanguages.filter(lang =>
           user.nativeLanguages.includes(lang)
         );
         
-        if (canTeach && canLearn) score += 10; // Perfect language exchange
-        else if (canTeach || canLearn) score += 5; // One-way language help
+        if (canTeach.length > 0 && canLearn.length > 0) {
+          score += 15; // Perfect bidirectional exchange
+          matchReasons.push(`Perfect match: You can teach ${canTeach.join(', ')} and learn ${canLearn.join(', ')}`);
+        } else if (canTeach.length > 0) {
+          score += 7; // Can help them
+          matchReasons.push(`You can help with ${canTeach.join(', ')}`);
+        } else if (canLearn.length > 0) {
+          score += 7; // They can help you
+          matchReasons.push(`They can help you with ${canLearn.join(', ')}`);
+        }
+        
+        // Bonus for multiple language matches
+        score += (canTeach.length + canLearn.length) * 2;
         
         // Shared cultural interests
         const sharedInterests = currentUser.culturalInterests.filter(interest =>
           user.culturalInterests.includes(interest)
         );
-        score += sharedInterests.length * 2;
         
-        // Different countries (for cultural diversity)
-        if (currentUser.countryCode !== user.countryCode) score += 3;
+        if (sharedInterests.length >= 3) {
+          score += 8;
+          matchReasons.push(`${sharedInterests.length} shared interests`);
+        } else if (sharedInterests.length > 0) {
+          score += sharedInterests.length * 2;
+          matchReasons.push(`Shared interest in ${sharedInterests[0]}`);
+        }
+        
+        // Cultural diversity (different countries encouraged)
+        if (currentUser.countryCode !== user.countryCode && user.countryCode) {
+          score += 4;
+          matchReasons.push(`Cultural exchange with ${user.country}`);
+        } else if (currentUser.countryCode === user.countryCode) {
+          // Same country gets small bonus for local connections
+          score += 1;
+        }
+        
+        // Age proximity (within 10 years)
+        if (currentUser.age && user.age) {
+          const ageDiff = Math.abs(currentUser.age - user.age);
+          if (ageDiff <= 5) {
+            score += 3;
+          } else if (ageDiff <= 10) {
+            score += 1;
+          }
+        }
         
         // Online status
-        if (user.online) score += 1;
+        if (user.online) {
+          score += 2;
+          matchReasons.push('Currently online');
+        }
         
-        return { user, score };
+        // Profile completeness bonus
+        if (user.bio && user.bio.length > 20) {
+          score += 1;
+        }
+        
+        return { user, score, matchReasons };
       })
+      .filter(match => match.score > 0) // Only include users with some match
       .sort((a, b) => b.score - a.score)
-      .slice(0, 5)
-      .map(match => match.user);
+      .slice(0, 10) // Get top 10 matches
+      .map(match => {
+        console.log(`Match: ${match.user.name} - Score: ${match.score} - Reasons:`, match.matchReasons);
+        return match.user;
+      });
     
+    console.log('Generated', matches.length, 'suggested matches');
     set({ suggestedMatches: matches });
     return matches;
   },

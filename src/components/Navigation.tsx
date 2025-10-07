@@ -1,7 +1,9 @@
 import { Button } from "@/components/ui/button";
-import { Globe, MessageCircle, Users, User, Search, LogOut, Settings } from "lucide-react";
+import { Globe, MessageCircle, Users, User, Search, LogOut, Settings, Bell, Calendar } from "lucide-react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Badge } from "@/components/ui/badge";
+import { ScrollArea } from "@/components/ui/scroll-area";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -11,27 +13,52 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { useAuthStore } from "@/stores/authStore";
+import { useNotificationStore } from "@/stores/notificationStore";
+import { useEffect } from "react";
+import { formatDistanceToNow } from "date-fns";
 import roshLinguaLogo from "@/assets/roshlingua-logo.png";
 
 const Navigation = () => {
   const location = useLocation();
   const navigate = useNavigate();
   const { user, profile, isAuthenticated, signOut } = useAuthStore();
+  const { notifications, unreadCount, loadNotifications, markAsRead, markAllAsRead, subscribeToNotifications, unsubscribe } = useNotificationStore();
 
   const isActive = (path: string) => location.pathname === path;
   
   // Check if we're on a specific chat conversation page (not just /chat)
   const isInChatConversation = location.pathname.startsWith('/chat/') && location.pathname !== '/chat';
 
+  // Load notifications when user is authenticated
+  useEffect(() => {
+    if (user?.id) {
+      loadNotifications(user.id);
+      subscribeToNotifications(user.id);
+      
+      return () => {
+        unsubscribe();
+      };
+    }
+  }, [user?.id]);
+
   const handleSignOut = () => {
     signOut();
     navigate('/');
   };
 
+  const handleNotificationClick = async (notification: any) => {
+    if (!notification.read) {
+      await markAsRead(notification.id);
+    }
+    if (notification.link) {
+      navigate(notification.link);
+    }
+  };
+
   return (
     <>
       {/* Desktop Sidebar Navigation - Left */}
-      {isAuthenticated && (
+      {isAuthenticated && user && (
         <nav className="hidden md:flex fixed left-0 top-0 h-screen w-16 border-r border-border/50 bg-card/50 backdrop-blur-sm z-50 flex-col items-center py-4">
           {/* Logo */}
           <Link to="/" className="mb-8 group">
@@ -87,6 +114,20 @@ const Navigation = () => {
             </Button>
 
             <Button
+              variant={isActive("/events") ? "cultural" : "ghost"}
+              size="icon"
+              asChild
+              className="relative group"
+            >
+              <Link to="/events">
+                <Calendar className="h-5 w-5" />
+                <span className="absolute left-full ml-2 px-2 py-1 bg-popover text-popover-foreground text-xs rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap pointer-events-none">
+                  Events
+                </span>
+              </Link>
+            </Button>
+
+            <Button
               variant={isActive("/profile") ? "cultural" : "ghost"}
               size="icon"
               asChild
@@ -100,6 +141,71 @@ const Navigation = () => {
               </Link>
             </Button>
           </div>
+
+          {/* Notifications Dropdown */}
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="ghost" size="icon" className="relative group">
+                <Bell className="h-5 w-5" />
+                {unreadCount > 0 && (
+                  <Badge className="absolute -top-1 -right-1 h-5 w-5 flex items-center justify-center p-0 text-xs">
+                    {unreadCount > 9 ? '9+' : unreadCount}
+                  </Badge>
+                )}
+                <span className="absolute left-full ml-2 px-2 py-1 bg-popover text-popover-foreground text-xs rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap pointer-events-none">
+                  Notifications
+                </span>
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" side="right" className="w-80 bg-card z-50">
+              <DropdownMenuLabel className="flex items-center justify-between">
+                <span>Notifications</span>
+                {unreadCount > 0 && (
+                  <Button variant="ghost" size="sm" onClick={markAllAsRead} className="h-6 text-xs">
+                    Mark all read
+                  </Button>
+                )}
+              </DropdownMenuLabel>
+              <DropdownMenuSeparator />
+              <ScrollArea className="h-[400px]">
+                {notifications.length === 0 ? (
+                  <div className="p-8 text-center text-muted-foreground">
+                    <Bell className="h-8 w-8 mx-auto mb-2 opacity-50" />
+                    <p className="text-sm">No notifications yet</p>
+                  </div>
+                ) : (
+                  <div className="space-y-1">
+                    {notifications.map((notification) => (
+                      <DropdownMenuItem
+                        key={notification.id}
+                        className={`flex flex-col items-start p-3 cursor-pointer ${
+                          !notification.read ? 'bg-primary/5' : ''
+                        }`}
+                        onClick={() => handleNotificationClick(notification)}
+                      >
+                        <div className="flex items-start justify-between w-full">
+                          <div className="flex-1">
+                            <p className="font-medium text-sm">{notification.title}</p>
+                            {notification.message && (
+                              <p className="text-xs text-muted-foreground mt-1">
+                                {notification.message}
+                              </p>
+                            )}
+                            <p className="text-xs text-muted-foreground mt-1">
+                              {formatDistanceToNow(new Date(notification.created_at), { addSuffix: true })}
+                            </p>
+                          </div>
+                          {!notification.read && (
+                            <div className="w-2 h-2 bg-primary rounded-full ml-2" />
+                          )}
+                        </div>
+                      </DropdownMenuItem>
+                    ))}
+                  </div>
+                )}
+              </ScrollArea>
+            </DropdownMenuContent>
+          </DropdownMenu>
 
           {/* User Avatar at Bottom */}
           <DropdownMenu>
@@ -161,7 +267,7 @@ const Navigation = () => {
       )}
 
       {/* Mobile Navigation - Bottom */}
-      {isAuthenticated && !isInChatConversation && (
+      {isAuthenticated && user && !isInChatConversation && (
         <nav className="md:hidden fixed bottom-0 left-0 right-0 z-50 border-t border-border/50 bg-card/95 backdrop-blur-sm">
           <div className="flex items-center justify-around py-2 px-4">
             <Button

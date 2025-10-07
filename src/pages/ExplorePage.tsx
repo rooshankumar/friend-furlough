@@ -2,50 +2,29 @@ import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuthStore } from '@/stores/authStore';
+import { useExploreStore } from '@/stores/exploreStore';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
-import { MessageCircle, MapPin, Globe } from 'lucide-react';
+import { Input } from '@/components/ui/input';
+import { MessageCircle, MapPin, Globe, Search, Filter, X } from 'lucide-react';
 import { Skeleton } from '@/components/ui/skeleton';
 import { toast } from 'sonner';
 
-interface UserProfile {
-  id: string;
-  name: string;
-  avatar_url?: string;
-  country?: string;
-  country_flag?: string;
-  bio?: string;
-  online: boolean;
-}
+// Using User type from store which has proper types
 
 export default function ExplorePage() {
   const navigate = useNavigate();
   const { user } = useAuthStore();
-  const [profiles, setProfiles] = useState<UserProfile[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
+  const { filteredUsers, isLoading, searchTerm, filters, loadUsers, setSearchTerm, setFilters, clearFilters } = useExploreStore();
+  const [showFilters, setShowFilters] = useState(false);
 
   useEffect(() => {
-    loadProfiles();
+    loadUsers();
   }, []);
 
-  const loadProfiles = async () => {
-    try {
-      const { data, error } = await supabase
-        .from('profiles')
-        .select('*')
-        .neq('id', user?.id || '')
-        .limit(20);
-
-      if (error) throw error;
-      setProfiles(data || []);
-    } catch (error) {
-      console.error('Error loading profiles:', error);
-    } finally {
-      setIsLoading(false);
-    }
-  };
+  const profiles = filteredUsers;
 
   const startConversation = async (profileId: string) => {
     try {
@@ -150,12 +129,87 @@ export default function ExplorePage() {
   return (
     <div className="fixed inset-0 top-0 md:left-16 bg-gradient-subtle pb-16 md:pb-0 overflow-auto pt-4 md:pt-0">
       <div className="p-4 md:p-8">
-        <h1 className="text-3xl font-bold mb-2">Explore Language Partners</h1>
-        <p className="text-muted-foreground mb-8">
-          Connect with people from around the world
-        </p>
+        <div className="mb-8">
+          <h1 className="text-3xl font-bold mb-2">Explore Language Partners</h1>
+          <p className="text-muted-foreground">
+            Connect with people from around the world
+          </p>
+        </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+        {/* Search and Filter Bar */}
+        <div className="mb-6 space-y-4">
+          <div className="flex gap-2">
+            <div className="relative flex-1">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+              <Input
+                placeholder="Search by name, country, or interests..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="pl-10"
+              />
+            </div>
+            <Button
+              variant={showFilters ? "default" : "outline"}
+              onClick={() => setShowFilters(!showFilters)}
+            >
+              <Filter className="h-4 w-4 mr-2" />
+              Filters
+            </Button>
+            {(searchTerm || filters.onlineOnly || filters.nativeLanguages.length > 0) && (
+              <Button variant="ghost" onClick={clearFilters}>
+                <X className="h-4 w-4 mr-2" />
+                Clear
+              </Button>
+            )}
+          </div>
+
+          {/* Filter Panel */}
+          {showFilters && (
+            <Card className="p-4">
+              <div className="space-y-4">
+                <div>
+                  <h3 className="font-semibold mb-2">Quick Filters</h3>
+                  <div className="flex flex-wrap gap-2">
+                    <Button
+                      size="sm"
+                      variant={filters.onlineOnly ? "default" : "outline"}
+                      onClick={() => setFilters({ onlineOnly: !filters.onlineOnly })}
+                    >
+                      <div className={`w-2 h-2 rounded-full mr-2 ${filters.onlineOnly ? 'bg-white' : 'bg-green-500'}`} />
+                      Online Only
+                    </Button>
+                  </div>
+                </div>
+                
+                <p className="text-sm text-muted-foreground">
+                  More advanced filters coming soon! Search above works for languages, countries, and interests.
+                </p>
+              </div>
+            </Card>
+          )}
+        </div>
+
+        {/* Results Count */}
+        <div className="mb-4 text-sm text-muted-foreground">
+          {profiles.length} {profiles.length === 1 ? 'person' : 'people'} found
+        </div>
+
+        {/* User Grid */}
+        {profiles.length === 0 && !isLoading ? (
+          <Card className="p-12 text-center">
+            <Globe className="h-12 w-12 mx-auto mb-4 text-muted-foreground" />
+            <h3 className="text-lg font-semibold mb-2">No users found</h3>
+            <p className="text-muted-foreground mb-4">
+              {searchTerm ? 'Try adjusting your search or filters' : 'Check back later for new language partners'}
+            </p>
+            {(searchTerm || filters.onlineOnly) && (
+              <Button variant="outline" onClick={clearFilters}>
+                Clear Filters
+              </Button>
+            )}
+          </Card>
+        ) : (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
         {profiles.map((profile) => (
           <Card key={profile.id} className="p-6 hover:shadow-lg transition-shadow">
             <div className="flex flex-col items-center text-center">
@@ -175,7 +229,7 @@ export default function ExplorePage() {
                 <div className="flex items-center gap-2 text-muted-foreground mb-2">
                   <MapPin className="h-4 w-4" />
                   <span className="text-sm">
-                    {profile.country_flag} {profile.country}
+                    {profile.countryFlag} {profile.country}
                   </span>
                 </div>
               )}
@@ -196,17 +250,8 @@ export default function ExplorePage() {
             </div>
           </Card>
         ))}
-
-        {profiles.length === 0 && (
-          <div className="text-center py-12 col-span-full">
-            <Globe className="h-12 w-12 mx-auto mb-4 text-muted-foreground" />
-            <h3 className="text-xl font-semibold mb-2">No users found</h3>
-            <p className="text-muted-foreground">
-              Be the first to join the community!
-            </p>
           </div>
         )}
-        </div>
       </div>
     </div>
   );

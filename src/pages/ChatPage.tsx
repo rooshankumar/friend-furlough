@@ -29,6 +29,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
+import { formatDistanceToNow } from 'date-fns';
 
 const ChatPage = () => {
   const { conversationId } = useParams();
@@ -133,29 +134,29 @@ const ChatPage = () => {
                         <Link key={conversation.id} to={`/chat/${conversation.id}`}>
                           <div className="p-4 hover:bg-accent/50 cursor-pointer border-b border-border/50">
                             <div className="flex items-start space-x-3">
-                              <Avatar className="h-12 w-12">
-                                <AvatarImage src={participantProfile?.avatar_url} />
-                                <AvatarFallback className="bg-gradient-cultural text-white">
-                                  {participantProfile?.name?.[0] || '?'}
-                                </AvatarFallback>
-                              </Avatar>
+                              <div className="relative">
+                                <Avatar className="h-12 w-12">
+                                  <AvatarImage src={participantProfile?.avatar_url} />
+                                  <AvatarFallback className="bg-gradient-cultural text-white">
+                                    {participantProfile?.name?.[0] || '?'}
+                                  </AvatarFallback>
+                                </Avatar>
+                                {participantProfile?.online && (
+                                  <span className="absolute bottom-0 right-0 h-3 w-3 bg-green-500 rounded-full border-2 border-background" />
+                                )}
+                              </div>
                               <div className="flex-1 min-w-0">
                                 <div className="flex items-center justify-between mb-1">
                                   <p className="font-medium truncate">
                                     {participantProfile?.name || 'Unknown User'}
                                   </p>
                                   <span className="text-xs text-muted-foreground">
-                                    {conversation.lastMessage ? new Date(conversation.lastMessage.created_at).toLocaleTimeString() : ''}
+                                    {conversation.lastMessage ? formatDistanceToNow(new Date(conversation.lastMessage.created_at), { addSuffix: true }).replace('about ', '') : ''}
                                   </span>
                                 </div>
                                 <p className="text-sm text-muted-foreground truncate">
                                   {conversation.lastMessage?.content || 'No messages yet'}
                                 </p>
-                                {participantProfile?.country_flag && (
-                                  <div className="flex items-center gap-2 mt-2">
-                                    <span className="text-sm">{participantProfile.country_flag}</span>
-                                  </div>
-                                )}
                               </div>
                               {conversation.unreadCount > 0 && (
                                 <Badge className="bg-primary text-primary-foreground">
@@ -218,17 +219,25 @@ const ChatPage = () => {
                     conversation.id === conversationId ? 'bg-accent/50' : ''
                   }`}>
                     <div className="flex items-start space-x-2">
-                      <Avatar className="h-10 w-10">
-                        <AvatarImage src={participantProfile?.avatar_url} />
-                        <AvatarFallback className="bg-gradient-cultural text-white">
-                          {participantProfile?.name?.[0] || '?'}
-                        </AvatarFallback>
-                      </Avatar>
+                      <div className="relative">
+                        <Avatar className="h-10 w-10">
+                          <AvatarImage src={participantProfile?.avatar_url} />
+                          <AvatarFallback className="bg-gradient-cultural text-white">
+                            {participantProfile?.name?.[0] || '?'}
+                          </AvatarFallback>
+                        </Avatar>
+                        {participantProfile?.online && (
+                          <span className="absolute bottom-0 right-0 h-2.5 w-2.5 bg-green-500 rounded-full border-2 border-background" />
+                        )}
+                      </div>
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center justify-between mb-1">
                           <p className="font-medium truncate text-sm">
                             {participantProfile?.name || 'Unknown User'}
                           </p>
+                          <span className="text-[10px] text-muted-foreground">
+                            {conversation.lastMessage ? formatDistanceToNow(new Date(conversation.lastMessage.created_at), { addSuffix: true }).replace('about ', '').replace(' ago', '') : ''}
+                          </span>
                         </div>
                         <p className="text-xs text-muted-foreground truncate">
                           {conversation.lastMessage?.content || 'No messages yet'}
@@ -256,15 +265,22 @@ const ChatPage = () => {
                     <ArrowLeft className="h-5 w-5" />
                   </Button>
                 </Link>
-                <Avatar className="h-10 w-10">
-                  <AvatarImage src={otherParticipant?.profiles?.avatar_url} />
-                  <AvatarFallback className="bg-gradient-cultural text-white">
-                    {otherParticipant?.profiles?.name?.[0] || '?'}
-                  </AvatarFallback>
-                </Avatar>
+                <div className="relative">
+                  <Avatar className="h-10 w-10">
+                    <AvatarImage src={otherParticipant?.profiles?.avatar_url} />
+                    <AvatarFallback className="bg-gradient-cultural text-white">
+                      {otherParticipant?.profiles?.name?.[0] || '?'}
+                    </AvatarFallback>
+                  </Avatar>
+                  {otherParticipant?.profiles?.online && (
+                    <span className="absolute bottom-0 right-0 h-3 w-3 bg-green-500 rounded-full border-2 border-background" />
+                  )}
+                </div>
                 <div>
                   <h3 className="font-semibold text-sm md:text-base">{otherParticipant?.profiles?.name || 'Unknown User'}</h3>
-                  <p className="text-xs text-muted-foreground">Online</p>
+                  <p className="text-xs text-muted-foreground">
+                    {otherParticipant?.profiles?.online ? 'Online' : 'Offline'}
+                  </p>
                 </div>
               </div>
               <div className="flex items-center gap-2">

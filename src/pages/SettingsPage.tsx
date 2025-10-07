@@ -7,16 +7,18 @@ import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { useTheme } from '@/components/ThemeProvider';
-import { Moon, Sun, Monitor, Bell, Globe, Lock, User, Camera, Loader2 } from 'lucide-react';
+import { Moon, Sun, Monitor, Bell, Globe, Lock, User, Camera, Loader2, LogOut } from 'lucide-react';
 import { Separator } from '@/components/ui/separator';
 import { useAuthStore } from '@/stores/authStore';
 import { useToast } from '@/hooks/use-toast';
 import { uploadAvatar } from '@/lib/storage';
+import { useNavigate } from 'react-router-dom';
 
 export default function SettingsPage() {
   const { theme, setTheme } = useTheme();
-  const { user, profile, updateProfile } = useAuthStore();
+  const { user, profile, updateProfile, signOut } = useAuthStore();
   const { toast } = useToast();
+  const navigate = useNavigate();
   
   const [isEditing, setIsEditing] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
@@ -27,12 +29,47 @@ export default function SettingsPage() {
     age: profile?.age || 0,
   });
 
+  const handleLogout = () => {
+    signOut();
+    toast({
+      title: "Logged out successfully",
+      description: "See you soon!",
+    });
+    navigate('/');
+  };
+
   const handleAvatarUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file || !user?.id) return;
 
+    // Validate file type
+    if (!file.type.startsWith('image/')) {
+      toast({
+        title: "Invalid file type",
+        description: "Please select an image file (JPG, PNG, etc.)",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    // Validate file size (5MB max)
+    if (file.size > 5 * 1024 * 1024) {
+      toast({
+        title: "File too large",
+        description: "Image must be smaller than 5MB",
+        variant: "destructive"
+      });
+      return;
+    }
+
     try {
       setIsUploading(true);
+      
+      toast({
+        title: "Uploading...",
+        description: "Compressing and uploading your avatar"
+      });
+      
       console.log('Uploading avatar for user:', user.id);
       const avatarUrl = await uploadAvatar(file, user.id);
       console.log('Avatar uploaded, URL:', avatarUrl);
@@ -41,17 +78,17 @@ export default function SettingsPage() {
       console.log('Profile updated with avatar URL');
       
       toast({
-        title: "Avatar updated",
+        title: "Avatar updated! ✨",
         description: "Your profile photo has been updated successfully."
       });
       
       // Reload the page to fetch updated profile
-      window.location.reload();
+      setTimeout(() => window.location.reload(), 1000);
     } catch (error: any) {
       console.error('Avatar upload error:', error);
       toast({
         title: "Upload failed",
-        description: error.message || "Failed to upload avatar",
+        description: error.message || "Failed to upload avatar. Please try again.",
         variant: "destructive"
       });
     } finally {
@@ -196,6 +233,19 @@ export default function SettingsPage() {
               </div>
 
               <div className="space-y-2">
+                <Label htmlFor="city">City</Label>
+                <Input
+                  id="city"
+                  value={(profile as any)?.city || ''}
+                  disabled={true}
+                  placeholder="Your city"
+                />
+                <p className="text-xs text-muted-foreground">
+                  City is set during onboarding and cannot be changed here yet
+                </p>
+              </div>
+
+              <div className="space-y-2">
                 <Label>Country</Label>
                 <div className="flex items-center gap-2 p-2 border rounded-md bg-muted">
                   <span className="text-2xl">{profile?.country_flag}</span>
@@ -205,6 +255,23 @@ export default function SettingsPage() {
                   Country can be updated during onboarding
                 </p>
               </div>
+
+              <div className="flex items-center justify-between space-y-2">
+                <div className="space-y-0.5">
+                  <Label htmlFor="teaching">Teaching Experience</Label>
+                  <p className="text-sm text-muted-foreground">
+                    I have experience teaching languages
+                  </p>
+                </div>
+                <Switch
+                  id="teaching"
+                  checked={(profile as any)?.teaching_experience || false}
+                  disabled={true}
+                />
+              </div>
+              <p className="text-xs text-muted-foreground -mt-2">
+                This can be updated during onboarding
+              </p>
             </div>
 
             {/* Action Buttons */}
@@ -382,6 +449,32 @@ export default function SettingsPage() {
               </div>
               <Switch defaultChecked />
             </div>
+          </CardContent>
+        </Card>
+
+        {/* Logout Section */}
+        <Card className="border-destructive/50">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2 text-destructive">
+              <LogOut className="h-5 w-5" />
+              Sign Out
+            </CardTitle>
+            <CardDescription>
+              Sign out of your account
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <p className="text-sm text-muted-foreground mb-4">
+              You will be redirected to the home page.
+            </p>
+            <Button 
+              variant="destructive" 
+              onClick={handleLogout}
+              className="w-full sm:w-auto"
+            >
+              <LogOut className="h-4 w-4 mr-2" />
+              Sign Out
+            </Button>
           </CardContent>
         </Card>
         </div>

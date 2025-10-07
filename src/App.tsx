@@ -10,9 +10,11 @@ import HomePage from "./pages/HomePage";
 import ExplorePage from "./pages/ExplorePage";
 import ChatPage from "./pages/ChatPage";
 import CommunityPage from "./pages/CommunityPage";
+import PostDetailPage from "./pages/PostDetailPage";
 import ProfilePage from "./pages/ProfilePage";
 import SettingsPage from "./pages/SettingsPage";
 import EventsPage from "./pages/EventsPage";
+import FriendsPage from "./pages/FriendsPage";
 import NotFound from "./pages/NotFound";
 import Navigation from "./components/Navigation";
 import InstallPWA from "./components/InstallPWA";
@@ -94,6 +96,11 @@ const App = () => {
                   <CommunityPage />
                 </ProtectedRoute>
               } />
+              <Route path="/community/post/:postId" element={
+                <ProtectedRoute>
+                  <PostDetailPage />
+                </ProtectedRoute>
+              } />
               <Route path="/profile" element={
                 <ProtectedRoute>
                   <ProfilePage />
@@ -107,6 +114,11 @@ const App = () => {
               <Route path="/settings" element={
                 <ProtectedRoute>
                   <SettingsPage />
+                </ProtectedRoute>
+              } />
+              <Route path="/friends" element={
+                <ProtectedRoute>
+                  <FriendsPage />
                 </ProtectedRoute>
               } />
               <Route path="/events" element={

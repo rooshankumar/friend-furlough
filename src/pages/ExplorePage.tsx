@@ -26,6 +26,11 @@ export default function ExplorePage() {
 
   const profiles = filteredUsers;
 
+  const viewProfile = (profile: any) => {
+    // Navigate to profile using the user ID directly
+    navigate(`/profile/${profile.id}`);
+  };
+
   const startConversation = async (profileId: string) => {
     try {
       // Ensure user is authenticated
@@ -213,7 +218,11 @@ export default function ExplorePage() {
         {profiles.map((profile) => (
           <Card key={profile.id} className="p-6 hover:shadow-lg transition-shadow">
             <div className="flex flex-col items-center text-center">
-              <div className="relative mb-4">
+              <div 
+                className="relative mb-4 cursor-pointer hover:scale-105 transition-transform"
+                onClick={() => viewProfile(profile)}
+                title={`View ${profile.name}'s profile`}
+              >
                 <Avatar className="h-20 w-20">
                   <AvatarImage src={profile.avatar_url} />
                   <AvatarFallback>{profile.name?.[0] || '?'}</AvatarFallback>

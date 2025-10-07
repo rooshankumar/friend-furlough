@@ -14,6 +14,7 @@ interface LanguageSelectorProps {
   placeholder?: string;
   maxSelection?: number;
   className?: string;
+  excludeLanguages?: string[];
 }
 
 export const LanguageSelector = ({ 
@@ -22,13 +23,13 @@ export const LanguageSelector = ({
   type,
   placeholder = "Add languages...",
   maxSelection = 5,
-  className 
+  className,
+  excludeLanguages = []
 }: LanguageSelectorProps) => {
   const [open, setOpen] = useState(false);
   
   const availableLanguages = [
     { code: "en", name: "English", nativeName: "English" },
-    { code: "es", name: "Spanish", nativeName: "Español" },
     { code: "fr", name: "French", nativeName: "Français" },
     { code: "de", name: "German", nativeName: "Deutsch" },
     { code: "it", name: "Italian", nativeName: "Italiano" },
@@ -90,10 +91,15 @@ export const LanguageSelector = ({
           </PopoverTrigger>
           <PopoverContent className="w-full p-0" align="start">
             <Command>
-              <CommandInput placeholder="Search languages..." className="h-9" />
+              <CommandInput placeholder="Search languages..." className="h-9" inputMode="none" />
               <CommandEmpty>No language found.</CommandEmpty>
               <CommandGroup className="max-h-[300px] overflow-auto">
-                {availableLanguages.map((language) => (
+                {availableLanguages
+                  .filter(language => 
+                    !selectedLanguages.includes(language.name) && 
+                    !excludeLanguages.includes(language.name)
+                  )
+                  .map((language) => (
                   <CommandItem
                     key={language.code}
                     value={`${language.name} ${language.nativeName}`}

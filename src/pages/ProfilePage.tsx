@@ -3,15 +3,12 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { User } from '@/types';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import UserAvatar from '@/components/UserAvatar';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Separator } from '@/components/ui/separator';
 import { Progress } from '@/components/ui/progress';
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
-import { Input } from '@/components/ui/input';
-import { Textarea } from '@/components/ui/textarea';
-import { Label } from '@/components/ui/label';
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { 
   MessageCircle, 
   Globe, 
@@ -23,17 +20,22 @@ import {
   BookOpen,
   Camera,
   Settings,
-  Edit,
   Share,
   MoreHorizontal,
   Award,
   Plane,
   Music,
   Utensils,
-  Loader2
+  Loader2,
+  Flag,
+  Ban,
+  UserX,
+  ArrowLeft
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { useAuthStore } from '@/stores/authStore';
+import { useFriendRequestStore } from '@/stores/friendRequestStore';
+import { useProfileReactionStore } from '@/stores/profileReactionStore';
 import { CulturalBadge } from '@/components/CulturalBadge';
 import { uploadAvatar } from '@/lib/storage';
 import { supabase } from '@/integrations/supabase/client';
@@ -42,16 +44,16 @@ const ProfilePage = () => {
   const { username } = useParams();
   const navigate = useNavigate();
   const [isOwnProfile, setIsOwnProfile] = useState(false);
-  const [isEditing, setIsEditing] = useState(false);
-  const [editForm, setEditForm] = useState({ name: '', bio: '', age: 0 });
   const [isUploading, setIsUploading] = useState(false);
-  const [isSaving, setIsSaving] = useState(false);
   const { toast } = useToast();
   
   const { user, profile: authProfile, updateProfile } = useAuthStore();
+  const { sendFriendRequest, unsendFriendRequest, checkFriendStatus, checkAreFriends, friendRequestStatus, areFriends } = useFriendRequestStore();
+  const { toggleReaction, loadReactionData, reactions, userReactions } = useProfileReactionStore();
 
   useEffect(() => {
-    setIsOwnProfile(!username || username === user?.email?.split('@')[0]?.toLowerCase());
+    // Check if viewing own profile - either no username or username matches user ID
+    setIsOwnProfile(!username || username === user?.id);
   }, [username, user]);
 
   const [profileUser, setProfileUser] = useState<User | null>(null);
@@ -67,26 +69,35 @@ const ProfilePage = () => {
     }
     
     async function fetchProfile() {
-      console.log('Fetching profile for user:', user.id);
       setLoading(true);
       setError(null);
       
       try {
+        let targetUserId = user.id;
+        
+        // If viewing someone else's profile, use the username as user ID
+        if (!isOwnProfile && username) {
+          console.log('Fetching profile for user ID:', username);
+          targetUserId = username;
+        }
+        
+        console.log('Fetching profile for user:', targetUserId);
+        
         // Always fetch fresh profile data to ensure avatar is up to date
         const { fetchProfileById } = await import('@/integrations/supabase/fetchProfileById');
-        const profile = await fetchProfileById(user.id);
+        const profile = await fetchProfileById(targetUserId);
         
         if (!profile) {
-          console.error('No profile found for user:', user.id);
+          console.error('No profile found for user:', targetUserId);
           setError('Profile not found');
           setProfileUser(null);
           return;
         }
 
-        // Merge auth user data with profile data
+        // Merge profile data
         const fullProfile: User = {
           ...profile,
-          email: user.email || '',  // Get email from auth user
+          email: profile.email || '',  // Use profile's email, not current user's
           avatar_url: profile.avatar_url || profile.profilePhoto,
           profilePhoto: profile.profilePhoto || profile.avatar_url,
         };
@@ -94,11 +105,6 @@ const ProfilePage = () => {
         console.log('Setting profile data:', fullProfile);
         console.log('Avatar URL:', fullProfile.avatar_url);
         setProfileUser(fullProfile);
-        setEditForm({
-          name: fullProfile.name || '',
-          bio: fullProfile.bio || '',
-          age: fullProfile.age || 0
-        });
         
       } catch (error: any) {
         console.error('Profile fetch error:', error);
@@ -110,7 +116,7 @@ const ProfilePage = () => {
     }
     
     fetchProfile();
-  }, [username, user]);
+  }, [username, user, isOwnProfile]);
 
 
   const handleAvatarUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -141,68 +147,258 @@ const ProfilePage = () => {
     }
   };
 
-  const handleSaveProfile = async () => {
-    if (!user?.id) return;
-
-    try {
-      setIsSaving(true);
-      await updateProfile({
-        name: editForm.name,
-        bio: editForm.bio,
-        age: editForm.age
-      });
-
-      if (profileUser) {
-        setProfileUser({
-          ...profileUser,
-          name: editForm.name,
-          bio: editForm.bio,
-          age: editForm.age
-        });
-      }
-
-      setIsEditing(false);
-      toast({
-        title: "Profile updated",
-        description: "Your changes have been saved successfully."
-      });
-    } catch (error: any) {
-      toast({
-        title: "Update failed",
-        description: error.message,
-        variant: "destructive"
-      });
-    } finally {
-      setIsSaving(false);
-    }
-  };
-
-  // Fetch post count for the user
+  // Real-time data states
   const [postsCount, setPostsCount] = useState(0);
+  const [friendsCount, setFriendsCount] = useState(0);
+  const [languagesCount, setLanguagesCount] = useState(0);
+  const [exchangesCount, setExchangesCount] = useState(0);
+  const [nativeLanguages, setNativeLanguages] = useState<string[]>([]);
+  const [learningLanguages, setLearningLanguages] = useState<string[]>([]);
+  const [culturalInterests, setCulturalInterests] = useState<string[]>([]);
+  const [lookingFor, setLookingFor] = useState<string[]>([]);
+  const [friendStatus, setFriendStatus] = useState<string>('none');
+  const [userPosts, setUserPosts] = useState<any[]>([]);
   
+  // Fetch all real-time data
   useEffect(() => {
     if (!user?.id) return;
     
-    async function fetchPostCount() {
-      const { count, error } = await supabase
-        .from('community_posts')
-        .select('*', { count: 'exact', head: true })
-        .eq('user_id', user.id);
-      
-      if (!error && count !== null) {
-        setPostsCount(count);
+    const fetchAllData = async () => {
+      try {
+        // Determine which user's data to fetch
+        const targetUserId = profileUser?.id || user.id;
+        console.log('Fetching real-time data for user:', targetUserId);
+        
+        // Fetch posts from community_posts
+        try {
+          const { data: postsData, count: postsCount, error: postsError } = await supabase
+            .from('community_posts')
+            .select('*', { count: 'exact' })
+            .eq('user_id', targetUserId)
+            .order('created_at', { ascending: false });
+          
+          console.log('Posts data:', postsData, 'Count:', postsCount, 'Error:', postsError);
+          if (postsError) {
+            console.error('Posts table error:', postsError);
+            setPostsCount(0);
+            setUserPosts([]);
+          } else {
+            setPostsCount(postsCount || 0);
+            setUserPosts(postsData || []);
+          }
+        } catch (error) {
+          console.error('Posts table may not exist:', error);
+          setPostsCount(0);
+          setUserPosts([]);
+        }
+
+        // Fetch actual friendships count
+        try {
+          const { count: friendsCount, error: friendsError } = await (supabase as any)
+            .from('friendships')
+            .select('*', { count: 'exact', head: true })
+            .or(`user1_id.eq.${targetUserId},user2_id.eq.${targetUserId}`);
+          
+          console.log('Friends count:', friendsCount, 'Error:', friendsError);
+          if (friendsError) {
+            console.error('Friendships table error:', friendsError);
+            setFriendsCount(0);
+          } else {
+            setFriendsCount(friendsCount || 0);
+          }
+        } catch (error) {
+          console.error('Friendships table may not exist:', error);
+          setFriendsCount(0);
+        }
+
+        // Fetch languages count
+        try {
+          const { data: languages, error: languagesError } = await supabase
+            .from('languages')
+            .select('language_name, is_native, is_learning')
+            .eq('user_id', targetUserId);
+
+          console.log('Languages data:', languages, 'Error:', languagesError);
+          
+          if (languagesError) {
+            console.error('Languages table error:', languagesError);
+            setLanguagesCount(0);
+            setNativeLanguages([]);
+            setLearningLanguages([]);
+          } else if (languages) {
+            const native = languages.filter(l => l.is_native).map(l => l.language_name);
+            const learning = languages.filter(l => l.is_learning).map(l => l.language_name);
+            
+            // Get unique languages
+            const uniqueLanguages = new Set([...native, ...learning]);
+            
+            setNativeLanguages(native);
+            setLearningLanguages(learning);
+            setLanguagesCount(uniqueLanguages.size);
+          } else {
+            setLanguagesCount(0);
+            setNativeLanguages([]);
+            setLearningLanguages([]);
+          }
+        } catch (error) {
+          console.error('Languages table may not exist:', error);
+          setLanguagesCount(0);
+          setNativeLanguages([]);
+          setLearningLanguages([]);
+        }
+
+        // Fetch conversations/exchanges count
+        try {
+          const { count: conversationsCount, error: conversationsError } = await supabase
+            .from('conversation_participants')
+            .select('*', { count: 'exact', head: true })
+            .eq('user_id', targetUserId);
+          
+          console.log('Conversations count:', conversationsCount, 'Error:', conversationsError);
+          if (conversationsError) {
+            console.error('Conversations table error:', conversationsError);
+            setExchangesCount(0);
+          } else {
+            setExchangesCount(conversationsCount || 0);
+          }
+        } catch (error) {
+          console.error('Conversations table may not exist:', error);
+          setExchangesCount(0);
+        }
+
+        // Fetch cultural interests and looking for from profile
+        if (profileUser) {
+          setCulturalInterests(profileUser.culturalInterests || []);
+          setLookingFor(profileUser.lookingFor || []);
+        }
+
+      } catch (error) {
+        console.error('Error fetching profile data:', error);
+      }
+    };
+    
+    fetchAllData();
+  }, [user?.id, profileUser]);
+
+  // Check friend status for other users
+  useEffect(() => {
+    if (!isOwnProfile && profileUser?.id && user?.id) {
+      checkFriendStatus(profileUser.id).then(setFriendStatus);
+    }
+  }, [isOwnProfile, profileUser?.id, user?.id, checkFriendStatus]);
+
+  // Load reaction data when profile loads
+  useEffect(() => {
+    if (profileUser?.id) {
+      loadReactionData(profileUser.id);
+    }
+  }, [profileUser?.id, loadReactionData]);
+
+  const handleFriendRequest = async () => {
+    if (!profileUser?.id) return;
+    
+    if (friendStatus === 'pending') {
+      // Unsend the request
+      const success = await unsendFriendRequest(profileUser.id);
+      if (success) {
+        setFriendStatus('none');
+        toast({
+          title: "Friend request cancelled",
+          description: `Your friend request to ${profileUser.name} has been cancelled`,
+        });
+      } else {
+        toast({
+          title: "Failed to cancel request",
+          description: "Please try again later",
+          variant: "destructive",
+        });
+      }
+    } else if (friendStatus === 'received') {
+      // This user sent you a request, redirect to friends page
+      toast({
+        title: "Check your friend requests",
+        description: `${profileUser.name} has sent you a friend request. Check your Friends page to accept it.`,
+      });
+      navigate('/friends');
+    } else {
+      // Send new request
+      const success = await sendFriendRequest(profileUser.id);
+      if (success) {
+        setFriendStatus('pending');
+        toast({
+          title: "Friend request sent!",
+          description: `Your friend request has been sent to ${profileUser.name}`,
+        });
+      } else {
+        // Check if request already exists
+        const currentStatus = await checkFriendStatus(profileUser.id);
+        setFriendStatus(currentStatus);
+        
+        if (currentStatus === 'pending') {
+          toast({
+            title: "Request already sent",
+            description: `You've already sent a friend request to ${profileUser.name}`,
+          });
+        } else if (currentStatus === 'accepted') {
+          toast({
+            title: "Already friends",
+            description: `You and ${profileUser.name} are already friends!`,
+          });
+        } else {
+          toast({
+            title: "Failed to send request",
+            description: "Please try again later",
+            variant: "destructive",
+          });
+        }
       }
     }
-    
-    fetchPostCount();
-  }, [user?.id]);
+  };
 
-  // Placeholder stats and languageProgress until real data is available
+  const handleReport = () => {
+    toast({
+      title: "Report submitted",
+      description: `Thank you for reporting. We'll review ${profileUser?.name}'s account.`,
+    });
+  };
+
+  const handleBlock = () => {
+    toast({
+      title: "User blocked",
+      description: `You have blocked ${profileUser?.name}. You won't see their content anymore.`,
+    });
+  };
+
+  const handleHeartReaction = async () => {
+    if (!profileUser?.id) return;
+    
+    // Get the current state BEFORE toggling
+    const wasReacted = userReactions[profileUser.id] || false;
+    
+    const success = await toggleReaction(profileUser.id);
+    if (success) {
+      toast({
+        title: !wasReacted ? "Added to favorites!" : "Removed from favorites",
+        description: !wasReacted 
+          ? `You liked ${profileUser.name}'s profile` 
+          : `You removed your like from ${profileUser.name}'s profile`,
+      });
+    } else {
+      toast({
+        title: "Failed to update reaction",
+        description: "Please try again later",
+        variant: "destructive",
+      });
+    }
+  };
+
+  // Real-time stats
   const stats = {
-    friendsCount: 0,
+    friendsCount: friendsCount,
     postsCount: postsCount,
-    languagesLearning: profileUser?.learningLanguages?.length || 0,
-    culturalExchanges: 0
+    languagesLearning: languagesCount,
+    culturalExchanges: exchangesCount,
+    heartsReceived: reactions[profileUser?.id || ''] || 0
   };
   const languageProgress = [];
 
@@ -260,20 +456,35 @@ const ProfilePage = () => {
   }
 
   return (
-    <div className="fixed inset-0 top-0 md:left-16 bg-gradient-subtle pb-16 md:pb-0 overflow-auto pt-4 md:pt-0">
-      <div className="p-4 md:p-8 max-w-6xl mx-auto">
+    <div className="fixed inset-0 top-0 md:left-16 bg-gradient-subtle pb-16 md:pb-0 overflow-auto pt-2 sm:pt-4 md:pt-0">
+      <div className="p-3 sm:p-4 md:p-8 max-w-6xl mx-auto">
+        {/* Back Button for Other Users' Profiles */}
+        {!isOwnProfile && (
+          <div className="mb-4">
+            <Button 
+              variant="ghost" 
+              size="sm"
+              onClick={() => navigate(-1)}
+              className="flex items-center gap-2"
+            >
+              <ArrowLeft className="h-4 w-4" />
+              Back
+            </Button>
+          </div>
+        )}
+
         {/* Profile Header */}
-        <Card className="mb-6">
+        <Card className="mb-4 sm:mb-6">
           <CardContent className="pt-6">
             <div className="flex flex-col lg:flex-row lg:items-start gap-6">
               <div className="flex flex-col items-center lg:items-start">
                 <div className="relative">
-                  <Avatar className="h-32 w-32 border-4 border-primary/20">
-                    <AvatarImage src={profileUser.avatar_url || profileUser.profilePhoto} />
-                    <AvatarFallback className="bg-gradient-cultural text-white text-2xl">
-                      {profileUser.name?.[0] || 'U'}
-                    </AvatarFallback>
-                  </Avatar>
+                  <UserAvatar 
+                    profile={profileUser}
+                    user={isOwnProfile ? user : undefined}
+                    className="h-24 w-24 sm:h-32 sm:w-32 border-4 border-primary/20"
+                    fallbackClassName="text-xl sm:text-2xl"
+                  />
                   {isOwnProfile && (
                     <label htmlFor="avatar-upload">
                       <Button 
@@ -318,8 +529,8 @@ const ProfilePage = () => {
                 </div>
               </div>
 
-              {/* Profile Details */}
-              <div className="flex-1">
+              {/* Profile Info */}
+              <div className="flex-1 lg:ml-8">
                 <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4 mb-4">
                   <div>
                     <h1 className="text-3xl font-bold text-foreground mb-2">
@@ -330,6 +541,22 @@ const ProfilePage = () => {
                       <Badge variant="outline" className="text-xs">
                         Age {profileUser.age || ''}
                       </Badge>
+                      {profileUser.gender && (
+                        <Badge variant="outline" className="text-xs flex items-center gap-1">
+                          <img 
+                            src={
+                              profileUser.gender === 'male' 
+                                ? 'https://bblrxervgwkphkctdghe.supabase.co/storage/v1/object/public/rest_pic/male.png'
+                                : profileUser.gender === 'female'
+                                ? 'https://bblrxervgwkphkctdghe.supabase.co/storage/v1/object/public/rest_pic/female.png'
+                                : 'https://bblrxervgwkphkctdghe.supabase.co/storage/v1/object/public/rest_pic/others.png'
+                            }
+                            alt={profileUser.gender}
+                            className="h-3 w-3"
+                          />
+                          {profileUser.gender === 'prefer-not-to-say' ? 'Other' : profileUser.gender.charAt(0).toUpperCase() + profileUser.gender.slice(1)}
+                        </Badge>
+                      )}
                       {profileUser.teachingExperience && (
                         <Badge className="bg-gradient-cultural text-white text-xs">
                           <Award className="h-3 w-3 mr-1" />
@@ -343,13 +570,12 @@ const ProfilePage = () => {
                   <div className="flex items-center gap-2">
                     {isOwnProfile ? (
                       <>
-                        <Button 
-                          variant="outline" 
-                          onClick={() => setIsEditing(!isEditing)}
-                        >
-                          <Edit className="h-4 w-4 mr-2" />
-                          Edit Profile
-                        </Button>
+                        <div className="flex items-center gap-2 px-3 py-2 bg-red-50 rounded-lg border border-red-200">
+                          <Heart className="h-4 w-4 text-red-500 fill-current" />
+                          <span className="text-sm font-medium text-red-700">
+                            {reactions[profileUser.id] || 0} Hearts
+                          </span>
+                        </div>
                         <Button variant="outline" onClick={() => navigate('/settings')}>
                           <Settings className="h-4 w-4 mr-2" />
                           Settings
@@ -357,20 +583,50 @@ const ProfilePage = () => {
                       </>
                     ) : (
                       <>
+                        <Button 
+                          variant="ghost" 
+                          size="sm"
+                          onClick={handleHeartReaction}
+                          className={`flex items-center gap-1 ${userReactions[profileUser.id] ? 'text-red-500' : 'text-muted-foreground'}`}
+                        >
+                          <Heart className={`h-4 w-4 ${userReactions[profileUser.id] ? 'fill-current' : ''}`} />
+                          <span className="text-xs">{reactions[profileUser.id] || 0}</span>
+                        </Button>
                         <Button className="bg-gradient-cultural text-white">
                           <MessageCircle className="h-4 w-4 mr-2" />
                           Message
                         </Button>
-                        <Button variant="outline">
+                        <Button 
+                          variant="outline" 
+                          onClick={handleFriendRequest}
+                          disabled={friendStatus === 'accepted'}
+                        >
                           <Users className="h-4 w-4 mr-2" />
-                          Connect
+                          {friendStatus === 'pending' ? 'Cancel Request' : 
+                           friendStatus === 'accepted' ? 'Friends' : 
+                           friendStatus === 'received' ? 'Accept Request' :
+                           'Add Friend'}
                         </Button>
                         <Button variant="ghost" size="sm">
                           <Share className="h-4 w-4" />
                         </Button>
-                        <Button variant="ghost" size="sm">
-                          <MoreHorizontal className="h-4 w-4" />
-                        </Button>
+                        <DropdownMenu>
+                          <DropdownMenuTrigger asChild>
+                            <Button variant="ghost" size="sm">
+                              <MoreHorizontal className="h-4 w-4" />
+                            </Button>
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent align="end">
+                            <DropdownMenuItem onClick={handleReport} className="text-orange-600">
+                              <Flag className="h-4 w-4 mr-2" />
+                              Report User
+                            </DropdownMenuItem>
+                            <DropdownMenuItem onClick={handleBlock} className="text-red-600">
+                              <Ban className="h-4 w-4 mr-2" />
+                              Block User
+                            </DropdownMenuItem>
+                          </DropdownMenuContent>
+                        </DropdownMenu>
                       </>
                     )}
                   </div>
@@ -399,15 +655,30 @@ const ProfilePage = () => {
                   <div>
                     <h3 className="font-semibold mb-2 flex items-center gap-2">
                       <BookOpen className="h-4 w-4" />
-                      Learning Languages
+                      Native Languages
                     </h3>
                     <div className="flex flex-wrap gap-2">
-                      {(profileUser.learningLanguages || []).map((lang: string) => (
-                        <Badge key={lang} variant="outline">
+                      {nativeLanguages.map((lang: string) => (
+                        <CulturalBadge key={lang} type="language-native">
                           {lang}
-                        </Badge>
+                        </CulturalBadge>
                       ))}
                     </div>
+                  </div>
+                </div>
+
+                {/* Learning Languages */}
+                <div className="mb-4">
+                  <h3 className="font-semibold mb-2 flex items-center gap-2">
+                    <BookOpen className="h-4 w-4" />
+                    Learning Languages
+                  </h3>
+                  <div className="flex flex-wrap gap-2">
+                    {learningLanguages.map((lang: string) => (
+                      <CulturalBadge key={lang} type="language-learning">
+                        {lang}
+                      </CulturalBadge>
+                    ))}
                   </div>
                 </div>
 
@@ -418,7 +689,7 @@ const ProfilePage = () => {
                     Cultural Interests
                   </h3>
                   <div className="flex flex-wrap gap-2">
-                    {(profileUser.culturalInterests || []).map((interest: string) => (
+                    {culturalInterests.map((interest: string) => (
                       <Badge key={interest} variant="secondary" className="text-xs">
                         #{interest}
                       </Badge>
@@ -427,14 +698,14 @@ const ProfilePage = () => {
                 </div>
 
                 {/* Looking For */}
-                {profileUser.lookingFor && profileUser.lookingFor.length > 0 && (
+                {lookingFor.length > 0 && (
                   <div className="mb-4">
                     <h3 className="font-semibold mb-2 flex items-center gap-2">
                       <Users className="h-4 w-4" />
                       Looking For
                     </h3>
                     <div className="flex flex-wrap gap-2">
-                      {profileUser.lookingFor.map((item: string) => (
+                      {lookingFor.map((item: string) => (
                         <Badge key={item} className="bg-primary/10 text-primary border-primary/20">
                           {item.replace(/-/g, ' ').replace(/\b\w/g, l => l.toUpperCase())}
                         </Badge>
@@ -461,7 +732,7 @@ const ProfilePage = () => {
                 )}
 
                 {/* Stats */}
-                <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+                <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3 sm:gap-4">
                   <div className="text-center">
                     <div className="text-2xl font-bold text-primary">{stats.friendsCount}</div>
                     <div className="text-xs text-muted-foreground">Friends</div>
@@ -477,6 +748,13 @@ const ProfilePage = () => {
                   <div className="text-center">
                     <div className="text-2xl font-bold text-primary">{stats.culturalExchanges}</div>
                     <div className="text-xs text-muted-foreground">Exchanges</div>
+                  </div>
+                  <div className="text-center">
+                    <div className="text-2xl font-bold text-red-500 flex items-center justify-center gap-1">
+                      <Heart className="h-5 w-5 fill-current" />
+                      {stats.heartsReceived}
+                    </div>
+                    <div className="text-xs text-muted-foreground">Hearts</div>
                   </div>
                 </div>
               </div>
@@ -495,24 +773,40 @@ const ProfilePage = () => {
 
           {/* Posts Tab */}
           <TabsContent value="posts" className="space-y-6">
-            {(profileUser.posts || []).length === 0 ? (
-              <div className="text-center text-muted-foreground">No posts yet.</div>
+            {userPosts.length === 0 ? (
+              <div className="text-center py-8">
+                <MessageCircle className="h-12 w-12 mx-auto mb-4 text-muted-foreground" />
+                <h3 className="text-lg font-semibold mb-2">No posts yet</h3>
+                <p className="text-muted-foreground">
+                  {isOwnProfile 
+                    ? "Share your thoughts and experiences with the community!" 
+                    : `${profileUser.name} hasn't posted anything yet.`}
+                </p>
+                {isOwnProfile && (
+                  <Button 
+                    className="mt-4" 
+                    onClick={() => navigate('/community')}
+                  >
+                    Create Your First Post
+                  </Button>
+                )}
+              </div>
             ) : (
-              (profileUser.posts || []).map((post: any) => (
+              userPosts.map((post: any) => (
                 <Card key={post.id}>
                   <CardHeader className="pb-3">
                     <div className="flex items-start justify-between">
                       <div className="flex items-start space-x-3">
-                        <Avatar className="h-10 w-10">
-                          <AvatarImage src={profileUser.avatar_url || profileUser.profilePhoto} />
-                          <AvatarFallback className="bg-gradient-cultural text-white">
-                            {profileUser.name?.[0] || 'U'}
-                          </AvatarFallback>
-                        </Avatar>
+                        <UserAvatar 
+                          profile={profileUser}
+                          user={isOwnProfile ? user : undefined}
+                          size="lg"
+                          className="flex-shrink-0"
+                        />
                         <div>
                           <h3 className="font-semibold">{profileUser.name}</h3>
                           <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                            <span>{post.timestamp ? new Date(post.timestamp).toLocaleDateString() : ''}</span>
+                            <span>{post.created_at ? new Date(post.created_at).toLocaleDateString() : ''}</span>
                           </div>
                         </div>
                       </div>
@@ -522,6 +816,15 @@ const ProfilePage = () => {
                     <p className="text-foreground leading-relaxed mb-4">
                       {post.content}
                     </p>
+                    {post.image_url && (
+                      <div className="mb-4">
+                        <img 
+                          src={post.image_url} 
+                          alt="Post image" 
+                          className="rounded-lg max-w-full h-auto"
+                        />
+                      </div>
+                    )}
                     <div className="flex items-center justify-between text-sm text-muted-foreground border-t border-border/50 pt-3">
                       <div className="flex items-center gap-4">
                         <span className="flex items-center gap-1">
@@ -666,97 +969,18 @@ const ProfilePage = () => {
                 <CardTitle>Recent Activity</CardTitle>
               </CardHeader>
               <CardContent>
-                <div className="space-y-4">
-                  <div className="flex items-center gap-3 p-3 bg-accent/30 rounded-lg">
-                    <MessageCircle className="h-5 w-5 text-primary" />
-                    <div>
-                      <p className="text-sm font-medium">Started a conversation with João from Portugal</p>
-                      <p className="text-xs text-muted-foreground">2 hours ago</p>
-                    </div>
-                  </div>
-                  <div className="flex items-center gap-3 p-3 bg-accent/30 rounded-lg">
-                    <Heart className="h-5 w-5 text-red-500" />
-                    <div>
-                      <p className="text-sm font-medium">Reacted to a cultural post about Japanese tea ceremony</p>
-                      <p className="text-xs text-muted-foreground">5 hours ago</p>
-                    </div>
-                  </div>
-                  <div className="flex items-center gap-3 p-3 bg-accent/30 rounded-lg">
-                    <BookOpen className="h-5 w-5 text-primary" />
-                    <div>
-                      <p className="text-sm font-medium">Completed English conversation practice</p>
-                      <p className="text-xs text-muted-foreground">1 day ago</p>
-                    </div>
-                  </div>
+                <div className="text-center py-8">
+                  <BookOpen className="h-12 w-12 mx-auto mb-4 text-muted-foreground" />
+                  <h3 className="text-lg font-semibold mb-2">No Recent Activity</h3>
+                  <p className="text-muted-foreground">
+                    Activity tracking is not yet implemented. This will show real user activities in the future.
+                  </p>
                 </div>
               </CardContent>
             </Card>
           </TabsContent>
         </Tabs>
       </div>
-
-      {/* Edit Profile Dialog */}
-      <Dialog open={isEditing} onOpenChange={setIsEditing}>
-        <DialogContent className="max-w-md">
-          <DialogHeader>
-            <DialogTitle>Edit Profile</DialogTitle>
-          </DialogHeader>
-          <div className="space-y-4">
-            <div>
-              <Label htmlFor="edit-name">Name</Label>
-              <Input
-                id="edit-name"
-                value={editForm.name}
-                onChange={(e) => setEditForm({ ...editForm, name: e.target.value })}
-                placeholder="Your name"
-              />
-            </div>
-            <div>
-              <Label htmlFor="edit-bio">Bio</Label>
-              <Textarea
-                id="edit-bio"
-                value={editForm.bio}
-                onChange={(e) => setEditForm({ ...editForm, bio: e.target.value })}
-                placeholder="Tell us about yourself"
-                rows={4}
-              />
-            </div>
-            <div>
-              <Label htmlFor="edit-age">Age</Label>
-              <Input
-                id="edit-age"
-                type="number"
-                value={editForm.age || ''}
-                onChange={(e) => setEditForm({ ...editForm, age: parseInt(e.target.value) || 0 })}
-                placeholder="Your age"
-              />
-            </div>
-            <div className="flex gap-2">
-              <Button
-                onClick={handleSaveProfile}
-                disabled={isSaving}
-                className="flex-1"
-              >
-                {isSaving ? (
-                  <>
-                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                    Saving...
-                  </>
-                ) : (
-                  'Save Changes'
-                )}
-              </Button>
-              <Button
-                variant="outline"
-                onClick={() => setIsEditing(false)}
-                disabled={isSaving}
-              >
-                Cancel
-              </Button>
-            </div>
-          </div>
-        </DialogContent>
-      </Dialog>
     </div>
   );
 };

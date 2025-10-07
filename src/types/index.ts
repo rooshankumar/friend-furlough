@@ -11,6 +11,7 @@ export interface User {
   culturalInterests: string[];
   bio: string;
   age: number;
+  gender?: 'male' | 'female' | 'non-binary' | 'prefer-not-to-say';
   profilePhoto?: string;
   avatar_url?: string;
   online: boolean;

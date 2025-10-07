@@ -93,7 +93,7 @@ export const CulturalInterestSelector = ({
           </PopoverTrigger>
           <PopoverContent className="w-full p-0" align="start">
             <Command>
-              <CommandInput placeholder="Search interests..." className="h-9" />
+              <CommandInput placeholder="Search interests..." className="h-9" inputMode="none" />
               <CommandEmpty>No interest found.</CommandEmpty>
               <CommandGroup className="max-h-[300px] overflow-auto">
                 {availableInterests.map((interest) => (

@@ -62,7 +62,7 @@ export const CountrySelector = ({
       </PopoverTrigger>
       <PopoverContent className="w-full p-0" align="start">
         <Command>
-          <CommandInput placeholder="Search countries..." className="h-9" />
+          <CommandInput placeholder="Search countries..." className="h-9" inputMode="none" />
           <CommandEmpty>No country found.</CommandEmpty>
           <CommandGroup className="max-h-[300px] overflow-auto">
             {countries.map((country) => (

@@ -1,5 +1,5 @@
 import { Button } from "@/components/ui/button";
-import { Globe, MessageCircle, Users, User, Search, LogOut, Settings, Bell, Calendar } from "lucide-react";
+import { Globe, MessageCircle, Users, User, Search, LogOut, Settings, Bell, Calendar, UserPlus } from "lucide-react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
@@ -109,6 +109,20 @@ const Navigation = () => {
                 <Users className="h-5 w-5" />
                 <span className="absolute left-full ml-2 px-2 py-1 bg-popover text-popover-foreground text-xs rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap pointer-events-none">
                   Community
+                </span>
+              </Link>
+            </Button>
+
+            <Button
+              variant={isActive("/friends") ? "cultural" : "ghost"}
+              size="icon"
+              asChild
+              className="relative group"
+            >
+              <Link to="/friends">
+                <UserPlus className="h-5 w-5" />
+                <span className="absolute left-full ml-2 px-2 py-1 bg-popover text-popover-foreground text-xs rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap pointer-events-none">
+                  Friends
                 </span>
               </Link>
             </Button>

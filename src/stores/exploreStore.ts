@@ -50,10 +50,17 @@ export const useExploreStore = create<ExploreState>((set, get) => ({
   loadUsers: async () => {
     set({ isLoading: true });
     try {
+      const { supabase } = await import('@/integrations/supabase/client');
+      const { data: { user } } = await supabase.auth.getUser();
+      
       const users = await fetchProfiles();
+      
+      // Filter out current user
+      const filteredUsers = user ? users.filter(u => u.id !== user.id) : users;
+      
       set({
-        users,
-        filteredUsers: users,
+        users: filteredUsers,
+        filteredUsers: filteredUsers,
         isLoading: false
       });
     } catch (error) {

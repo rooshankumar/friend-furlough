@@ -1,11 +1,14 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuthStore } from '@/stores/authStore';
+import { usePostReactionStore } from '@/stores/postReactionStore';
+import { usePostCommentStore } from '@/stores/postCommentStore';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
+import UserAvatar from '@/components/UserAvatar';
 import { Heart, MessageCircle, Share2, Upload, ChevronLeft, ChevronRight, Globe, Trash2, MoreHorizontal } from 'lucide-react';
 import {
   DropdownMenu,
@@ -16,6 +19,7 @@ import {
 import { useToast } from '@/hooks/use-toast';
 import { uploadPostImage } from '@/lib/storage';
 import { Skeleton } from '@/components/ui/skeleton';
+import { useNavigate } from 'react-router-dom';
 
 interface Post {
   id: string;
@@ -30,22 +34,47 @@ interface Post {
   };
 }
 
-export default function CommunityPage() {
-  const { user, profile } = useAuthStore();
-  const [currentImageIndex, setCurrentImageIndex] = useState<{[key: string]: number}>({});
+const CommunityPage = () => {
+  const { user } = useAuthStore();
   const { toast } = useToast();
+  const navigate = useNavigate();
+  const { 
+    toggleReaction, 
+    reactions, 
+    userReactions, 
+    loadMultiplePostReactions 
+  } = usePostReactionStore();
+  const { 
+    addComment, 
+    loadComments, 
+    comments, 
+    commentCounts, 
+    loadMultiplePostComments 
+  } = usePostCommentStore();
+  const [currentImageIndex, setCurrentImageIndex] = useState<{[key: string]: number}>({});
   const [posts, setPosts] = useState<Post[]>([]);
   const [myPosts, setMyPosts] = useState<Post[]>([]);
   const [newPost, setNewPost] = useState('');
   const [selectedImages, setSelectedImages] = useState<File[]>([]);
   const [imagePreviews, setImagePreviews] = useState<string[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
   const [isPosting, setIsPosting] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
+  const [showComments, setShowComments] = useState<{[key: string]: boolean}>({});
+  const [newComment, setNewComment] = useState<{[key: string]: string}>({});
 
   useEffect(() => {
     loadPosts();
     loadMyPosts();
   }, [user]);
+
+  // Load reactions and comments when posts change
+  useEffect(() => {
+    if (posts.length > 0) {
+      const postIds = posts.map(post => post.id);
+      loadMultiplePostReactions(postIds, 'like');
+      loadMultiplePostComments(postIds);
+    }
+  }, [posts, loadMultiplePostReactions, loadMultiplePostComments]);
 
   const loadPosts = async () => {
     try {
@@ -253,6 +282,57 @@ export default function CommunityPage() {
     }
   };
 
+  // Handle like/reaction toggle
+  const handleLikePost = async (postId: string) => {
+    const success = await toggleReaction(postId, 'like');
+    if (!success) {
+      toast({
+        title: "Failed to update reaction",
+        description: "Please try again later",
+        variant: "destructive",
+      });
+    }
+  };
+
+  // Handle comment toggle
+  const handleToggleComments = async (postId: string) => {
+    const isCurrentlyShown = showComments[postId];
+    
+    setShowComments(prev => ({
+      ...prev,
+      [postId]: !isCurrentlyShown
+    }));
+
+    // Load comments if showing for the first time
+    if (!isCurrentlyShown && (!comments[postId] || comments[postId].length === 0)) {
+      await loadComments(postId);
+    }
+  };
+
+  // Handle adding a comment
+  const handleAddComment = async (postId: string) => {
+    const commentText = newComment[postId]?.trim();
+    if (!commentText) return;
+
+    const success = await addComment(postId, commentText);
+    if (success) {
+      setNewComment(prev => ({
+        ...prev,
+        [postId]: ''
+      }));
+      toast({
+        title: "Comment added!",
+        description: "Your comment has been posted",
+      });
+    } else {
+      toast({
+        title: "Failed to add comment",
+        description: "Please try again later",
+        variant: "destructive",
+      });
+    }
+  };
+
   if (isLoading) {
     return (
       <div className="fixed inset-0 top-0 md:left-16 bg-gradient-subtle pb-16 md:pb-0">
@@ -297,12 +377,11 @@ export default function CommunityPage() {
             
             <Card className="p-2 md:p-3">
               <div className="flex items-start gap-2">
-                <Avatar className="h-9 w-9 flex-shrink-0">
-                  <AvatarImage src={profile?.avatar_url || user?.user_metadata?.avatar_url} />
-                  <AvatarFallback className="bg-gradient-cultural text-white text-xs">
-                    {profile?.name?.[0] || user?.email?.[0]?.toUpperCase() || '?'}
-                  </AvatarFallback>
-                </Avatar>
+                <UserAvatar 
+                  user={user}
+                  size="md"
+                  className="flex-shrink-0"
+                />
                 <div className="flex-1 flex items-center gap-2">
                   <Button
                     variant="ghost"
@@ -367,12 +446,11 @@ export default function CommunityPage() {
                 {myPosts.map((post) => (
                   <Card key={post.id} className="p-3 hover:bg-accent/50 cursor-pointer">
                     <div className="flex items-start gap-2 mb-2">
-                      <Avatar className="h-8 w-8">
-                        <AvatarImage src={profile?.avatar_url || user?.user_metadata?.avatar_url} />
-                        <AvatarFallback className="bg-gradient-cultural text-white text-xs">
-                          {profile?.name?.[0] || user?.email?.[0]?.toUpperCase() || '?'}
-                        </AvatarFallback>
-                      </Avatar>
+                      <UserAvatar 
+                        user={user}
+                        size="md"
+                        className="flex-shrink-0"
+                      />
                       <div className="flex-1 min-w-0">
                         <p className="text-xs text-muted-foreground">
                           {new Date(post.created_at).toLocaleDateString()}
@@ -410,17 +488,18 @@ export default function CommunityPage() {
         </div>
 
         {/* Right Column - All Posts Feed (Scrollable) */}
-        <div className="flex-1 overflow-y-auto p-4 md:p-6 h-full">
+        <div className="flex-1 overflow-y-auto p-3 sm:p-4 md:p-6 h-full">
           <h2 className="text-xl font-bold mb-4 hidden md:block">All Posts</h2>
           
           <div className="space-y-4 max-w-3xl">
             {posts.map((post) => (
-              <Card key={post.id} className="p-4">
+              <Card key={post.id} className="p-3 sm:p-4">
                 <div className="flex items-start gap-3 mb-3">
-                  <Avatar className="h-10 w-10">
-                    <AvatarImage src={post.profiles?.avatar_url} />
-                    <AvatarFallback className="bg-gradient-cultural text-white">{post.profiles?.name?.[0] || '?'}</AvatarFallback>
-                  </Avatar>
+                  <UserAvatar 
+                    profile={post.profiles}
+                    size="lg"
+                    className="flex-shrink-0"
+                  />
                   <div className="flex-1">
                     <div className="flex items-center gap-2">
                       <h3 className="font-semibold">{post.profiles?.name}</h3>
@@ -467,14 +546,28 @@ export default function CommunityPage() {
                   </div>
                 )}
 
-                <div className="flex items-center gap-2 text-muted-foreground border-t pt-2">
-                  <Button variant="ghost" size="sm" className="flex-1">
-                    <Heart className="h-4 w-4 mr-1" />
-                    <span className="text-xs">Like</span>
+                <div className="flex items-center gap-1 sm:gap-2 text-muted-foreground border-t pt-2">
+                  <Button 
+                    variant="ghost" 
+                    size="sm" 
+                    className={`flex-1 ${userReactions[`${post.id}_like`] ? 'text-red-500' : ''}`}
+                    onClick={() => handleLikePost(post.id)}
+                  >
+                    <Heart className={`h-4 w-4 mr-1 ${userReactions[`${post.id}_like`] ? 'fill-current' : ''}`} />
+                    <span className="text-xs">
+                      {reactions[`${post.id}_like`] || 0} Like{(reactions[`${post.id}_like`] || 0) !== 1 ? 's' : ''}
+                    </span>
                   </Button>
-                  <Button variant="ghost" size="sm" className="flex-1">
+                  <Button 
+                    variant="ghost" 
+                    size="sm" 
+                    className="flex-1"
+                    onClick={() => navigate(`/community/post/${post.id}`)}
+                  >
                     <MessageCircle className="h-4 w-4 mr-1" />
-                    <span className="text-xs">Comment</span>
+                    <span className="text-xs">
+                      {commentCounts[post.id] || 0} Comment{(commentCounts[post.id] || 0) !== 1 ? 's' : ''}
+                    </span>
                   </Button>
                   <Button variant="ghost" size="sm" className="flex-1">
                     <Share2 className="h-4 w-4 mr-1" />
@@ -498,4 +591,6 @@ export default function CommunityPage() {
       </div>
     </div>
   );
-}
+};
+
+export default CommunityPage;

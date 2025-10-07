@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -39,6 +39,7 @@ const LearningGoalsPage = () => {
   const navigate = useNavigate();
   const { toast } = useToast();
   const { profile, updateProfile, completeOnboarding } = useAuthStore();
+  const [nativeLanguages, setNativeLanguages] = useState<string[]>([]);
   
   const form = useForm<LearningGoalsFormData>({
     resolver: zodResolver(learningGoalsSchema),
@@ -51,6 +52,25 @@ const LearningGoalsPage = () => {
   });
   
   const watchedLookingFor = form.watch('lookingFor');
+  
+  // Fetch native languages to exclude from learning languages
+  useEffect(() => {
+    const fetchNativeLanguages = async () => {
+      if (profile?.id) {
+        const { data } = await supabase
+          .from('languages')
+          .select('language_name')
+          .eq('user_id', profile.id)
+          .eq('is_native', true);
+        
+        if (data) {
+          setNativeLanguages(data.map(lang => lang.language_name));
+        }
+      }
+    };
+    
+    fetchNativeLanguages();
+  }, [profile?.id]);
   
   const onSubmit = async (data: LearningGoalsFormData) => {
     if (!profile?.id) {
@@ -187,6 +207,7 @@ const LearningGoalsPage = () => {
                             type="learning"
                             placeholder="Add languages you want to learn..."
                             maxSelection={4}
+                            excludeLanguages={nativeLanguages}
                           />
                         </FormControl>
                         <FormDescription>

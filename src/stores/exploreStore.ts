@@ -1,13 +1,13 @@
 import { create } from 'zustand';
 import { User } from '@/types';
 import { fetchProfiles } from '@/integrations/supabase/fetchProfiles';
-
 interface ExploreFilters {
   countries: string[];
   nativeLanguages: string[];
   learningLanguages: string[];
   culturalInterests: string[];
   ageRange: [number, number];
+  gender: string[];
   onlineOnly: boolean;
   lookingFor: string[];
 }
@@ -35,6 +35,7 @@ const defaultFilters: ExploreFilters = {
   learningLanguages: [],
   culturalInterests: [],
   ageRange: [18, 65],
+  gender: [],
   onlineOnly: false,
   lookingFor: [],
 };
@@ -108,7 +109,7 @@ export const useExploreStore = create<ExploreState>((set, get) => ({
       
       // Country filter
       if (filters.countries.length > 0) {
-        if (!filters.countries.includes(user.countryCode)) return false;
+        if (!filters.countries.includes(user.country)) return false;
       }
       
       // Native languages filter
@@ -138,6 +139,11 @@ export const useExploreStore = create<ExploreState>((set, get) => ({
       // Age range filter
       if (user.age < filters.ageRange[0] || user.age > filters.ageRange[1]) {
         return false;
+      }
+      
+      // Gender filter
+      if (filters.gender.length > 0) {
+        if (!user.gender || !filters.gender.includes(user.gender)) return false;
       }
       
       // Online only filter

@@ -210,20 +210,39 @@ export const uploadVoiceMessage = async (audioBlob: Blob, conversationId: string
       throw new Error('Voice message must be smaller than 10MB');
     }
     
-    // Determine file extension based on blob type
+    // Validate minimum file size to prevent corrupted uploads
+    if (audioBlob.size < 1000) {
+      throw new Error('Voice message is too short or corrupted');
+    }
+    
+    // Determine file extension based on blob type with better detection
     const blobType = audioBlob.type || 'audio/webm';
     let fileExt = 'webm';
-    if (blobType.includes('wav')) fileExt = 'wav';
-    else if (blobType.includes('mp3')) fileExt = 'mp3';
-    else if (blobType.includes('ogg')) fileExt = 'ogg';
     
-    const fileName = `${Date.now()}.${fileExt}`;
+    console.log('Voice message blob type:', blobType, 'size:', audioBlob.size);
+    
+    if (blobType.includes('wav')) {
+      fileExt = 'wav';
+    } else if (blobType.includes('mp3')) {
+      fileExt = 'mp3';
+    } else if (blobType.includes('ogg')) {
+      fileExt = 'ogg';
+    } else if (blobType.includes('opus')) {
+      fileExt = 'webm'; // Opus is typically in WebM container
+    } else if (blobType.includes('webm')) {
+      fileExt = 'webm';
+    }
+    
+    const fileName = `voice_${Date.now()}.${fileExt}`;
     const filePath = `${conversationId}/${fileName}`; // Store in conversation's folder
+
+    console.log('Uploading voice message:', { fileName, filePath, size: audioBlob.size, type: blobType });
 
     const { error: uploadError } = await supabase.storage
       .from('voicemail')
       .upload(filePath, audioBlob, {
-        contentType: blobType
+        contentType: blobType,
+        upsert: false // Don't overwrite existing files
       });
 
     if (uploadError) {
@@ -235,6 +254,7 @@ export const uploadVoiceMessage = async (audioBlob: Blob, conversationId: string
       .from('voicemail')
       .getPublicUrl(filePath);
 
+    console.log('Voice message uploaded successfully:', data.publicUrl);
     return data.publicUrl;
   } catch (error) {
     console.error('Voice message upload error:', error);

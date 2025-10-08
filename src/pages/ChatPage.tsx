@@ -1,5 +1,9 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import { useParams, Link } from 'react-router-dom';
+import { useConnectionStatus, usePerformanceMonitor } from '@/hooks/usePerformanceOptimization';
+import { useConversationsPreloader } from '@/hooks/useDataPreloader';
+import { SimpleMessage } from '@/components/chat/SimpleMessage';
+import { OptimizedConversationList } from '@/components/chat/OptimizedConversationList';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -43,6 +47,13 @@ const ChatPage = () => {
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const { toast } = useToast();
   
+  // Performance monitoring and connection status
+  const { logEvent } = usePerformanceMonitor('ChatPage');
+  const isOnline = useConnectionStatus();
+  
+  // Preload conversations data
+  useConversationsPreloader();
+  
   const { 
     conversations, 
     messages, 
@@ -59,25 +70,36 @@ const ChatPage = () => {
   
   const { user, profile } = useAuthStore();
 
-  // Define conversation data first
-  const currentConversation = conversationId 
-    ? conversations.find(c => c.id === conversationId)
-    : null;
+  // Memoize expensive computations
+  const currentConversation = useMemo(() => 
+    conversationId ? conversations.find(c => c.id === conversationId) : null,
+    [conversationId, conversations]
+  );
 
-  const conversationMessages = conversationId 
-    ? messages[conversationId] || []
-    : [];
+  const conversationMessages = useMemo(() => 
+    conversationId ? messages[conversationId] || [] : [],
+    [conversationId, messages]
+  );
 
-  // Load conversations on mount
+  const otherParticipant = useMemo(() => 
+    currentConversation?.participants.find(p => p.user_id !== user?.id),
+    [currentConversation?.participants, user?.id]
+  );
+
+  // Load conversations on mount - memoized to prevent excessive calls
   useEffect(() => {
-    if (user) {
+    if (user?.id && conversations.length === 0) {
+      logEvent('loading_conversations', { userId: user.id });
       loadConversations(user.id);
     }
-  }, [user, loadConversations]);
+  }, [user?.id, conversations.length, loadConversations, logEvent]);
 
-  // Load messages and subscribe to real-time updates
+  // Load messages and subscribe to real-time updates - debounced
   useEffect(() => {
-    if (conversationId && user) {
+    if (!conversationId || !user) return;
+
+    const timeoutId = setTimeout(() => {
+      logEvent('loading_messages', { conversationId });
       loadMessages(conversationId);
       markAsRead(conversationId, user.id);
       const channel = subscribeToMessages(conversationId);
@@ -85,27 +107,46 @@ const ChatPage = () => {
       return () => {
         unsubscribeFromMessages();
       };
-    }
-  }, [conversationId, user]);
+    }, 100); // Small delay to debounce rapid navigation
+
+    return () => {
+      clearTimeout(timeoutId);
+      unsubscribeFromMessages();
+    };
+  }, [conversationId, user?.id, loadMessages, markAsRead, subscribeToMessages, unsubscribeFromMessages, logEvent]);
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages[conversationId || '']]);
 
-  const handleSendMessage = async () => {
+  const handleSendMessage = useCallback(async () => {
     if (!newMessage.trim() || !conversationId || !user) return;
+
+    // Check connection before sending
+    if (!isOnline) {
+      toast({
+        title: "No connection",
+        description: "Please check your internet connection and try again",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    logEvent('message_send_attempt', { messageLength: newMessage.trim().length });
 
     try {
       await sendMessage(conversationId, user.id, newMessage.trim());
       setNewMessage('');
-    } catch (error) {
+      logEvent('message_send_success');
+    } catch (error: any) {
+      logEvent('message_send_error', { error: error.message });
       toast({
         title: "Failed to send message",
-        description: "Please try again",
+        description: isOnline ? "Please try again" : "Connection lost. Please try again when online.",
         variant: "destructive"
       });
     }
-  };
+  }, [newMessage, conversationId, user, isOnline, sendMessage, toast, logEvent]);
 
   const handleKeyPress = (e: React.KeyboardEvent) => {
     if (e.key === 'Enter' && !e.shiftKey) {
@@ -121,7 +162,19 @@ const ChatPage = () => {
       return;
     }
 
+    // Check connection before uploading
+    if (!isOnline) {
+      toast({
+        title: "No connection",
+        description: "Please check your internet connection before uploading files",
+        variant: "destructive"
+      });
+      e.target.value = '';
+      return;
+    }
+
     console.log('Starting attachment upload:', { fileName: file.name, fileSize: file.size, conversationId });
+    logEvent('attachment_upload_attempt', { fileName: file.name, fileSize: file.size });
     
     // Show loading toast
     toast({
@@ -131,15 +184,17 @@ const ChatPage = () => {
 
     try {
       await sendAttachment(conversationId, user.id, file);
+      logEvent('attachment_upload_success', { fileName: file.name });
       toast({
         title: "Attachment sent!",
         description: `${file.name} has been sent successfully.`
       });
     } catch (error: any) {
       console.error('Attachment upload error:', error);
+      logEvent('attachment_upload_error', { error: error.message, fileName: file.name });
       toast({
         title: "Failed to send attachment",
-        description: error.message || "Please try again",
+        description: error.message || (isOnline ? "Please try again" : "Connection lost. Please try again when online."),
         variant: "destructive"
       });
     }
@@ -164,22 +219,33 @@ const ChatPage = () => {
           audio: {
             echoCancellation: true,
             noiseSuppression: true,
-            sampleRate: 44100
+            sampleRate: 44100,
+            channelCount: 1 // Mono recording for smaller file size
           }
         });
         
-        // Try WAV format first (uncompressed, no codec issues)
+        // Improved format selection with better compatibility
         let recorder;
-        let selectedMimeType = 'audio/wav';
+        let selectedMimeType = 'audio/webm';
         
-        if (MediaRecorder.isTypeSupported('audio/wav')) {
+        // Priority order: WebM with Opus (best compression), WebM with Vorbis, WAV (largest but most compatible)
+        if (MediaRecorder.isTypeSupported('audio/webm;codecs=opus')) {
+          recorder = new MediaRecorder(stream, { 
+            mimeType: 'audio/webm;codecs=opus',
+            audioBitsPerSecond: 64000 // Good quality for voice
+          });
+          selectedMimeType = 'audio/webm;codecs=opus';
+        } else if (MediaRecorder.isTypeSupported('audio/webm')) {
+          recorder = new MediaRecorder(stream, { 
+            mimeType: 'audio/webm',
+            audioBitsPerSecond: 64000
+          });
+          selectedMimeType = 'audio/webm';
+        } else if (MediaRecorder.isTypeSupported('audio/wav')) {
           recorder = new MediaRecorder(stream, { mimeType: 'audio/wav' });
           selectedMimeType = 'audio/wav';
-        } else if (MediaRecorder.isTypeSupported('audio/webm;codecs=pcm')) {
-          recorder = new MediaRecorder(stream, { mimeType: 'audio/webm;codecs=pcm' });
-          selectedMimeType = 'audio/webm;codecs=pcm';
         } else {
-          // Fallback to default (usually webm with vorbis, not opus)
+          // Fallback to default
           recorder = new MediaRecorder(stream);
           selectedMimeType = recorder.mimeType || 'audio/webm';
         }
@@ -189,13 +255,39 @@ const ChatPage = () => {
         const audioChunks: BlobPart[] = [];
 
         recorder.ondataavailable = (event) => {
+          console.log('Data available:', event.data.size, 'bytes');
           if (event.data.size > 0) {
             audioChunks.push(event.data);
           }
         };
 
         recorder.onstop = async () => {
+          console.log('Recording stopped, total chunks:', audioChunks.length);
+          
+          // Ensure we have audio data
+          if (audioChunks.length === 0) {
+            toast({
+              title: "Recording failed",
+              description: "No audio data was captured. Please try again.",
+              variant: "destructive"
+            });
+            stream.getTracks().forEach(track => track.stop());
+            return;
+          }
+          
           const audioBlob = new Blob(audioChunks, { type: selectedMimeType });
+          console.log('Final audio blob size:', audioBlob.size, 'bytes');
+          
+          // Validate blob size
+          if (audioBlob.size < 1000) { // Less than 1KB is likely corrupted
+            toast({
+              title: "Recording too short",
+              description: "Please record for at least 1 second.",
+              variant: "destructive"
+            });
+            stream.getTracks().forEach(track => track.stop());
+            return;
+          }
           
           try {
             toast({
@@ -210,6 +302,7 @@ const ChatPage = () => {
               description: "Your voice message has been delivered."
             });
           } catch (error: any) {
+            console.error('Voice message send error:', error);
             toast({
               title: "Failed to send voice message",
               description: error.message || "Please try again",
@@ -221,7 +314,8 @@ const ChatPage = () => {
           stream.getTracks().forEach(track => track.stop());
         };
 
-        recorder.start(1000); // Collect data every 1 second
+        // Start recording with more frequent data collection for better reliability
+        recorder.start(250); // Collect data every 250ms for smoother recording
         setMediaRecorder(recorder);
         setIsRecording(true);
 
@@ -231,6 +325,7 @@ const ChatPage = () => {
         });
 
       } catch (error) {
+        console.error('Microphone access error:', error);
         toast({
           title: "Microphone access denied",
           description: "Please allow microphone access to send voice messages",
@@ -292,10 +387,6 @@ const ChatPage = () => {
   //     });
   //   }
   // }, [conversationMessages, user, markMessageAsRead]);
-    
-  const otherParticipant = currentConversation?.participants.find(
-    p => p.user_id !== user?.id
-  );
 
   if (!conversationId) {
     return (
@@ -314,50 +405,11 @@ const ChatPage = () => {
                 </Button>
               </div>
             </div>
-            <div className="flex-1 overflow-y-auto">
-                    {conversations.map((conversation) => {
-                      const otherUser = conversation.participants.find(p => p.user_id !== user?.id);
-                      const participantProfile = otherUser?.profiles;
-                      
-                      return (
-                        <Link key={conversation.id} to={`/chat/${conversation.id}`}>
-                          <div className="p-4 hover:bg-accent/50 cursor-pointer border-b border-border/50">
-                            <div className="flex items-start space-x-3">
-                              <div className="relative">
-                                <Avatar className="h-12 w-12">
-                                  <AvatarImage src={participantProfile?.avatar_url} />
-                                  <AvatarFallback className="bg-gradient-cultural text-white">
-                                    {participantProfile?.name?.[0] || '?'}
-                                  </AvatarFallback>
-                                </Avatar>
-                                {participantProfile?.online && (
-                                  <span className="absolute bottom-0 right-0 h-3 w-3 bg-green-500 rounded-full border-2 border-background" />
-                                )}
-                              </div>
-                              <div className="flex-1 min-w-0">
-                                <div className="flex items-center justify-between mb-1">
-                                  <p className="font-medium truncate">
-                                    {participantProfile?.name || 'Unknown User'}
-                                  </p>
-                                  <span className="text-xs text-muted-foreground">
-                                    {conversation.lastMessage ? formatDistanceToNow(new Date(conversation.lastMessage.created_at), { addSuffix: true }).replace('about ', '') : ''}
-                                  </span>
-                                </div>
-                                <p className="text-sm text-muted-foreground truncate">
-                                  {conversation.lastMessage?.content || 'No messages yet'}
-                                </p>
-                              </div>
-                              {conversation.unreadCount > 0 && (
-                                <Badge className="bg-primary text-primary-foreground">
-                                  {conversation.unreadCount}
-                                </Badge>
-                              )}
-                            </div>
-                          </div>
-                        </Link>
-                      );
-                    })}
-            </div>
+            <OptimizedConversationList
+              conversations={conversations}
+              currentUserId={user?.id}
+              isDesktop={false}
+            />
           </div>
 
           {/* Welcome Message - Only show on desktop or when no conversations */}
@@ -397,52 +449,12 @@ const ChatPage = () => {
               </Button>
             </div>
           </div>
-          <div className="flex-1 overflow-y-auto">
-            {conversations.map((conversation) => {
-              const otherUser = conversation.participants.find(p => p.user_id !== user?.id);
-              const participantProfile = otherUser?.profiles;
-              
-              return (
-                <Link key={conversation.id} to={`/chat/${conversation.id}`}>
-                  <div className={`p-3 hover:bg-accent/50 cursor-pointer border-b border-border/50 ${
-                    conversation.id === conversationId ? 'bg-accent/50' : ''
-                  }`}>
-                    <div className="flex items-start space-x-2">
-                      <div className="relative">
-                        <Avatar className="h-10 w-10">
-                          <AvatarImage src={participantProfile?.avatar_url} />
-                          <AvatarFallback className="bg-gradient-cultural text-white">
-                            {participantProfile?.name?.[0] || '?'}
-                          </AvatarFallback>
-                        </Avatar>
-                        {participantProfile?.online && (
-                          <span className="absolute bottom-0 right-0 h-2.5 w-2.5 bg-green-500 rounded-full border-2 border-background" />
-                        )}
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-center justify-between mb-1">
-                          <p className="font-medium truncate text-sm">
-                            {participantProfile?.name || 'Unknown User'}
-                          </p>
-                          <span className="text-[10px] text-muted-foreground">
-                            {conversation.lastMessage ? formatDistanceToNow(new Date(conversation.lastMessage.created_at), { addSuffix: true }).replace('about ', '').replace(' ago', '') : ''}
-                          </span>
-                        </div>
-                        <p className="text-xs text-muted-foreground truncate">
-                          {conversation.lastMessage?.content || 'No messages yet'}
-                        </p>
-                      </div>
-                      {conversation.unreadCount > 0 && (
-                        <Badge className="bg-primary text-primary-foreground text-xs">
-                          {conversation.unreadCount}
-                        </Badge>
-                      )}
-                    </div>
-                  </div>
-                </Link>
-              );
-            })}
-          </div>
+          <OptimizedConversationList
+            conversations={conversations}
+            currentUserId={user?.id}
+            activeConversationId={conversationId}
+            isDesktop={true}
+          />
         </div>
         <div className="flex-1 bg-background flex flex-col h-full">
           {/* Chat Header - Fixed */}
@@ -503,121 +515,30 @@ const ChatPage = () => {
           <div className="flex-1 overflow-y-auto p-4 min-h-0">
             <div className="space-y-2">
               {conversationMessages.map((message, index) => {
-                const currentDate = new Date(message.created_at).toDateString();
-                const previousDate = index > 0 
-                  ? new Date(conversationMessages[index - 1].created_at).toDateString()
-                  : null;
-                const showDateSeparator = currentDate !== previousDate;
-                const isLastMessage = index === conversationMessages.length - 1;
-                const isLastUserMessage = message.sender_id === user?.id && 
-                  conversationMessages.slice(index + 1).every(msg => msg.sender_id !== user?.id);
+                // Optimize date calculations
+                const showDateSeparator = index === 0 || 
+                  new Date(message.created_at).toDateString() !== 
+                  new Date(conversationMessages[index - 1].created_at).toDateString();
                 
-                // Clean attachment rendering without filename display
+                const isLastMessage = index === conversationMessages.length - 1;
+                const isCurrentUser = message.sender_id === user?.id;
+                
+                // Simplified last user message check
+                const isLastUserMessage = isCurrentUser && (
+                  index === conversationMessages.length - 1 ||
+                  conversationMessages[index + 1]?.sender_id !== user?.id
+                );
 
                 return (
-                  <React.Fragment key={message.id}>
-                    {showDateSeparator && (
-                      <div className="flex justify-center my-4">
-                        <span className="text-xs text-muted-foreground bg-muted px-3 py-1 rounded-full">
-                          {new Date(message.created_at).toLocaleDateString('en-US', { 
-                            day: 'numeric', 
-                            month: 'short', 
-                            year: 'numeric' 
-                          })}
-                        </span>
-                      </div>
-                    )}
-                    <div className={`flex flex-col ${message.sender_id === user?.id ? 'items-end' : 'items-start'}`}>
-                      {/* Message content */}
-                      <div className={`max-w-[75%] sm:max-w-[60%] ${
-                        message.media_url && (message.type === 'image' || message.type === 'voice')
-                          ? '' // No styling for images and voice messages
-                          : `${message.sender_id === user?.id 
-                              ? 'bg-primary text-primary-foreground' 
-                              : 'bg-accent text-accent-foreground'
-                            } rounded-2xl px-3 py-2`
-                      }`}>
-                        
-                        {/* Attachment rendering */}
-                        {message.media_url && (
-                          <div>
-                            {message.type === 'image' ? (
-                              <img 
-                                src={message.media_url} 
-                                alt="Attachment" 
-                                className="max-w-full h-auto cursor-pointer max-h-64 object-cover rounded-2xl"
-                                onClick={() => window.open(message.media_url, '_blank')}
-                                onError={(e) => {
-                                  console.error('Image failed to load:', message.media_url);
-                                  e.currentTarget.style.display = 'none';
-                                }}
-                              />
-                            ) : message.type === 'voice' ? (
-                              <div className="flex items-center gap-2 max-w-xs">
-                                <div className="w-6 h-6 flex items-center justify-center">
-                                  🎤
-                                </div>
-                                <audio 
-                                  controls 
-                                  className="flex-1"
-                                  preload="metadata"
-                                  src={message.media_url}
-                                >
-                                  Your browser does not support the audio element.
-                                </audio>
-                              </div>
-                            ) : (
-                              <div className="flex items-center gap-2 p-3 bg-background/10 rounded-lg cursor-pointer hover:bg-background/20 transition-colors"
-                                   onClick={() => window.open(message.media_url, '_blank')}>
-                                <div className="w-10 h-10 bg-background/20 rounded-lg flex items-center justify-center">
-                                  📎
-                                </div>
-                                <div className="flex-1 min-w-0">
-                                  <p className="text-sm font-medium truncate">{message.content}</p>
-                                  <p className="text-xs opacity-70">Click to download</p>
-                                </div>
-                                <div className="text-xs opacity-50">⬇️</div>
-                              </div>
-                            )}
-                          </div>
-                        )}
-                        
-                        {/* Text content - hide for attachments */}
-                        {!message.media_url && (
-                          <p className="text-sm">{message.content}</p>
-                        )}
-                      </div>
-
-                      {/* Status indicators below the message */}
-                      {message.sender_id === user?.id && isLastUserMessage && (
-                        <div className="flex items-center gap-1 mt-1">
-                          <span className="text-xs opacity-70 text-muted-foreground">
-                            {new Date(message.created_at).toLocaleTimeString('en-US', { 
-                              hour: '2-digit', 
-                              minute: '2-digit' 
-                            })}
-                          </span>
-                          {messageReadStatus[message.id] ? (
-                            <CheckCheck className="h-3 w-3 text-green-500" />
-                          ) : (
-                            <Check className="h-3 w-3 opacity-70 text-muted-foreground" />
-                          )}
-                        </div>
-                      )}
-                      
-                      {/* Timestamp for received messages - below message */}
-                      {message.sender_id !== user?.id && isLastMessage && (
-                        <div className="mt-1">
-                          <span className="text-xs opacity-70 text-muted-foreground">
-                            {new Date(message.created_at).toLocaleTimeString('en-US', { 
-                              hour: '2-digit', 
-                              minute: '2-digit' 
-                            })}
-                          </span>
-                        </div>
-                      )}
-                    </div>
-                  </React.Fragment>
+                  <SimpleMessage
+                    key={message.id}
+                    message={message}
+                    isCurrentUser={isCurrentUser}
+                    showDateSeparator={showDateSeparator}
+                    isLastMessage={isLastMessage}
+                    isLastUserMessage={isLastUserMessage}
+                    messageReadStatus={messageReadStatus[message.id] || false}
+                  />
                 );
               })}
               <div ref={messagesEndRef} />

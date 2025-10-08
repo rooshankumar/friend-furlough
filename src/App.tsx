@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { Suspense } from 'react';
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -6,25 +6,63 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { ThemeProvider } from "@/components/ThemeProvider";
 import { useAuthStore } from "./stores/authStore";
-import HomePage from "./pages/HomePage";
-import ExplorePage from "./pages/ExplorePage";
-import ChatPage from "./pages/ChatPage";
-import CommunityPage from "./pages/CommunityPage";
-import PostDetailPage from "./pages/PostDetailPage";
-import ProfilePage from "./pages/ProfilePage";
-import SettingsPage from "./pages/SettingsPage";
-import EventsPage from "./pages/EventsPage";
-import FriendsPage from "./pages/FriendsPage";
-import NotFound from "./pages/NotFound";
+import { Skeleton } from "@/components/ui/skeleton";
+import ConnectionStatus from "./components/ConnectionStatus";
 import Navigation from "./components/Navigation";
 import InstallPWA from "./components/InstallPWA";
-import SignUpPage from "./pages/auth/SignUpPage";
-import SignInPage from "./pages/auth/SignInPage";
-import WelcomePage from "./pages/onboarding/WelcomePage";
-import CulturalProfilePage from "./pages/onboarding/CulturalProfilePage";
-import LearningGoalsPage from "./pages/onboarding/LearningGoalsPage";
+import PerformanceMonitor from "./components/PerformanceMonitor";
+import { useAppDataPreloader } from "./hooks/useDataPreloader";
 
-const queryClient = new QueryClient();
+// Lazy load pages for better performance
+const HomePage = React.lazy(() => import("./pages/HomePage"));
+const ExplorePage = React.lazy(() => import("./pages/ExplorePage"));
+const ChatPage = React.lazy(() => import("./pages/ChatPage"));
+const CommunityPage = React.lazy(() => import("./pages/CommunityPage"));
+const PostDetailPage = React.lazy(() => import("./pages/PostDetailPage"));
+const ProfilePage = React.lazy(() => import("./pages/ProfilePage"));
+const SettingsPage = React.lazy(() => import("./pages/SettingsPage"));
+const EventsPage = React.lazy(() => import("./pages/EventsPage"));
+const FriendsPage = React.lazy(() => import("./pages/FriendsPage"));
+const NotFound = React.lazy(() => import("./pages/NotFound"));
+const SignUpPage = React.lazy(() => import("./pages/auth/SignUpPage"));
+const SignInPage = React.lazy(() => import("./pages/auth/SignInPage"));
+const WelcomePage = React.lazy(() => import("./pages/onboarding/WelcomePage"));
+const CulturalProfilePage = React.lazy(() => import("./pages/onboarding/CulturalProfilePage"));
+const LearningGoalsPage = React.lazy(() => import("./pages/onboarding/LearningGoalsPage"));
+
+// Enhanced QueryClient with better caching and retry logic
+const queryClient = new QueryClient({
+  defaultOptions: {
+    queries: {
+      staleTime: 5 * 60 * 1000, // 5 minutes
+      gcTime: 10 * 60 * 1000, // 10 minutes (formerly cacheTime)
+      retry: (failureCount, error: any) => {
+        // Don't retry on auth errors
+        if (error?.status === 401 || error?.status === 403) {
+          return false;
+        }
+        return failureCount < 3;
+      },
+      retryDelay: (attemptIndex) => Math.min(1000 * 2 ** attemptIndex, 30000),
+    },
+  },
+});
+
+// Loading fallback component
+const PageLoadingFallback = () => (
+  <div className="min-h-screen bg-background flex items-center justify-center">
+    <div className="space-y-4 w-full max-w-md px-4">
+      <div className="flex items-center justify-center">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+      </div>
+      <div className="space-y-2">
+        <Skeleton className="h-4 w-full" />
+        <Skeleton className="h-4 w-3/4" />
+        <Skeleton className="h-4 w-1/2" />
+      </div>
+    </div>
+  </div>
+);
 
 const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
   const { isAuthenticated, onboardingCompleted } = useAuthStore();
@@ -48,17 +86,28 @@ const App = () => {
     initialize();
   }, [initialize]);
   
+  // Preload app data for better performance
+  useAppDataPreloader();
+  
   return (
     <QueryClientProvider client={queryClient}>
       <TooltipProvider>
         <ThemeProvider defaultTheme="system">
           <Toaster />
           <Sonner />
-          <BrowserRouter>
+          <BrowserRouter
+            future={{
+              v7_startTransition: true,
+              v7_relativeSplatPath: true,
+            }}
+          >
             <div className="min-h-screen bg-background">
               <Navigation />
+              <ConnectionStatus />
+              <PerformanceMonitor />
               <InstallPWA />
-              <Routes>
+              <Suspense fallback={<PageLoadingFallback />}>
+                <Routes>
               <Route path="/" element={<HomePage />} />
               
               {/* Authentication Routes */}
@@ -130,6 +179,7 @@ const App = () => {
               {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
               <Route path="*" element={<NotFound />} />
               </Routes>
+              </Suspense>
             </div>
           </BrowserRouter>
         </ThemeProvider>

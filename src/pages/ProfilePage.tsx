@@ -754,8 +754,8 @@ const ProfilePage = () => {
                       Native Languages
                     </h3>
                     <div className="flex flex-wrap gap-2">
-                      {nativeLanguages.map((lang: string) => (
-                        <CulturalBadge key={lang} type="language-native">
+                      {nativeLanguages.map((lang: string, index: number) => (
+                        <CulturalBadge key={`native-${lang}-${index}`} type="language-native">
                           {lang}
                         </CulturalBadge>
                       ))}
@@ -770,8 +770,8 @@ const ProfilePage = () => {
                     Learning Languages
                   </h3>
                   <div className="flex flex-wrap gap-2">
-                    {learningLanguages.map((lang: string) => (
-                      <CulturalBadge key={lang} type="language-learning">
+                    {learningLanguages.map((lang: string, index: number) => (
+                      <CulturalBadge key={`learning-${lang}-${index}`} type="language-learning">
                         {lang}
                       </CulturalBadge>
                     ))}
@@ -785,8 +785,8 @@ const ProfilePage = () => {
                     Cultural Interests
                   </h3>
                   <div className="flex flex-wrap gap-2">
-                    {culturalInterests.map((interest: string) => (
-                      <Badge key={interest} variant="secondary" className="text-xs">
+                    {culturalInterests.map((interest: string, index: number) => (
+                      <Badge key={`${interest}-${index}`} variant="secondary" className="text-xs">
                         #{interest}
                       </Badge>
                     ))}
@@ -801,8 +801,8 @@ const ProfilePage = () => {
                       Looking For
                     </h3>
                     <div className="flex flex-wrap gap-2">
-                      {lookingFor.map((item: string) => (
-                        <Badge key={item} className="bg-primary/10 text-primary border-primary/20">
+                      {lookingFor.map((item: string, index: number) => (
+                        <Badge key={`${item}-${index}`} className="bg-primary/10 text-primary border-primary/20">
                           {item.replace(/-/g, ' ').replace(/\b\w/g, l => l.toUpperCase())}
                         </Badge>
                       ))}
@@ -818,8 +818,8 @@ const ProfilePage = () => {
                       Countries Visited ({profileUser.countriesVisited.length})
                     </h3>
                     <div className="flex flex-wrap gap-2">
-                      {profileUser.countriesVisited.map((country: string) => (
-                        <Badge key={country} variant="outline" className="text-xs">
+                      {profileUser.countriesVisited.map((country: string, index: number) => (
+                        <Badge key={`${country}-${index}`} variant="outline" className="text-xs">
                           {country}
                         </Badge>
                       ))}
@@ -1028,8 +1028,8 @@ const ProfilePage = () => {
                       Countries Visited
                     </h4>
                     <div className="flex flex-wrap gap-2">
-                      {(profileUser.countriesVisited || []).map((country: string) => (
-                        <Badge key={country} variant="outline" className="text-xs">
+                      {(profileUser.countriesVisited || []).map((country: string, index: number) => (
+                        <Badge key={`travel-${country}-${index}`} variant="outline" className="text-xs">
                           {country}
                         </Badge>
                       ))}

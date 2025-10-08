@@ -1,5 +1,6 @@
 import { create } from 'zustand';
 import { supabase } from '@/integrations/supabase/client';
+import { connectionManager, supabaseWrapper } from '@/lib/connectionManager';
 
 interface DbMessage {
   id: string;
@@ -54,30 +55,32 @@ export const useChatStore = create<ChatState>((set, get) => ({
   loadConversations: async (userId: string) => {
     console.log('📡 Loading conversations for user:', userId);
     set({ isLoading: true });
+    
     try {
-      // Optimized: Single query to get user's conversations with participants
-      const { data: userParticipants, error: participantError } = await supabase
-        .from('conversation_participants')
-        .select(`
-          conversation_id,
-          unread_count,
-          conversations!inner (
-            id,
-            created_at,
-            updated_at,
-            is_language_exchange,
-            language
-          )
-        `)
-        .eq('user_id', userId);
+      const result = await supabaseWrapper.withRetry(async () => {
+        // Optimized: Single query to get user's conversations with participants
+        const { data: userParticipants, error: participantError } = await supabase
+          .from('conversation_participants')
+          .select(`
+            conversation_id,
+            unread_count,
+            conversations!inner (
+              id,
+              created_at,
+              updated_at,
+              is_language_exchange,
+              language
+            )
+          `)
+          .eq('user_id', userId);
+        
+        if (participantError) throw participantError;
+        return userParticipants;
+      }, 'load conversations');
       
-      console.log('📊 User participants:', { data: userParticipants, error: participantError });
+      const userParticipants = result;
       
-      if (participantError) {
-        console.error('❌ Error fetching user conversations:', participantError);
-        set({ conversations: [], isLoading: false });
-        return;
-      }
+      console.log('📊 User participants:', { data: userParticipants });
       
       if (!userParticipants || userParticipants.length === 0) {
         console.log('ℹ️ No conversations found for user');
@@ -403,16 +406,42 @@ export const useChatStore = create<ChatState>((set, get) => ({
           set({ activeChannel: channel });
         } else if (status === 'CLOSED' || status === 'CHANNEL_ERROR') {
           console.warn('Connection lost, attempting to reconnect...');
-          // Attempt to reconnect after a delay
-          setTimeout(() => {
-            const { activeChannel: currentChannel } = get();
-            if (!currentChannel || currentChannel.state !== 'joined') {
-              console.log('Reconnecting to messages...');
-              get().subscribeToMessages(conversationId);
+          
+          // Enhanced reconnection with connection manager
+          const reconnect = async () => {
+            try {
+              await connectionManager.waitForConnection(10000);
+              const { activeChannel: currentChannel } = get();
+              if (!currentChannel || currentChannel.state !== 'joined') {
+                console.log('Reconnecting to messages...');
+                get().subscribeToMessages(conversationId);
+              }
+            } catch (error) {
+              console.error('Reconnection failed:', error);
+              // Retry after longer delay
+              setTimeout(reconnect, 10000);
             }
-          }, 3000);
+          };
+          
+          setTimeout(reconnect, 3000);
         }
       });
+    
+    // Listen for connection changes to resubscribe
+    const unsubscribeConnection = connectionManager.onConnectionChange((isOnline) => {
+      if (isOnline) {
+        setTimeout(() => {
+          const { activeChannel: currentChannel } = get();
+          if (!currentChannel || currentChannel.state !== 'joined') {
+            console.log('Connection restored, resubscribing to messages...');
+            get().subscribeToMessages(conversationId);
+          }
+        }, 2000);
+      }
+    });
+    
+    // Store cleanup function
+    (channel as any)._connectionCleanup = unsubscribeConnection;
     
     return channel;
   },
@@ -421,6 +450,10 @@ export const useChatStore = create<ChatState>((set, get) => ({
     console.log('Unsubscribing from messages');
     const { activeChannel } = get();
     if (activeChannel) {
+      // Clean up connection listener
+      if ((activeChannel as any)._connectionCleanup) {
+        (activeChannel as any)._connectionCleanup();
+      }
       supabase.removeChannel(activeChannel);
       set({ activeChannel: null });
     }

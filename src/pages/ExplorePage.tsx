@@ -3,12 +3,13 @@ import { useNavigate } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuthStore } from '@/stores/authStore';
 import { useExploreStore } from '@/stores/exploreStore';
+import { useProfileReactionStore } from '@/stores/profileReactionStore';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { Input } from '@/components/ui/input';
-import { MessageCircle, MapPin, Globe, Search, Filter, X } from 'lucide-react';
+import { MessageCircle, MapPin, Globe, Search, Filter, X, UserPlus, Heart } from 'lucide-react';
 import { Skeleton } from '@/components/ui/skeleton';
 import { toast } from 'sonner';
 
@@ -18,11 +19,19 @@ export default function ExplorePage() {
   const navigate = useNavigate();
   const { user } = useAuthStore();
   const { filteredUsers, isLoading, searchTerm, filters, loadUsers, setSearchTerm, setFilters, clearFilters } = useExploreStore();
+  const { toggleReaction, loadReactionData, reactions, userReactions } = useProfileReactionStore();
   const [showFilters, setShowFilters] = useState(false);
 
   useEffect(() => {
     loadUsers();
   }, []);
+
+  // Load reaction data for all visible profiles
+  useEffect(() => {
+    filteredUsers.forEach(profile => {
+      loadReactionData(profile.id);
+    });
+  }, [filteredUsers, loadReactionData]);
 
   const profiles = filteredUsers;
 
@@ -216,45 +225,114 @@ export default function ExplorePage() {
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
         {profiles.map((profile) => (
-          <Card key={profile.id} className="p-6 hover:shadow-lg transition-shadow">
-            <div className="flex flex-col items-center text-center">
+          <Card key={profile.id} className="p-4 hover:shadow-lg transition-shadow flex flex-col">
+            <div className="flex gap-3 mb-3">
               <div 
-                className="relative mb-4 cursor-pointer hover:scale-105 transition-transform"
+                className="relative cursor-pointer hover:scale-105 transition-transform flex-shrink-0"
                 onClick={() => viewProfile(profile)}
                 title={`View ${profile.name}'s profile`}
               >
-                <Avatar className="h-20 w-20">
+                <Avatar className="h-16 w-16">
                   <AvatarImage src={profile.avatar_url} />
                   <AvatarFallback>{profile.name?.[0] || '?'}</AvatarFallback>
                 </Avatar>
                 {profile.online && (
-                  <span className="absolute bottom-0 right-0 h-4 w-4 bg-green-500 rounded-full border-2 border-background" />
+                  <span className="absolute bottom-0 right-0 h-3 w-3 bg-green-500 rounded-full border-2 border-background" />
                 )}
               </div>
 
-              <h3 className="text-xl font-semibold mb-1">{profile.name}</h3>
-              
-              {profile.country && (
-                <div className="flex items-center gap-2 text-muted-foreground mb-2">
-                  <MapPin className="h-4 w-4" />
-                  <span className="text-sm">
-                    {profile.countryFlag} {profile.country}
-                  </span>
+              <div className="flex-1 min-w-0 flex flex-col">
+                <div className="flex items-center justify-between mb-1">
+                  <h3 
+                    className="text-sm font-semibold truncate cursor-pointer hover:text-primary"
+                    onClick={() => viewProfile(profile)}
+                  >
+                    {profile.name}
+                  </h3>
+                  {profile.gender && (
+                    <img 
+                      src={
+                        profile.gender === 'male' 
+                          ? 'https://bblrxervgwkphkctdghe.supabase.co/storage/v1/object/public/rest_pic/male.png'
+                          : profile.gender === 'female'
+                          ? 'https://bblrxervgwkphkctdghe.supabase.co/storage/v1/object/public/rest_pic/female.png'
+                          : 'https://bblrxervgwkphkctdghe.supabase.co/storage/v1/object/public/rest_pic/others.png'
+                      }
+                      alt={profile.gender}
+                      className="h-4 w-4 ml-2 flex-shrink-0"
+                    />
+                  )}
                 </div>
-              )}
+                
+                <div className="flex items-center gap-1 text-muted-foreground text-xs mb-2">
+                  {profile.country && (
+                    <span className="truncate">{profile.countryFlag} {profile.country}</span>
+                  )}
+                  {profile.age && (
+                    <span>{profile.age}y</span>
+                  )}
+                </div>
 
-              {profile.bio && (
-                <p className="text-sm text-muted-foreground mb-4 line-clamp-2">
-                  {profile.bio}
-                </p>
-              )}
+                <div className="flex gap-2">
+                  {profile.nativeLanguages.length > 0 && (
+                    <div className="flex gap-1 flex-wrap">
+                      {profile.nativeLanguages.slice(0, 2).map((lang, idx) => (
+                        <Badge key={idx} variant="secondary" className="text-xs px-1.5 py-0 h-5">
+                          {lang}
+                        </Badge>
+                      ))}
+                    </div>
+                  )}
+                  
+                  {profile.learningLanguages.length > 0 && (
+                    <div className="flex gap-1 flex-wrap">
+                      {profile.learningLanguages.slice(0, 2).map((lang, idx) => (
+                        <Badge key={idx} variant="outline" className="text-xs px-1.5 py-0 h-5">
+                          {lang}
+                        </Badge>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
 
+            {profile.bio && (
+              <p className="text-xs text-muted-foreground mb-3 line-clamp-2">
+                {profile.bio}
+              </p>
+            )}
+
+            <div className="flex gap-2 w-full mt-auto">
               <Button
                 onClick={() => startConversation(profile.id)}
-                className="w-full"
+                className="flex-1 h-8 text-xs"
+                size="sm"
               >
-                <MessageCircle className="h-4 w-4 mr-2" />
-                Start Chat
+                <MessageCircle className="h-3 w-3 mr-1" />
+                Send
+              </Button>
+              <Button
+                variant="ghost"
+                className={`h-8 px-3 text-xs ${userReactions[profile.id] ? 'text-red-500' : ''}`}
+                size="sm"
+                onClick={async () => {
+                  const success = await toggleReaction(profile.id);
+                  if (success) {
+                    toast.success(
+                      userReactions[profile.id] 
+                        ? 'Removed from favorites' 
+                        : `Added ${profile.name} to favorites!`
+                    );
+                  } else {
+                    toast.error('Failed to update reaction');
+                  }
+                }}
+              >
+                <Heart className={`h-3 w-3 ${userReactions[profile.id] ? 'fill-current' : ''}`} />
+                {reactions[profile.id] > 0 && (
+                  <span className="ml-1 text-xs">{reactions[profile.id]}</span>
+                )}
               </Button>
             </div>
           </Card>

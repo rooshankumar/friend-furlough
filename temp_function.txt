@@ -1,0 +1,68 @@
+
+  const startConversation = async () => {
+    if (!profileUser?.id) return;
+    
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) {
+        toast({
+          title: 'Please sign in',
+          description: 'You need to be signed in to start a conversation',
+          variant: 'destructive',
+        });
+        navigate('/auth/signin');
+        return;
+      }
+
+      if (profileUser.id === user?.id) return;
+
+      const { data: existingParticipants } = await supabase
+        .from('conversation_participants')
+        .select('conversation_id')
+        .eq('user_id', user!.id);
+
+      if (existingParticipants) {
+        for (const participant of existingParticipants) {
+          const { data: otherParticipant } = await supabase
+            .from('conversation_participants')
+            .select('conversation_id')
+            .eq('conversation_id', participant.conversation_id)
+            .eq('user_id', profileUser.id)
+            .maybeSingle();
+
+          if (otherParticipant) {
+            navigate(`/chat/${participant.conversation_id}`);
+            return;
+          }
+        }
+      }
+
+      const { data: conversation, error: convError } = await supabase
+        .from('conversations')
+        .insert({ is_language_exchange: true })
+        .select()
+        .single();
+
+      if (convError) {
+        toast({ title: 'Failed to start conversation', description: convError.message, variant: 'destructive' });
+        return;
+      }
+
+      const { error: participantError } = await supabase
+        .from('conversation_participants')
+        .insert([
+          { conversation_id: conversation.id, user_id: session.user.id },
+          { conversation_id: conversation.id, user_id: profileUser.id }
+        ]);
+
+      if (participantError) {
+        toast({ title: 'Failed to add participants', description: 'Please try again.', variant: 'destructive' });
+        return;
+      }
+
+      toast({ title: 'Conversation started!', description: `You can now chat with ${profileUser.name}` });
+      navigate(`/chat/${conversation.id}`);
+    } catch (error) {
+      toast({ title: 'Something went wrong', description: 'Please try again.', variant: 'destructive' });
+    }
+  };

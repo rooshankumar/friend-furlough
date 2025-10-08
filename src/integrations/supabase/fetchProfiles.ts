@@ -45,6 +45,7 @@ export async function fetchProfiles(): Promise<User[]> {
       culturalInterests,
       bio: profile.bio || '',
       age: profile.age || 0,
+      gender: profile.gender,
       profilePhoto: profile.avatar_url || '',
       avatar_url: profile.avatar_url || '',
       online: profile.online || false,

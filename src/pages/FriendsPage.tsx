@@ -189,16 +189,23 @@ const FriendsPage = () => {
       }
 
       // Process friendships to get the friend's profile
-      const processedFriends = (friendships || []).map((friendship: any) => {
-        const friendProfile = friendship.user1_id === user.id 
-          ? friendship.user2_profile 
-          : friendship.user1_profile;
+      const processedFriends = [];
+      for (const friendship of friendships || []) {
+        // Determine which user is the friend (not the current user)
+        const friendId = friendship.user1_id === user.id ? friendship.user2_id : friendship.user1_id;
         
-        return {
+        // Fetch the friend's profile
+        const { data: friendProfile } = await supabase
+          .from('profiles')
+          .select('id, name, avatar_url, country, country_flag, online')
+          .eq('id', friendId)
+          .single();
+        
+        processedFriends.push({
           ...friendship,
           friend_profile: friendProfile
-        };
-      });
+        });
+      }
 
       setReceivedRequests(receivedWithProfiles);
       setSentRequests(sentWithProfiles);
@@ -304,8 +311,97 @@ const FriendsPage = () => {
     navigate(`/profile/${userId}`);
   };
 
-  const startChat = (userId: string) => {
-    navigate(`/chat/${userId}`);
+  const startChat = async (userId: string) => {
+    try {
+      // Ensure user is authenticated
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) {
+        toast({
+          title: 'Please sign in',
+          description: 'You need to be signed in to start a conversation',
+          variant: 'destructive',
+        });
+        return;
+      }
+
+      // Prevent self-chat
+      if (userId === user?.id) {
+        return;
+      }
+
+      // Check if conversation already exists
+      const { data: existingParticipants } = await supabase
+        .from('conversation_participants')
+        .select('conversation_id')
+        .eq('user_id', user!.id);
+
+      if (existingParticipants) {
+        for (const participant of existingParticipants) {
+          const { data: otherParticipant } = await supabase
+            .from('conversation_participants')
+            .select('conversation_id')
+            .eq('conversation_id', participant.conversation_id)
+            .eq('user_id', userId)
+            .maybeSingle();
+
+          if (otherParticipant) {
+            // Conversation already exists
+            navigate(`/chat/${participant.conversation_id}`);
+            return;
+          }
+        }
+      }
+
+      // Create new conversation
+      const { data: conversation, error: convError } = await supabase
+        .from('conversations')
+        .insert({ 
+          is_language_exchange: true
+        })
+        .select()
+        .single();
+
+      if (convError) {
+        console.error('Conversation creation error:', convError);
+        toast({
+          title: 'Failed to start conversation',
+          description: convError.message,
+          variant: 'destructive',
+        });
+        return;
+      }
+
+      // Add participants
+      const { error: participantError } = await supabase
+        .from('conversation_participants')
+        .insert([
+          { conversation_id: conversation.id, user_id: session.user.id },
+          { conversation_id: conversation.id, user_id: userId }
+        ]);
+
+      if (participantError) {
+        console.error('Participant creation error:', participantError);
+        toast({
+          title: 'Failed to add participants',
+          description: 'Please try again.',
+          variant: 'destructive',
+        });
+        return;
+      }
+
+      toast({
+        title: 'Conversation started!',
+        description: 'You can now chat with your friend',
+      });
+      navigate(`/chat/${conversation.id}`);
+    } catch (error) {
+      console.error('Error starting conversation:', error);
+      toast({
+        title: 'Something went wrong',
+        description: 'Please try again.',
+        variant: 'destructive',
+      });
+    }
   };
 
   if (isLoading) {
@@ -415,14 +511,6 @@ const FriendsPage = () => {
                     <div className="flex items-center gap-2">
                       <Button 
                         variant="outline" 
-                        size="sm"
-                        onClick={() => startChat(friendship.friend_profile?.id || '')}
-                      >
-                        <MessageCircle className="h-4 w-4 mr-2" />
-                        Message
-                      </Button>
-                      <Button 
-                        variant="ghost" 
                         size="sm"
                         onClick={() => viewProfile(friendship.friend_profile?.id || '')}
                       >

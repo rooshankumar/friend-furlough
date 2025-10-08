@@ -153,9 +153,14 @@ export const uploadPostImage = async (file: File, userId: string): Promise<strin
  * Upload chat attachment (image or file)
  * @param file - File to upload
  * @param conversationId - Conversation ID for organization
+ * @param onProgress - Optional callback for upload progress (0-100)
  * @returns Public URL of uploaded file
  */
-export const uploadChatAttachment = async (file: File, conversationId: string): Promise<string> => {
+export const uploadChatAttachment = async (
+  file: File, 
+  conversationId: string,
+  onProgress?: (progress: number) => void
+): Promise<string> => {
   try {
     // Validate file size (max 20MB for attachments)
     if (file.size > 20 * 1024 * 1024) {
@@ -167,14 +172,20 @@ export const uploadChatAttachment = async (file: File, conversationId: string): 
     
     // Compress if it's an image
     if (file.type.startsWith('image/')) {
+      onProgress?.(10); // Compression starting
       fileToUpload = await compressImage(file, 1024, 0.8);
       contentType = 'image/jpeg';
+      onProgress?.(30); // Compression complete
+    } else {
+      onProgress?.(20); // Skipping compression
     }
     
     const fileExt = file.type.startsWith('image/') ? 'jpg' : file.name.split('.').pop();
     const fileName = `${Date.now()}.${fileExt}`;
     const filePath = `${conversationId}/${fileName}`; // Store in conversation's folder
 
+    onProgress?.(50); // Starting upload
+    
     const { error: uploadError } = await supabase.storage
       .from('chat_attachments')
       .upload(filePath, fileToUpload, {
@@ -186,9 +197,13 @@ export const uploadChatAttachment = async (file: File, conversationId: string): 
       throw new Error(`Upload failed: ${uploadError.message}`);
     }
 
+    onProgress?.(90); // Upload complete
+
     const { data } = supabase.storage
       .from('chat_attachments')
       .getPublicUrl(filePath);
+
+    onProgress?.(100); // Done
 
     return data.publicUrl;
   } catch (error) {

@@ -76,9 +76,11 @@ const ConversationItem = React.memo<ConversationItemProps>(({
             </p>
           </div>
           {conversation.unreadCount > 0 && (
-            <Badge className={`bg-primary text-primary-foreground ${isDesktop ? 'text-xs' : ''}`}>
-              {conversation.unreadCount}
-            </Badge>
+            <span className={`flex items-center justify-center rounded-full bg-red-500 text-white font-semibold shadow-sm ${
+              isDesktop ? 'h-5 w-5 text-[10px]' : 'h-6 w-6 text-xs'
+            }`}>
+              {conversation.unreadCount > 99 ? '99+' : conversation.unreadCount}
+            </span>
           )}
         </div>
       </div>

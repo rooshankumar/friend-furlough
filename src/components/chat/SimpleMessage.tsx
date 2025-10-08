@@ -1,8 +1,10 @@
 import React from 'react';
-import { Check, CheckCheck } from 'lucide-react';
+import { Check, CheckCheck, Clock, AlertCircle } from 'lucide-react';
+
+type MessageStatus = 'sending' | 'sent' | 'delivered' | 'read' | 'failed';
 
 interface SimpleMessageProps {
-  message: any;
+  message: any & { status?: MessageStatus; uploadProgress?: number };
   isCurrentUser: boolean;
   showDateSeparator: boolean;
   isLastMessage: boolean;
@@ -50,24 +52,48 @@ export const SimpleMessage: React.FC<SimpleMessageProps> = ({
                 <img 
                   src={message.media_url} 
                   alt="Attachment" 
-                  className="max-w-full h-auto cursor-pointer max-h-64 object-cover rounded-2xl"
-                  onClick={() => window.open(message.media_url, '_blank')}
+                  className="max-w-full h-auto cursor-pointer max-h-64 object-cover rounded-2xl active:opacity-80 transition-opacity"
+                  onClick={(e) => {
+                    e.preventDefault();
+                    window.open(message.media_url, '_blank');
+                  }}
+                  onTouchEnd={(e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    window.open(message.media_url, '_blank');
+                  }}
                   loading="lazy"
                 />
               ) : message.type === 'voice' ? (
                 <div className="flex items-center gap-2 max-w-xs">
                   <div className="w-6 h-6 flex items-center justify-center">🎤</div>
-                  <audio controls className="flex-1" preload="metadata" src={message.media_url}>
+                  <audio 
+                    controls 
+                    className="flex-1" 
+                    preload="metadata" 
+                    src={message.media_url}
+                    controlsList="nodownload"
+                  >
                     Your browser does not support the audio element.
                   </audio>
                 </div>
               ) : (
-                <div className="flex items-center gap-2 p-3 bg-background/10 rounded-lg cursor-pointer hover:bg-background/20"
-                     onClick={() => window.open(message.media_url, '_blank')}>
+                <div 
+                  className="flex items-center gap-2 p-3 bg-background/10 rounded-lg cursor-pointer hover:bg-background/20 active:bg-background/30 transition-colors"
+                  onClick={(e) => {
+                    e.preventDefault();
+                    window.open(message.media_url, '_blank');
+                  }}
+                  onTouchEnd={(e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    window.open(message.media_url, '_blank');
+                  }}
+                >
                   <div className="w-10 h-10 bg-background/20 rounded-lg flex items-center justify-center">📎</div>
                   <div className="flex-1 min-w-0">
                     <p className="text-sm font-medium truncate">{message.content}</p>
-                    <p className="text-xs opacity-70">Click to download</p>
+                    <p className="text-xs opacity-70">Tap to open</p>
                   </div>
                   <div className="text-xs opacity-50">⬇️</div>
                 </div>
@@ -91,12 +117,37 @@ export const SimpleMessage: React.FC<SimpleMessageProps> = ({
               })}
             </span>
             {isCurrentUser && (
-              messageReadStatus ? (
-                <CheckCheck className="h-3 w-3 text-green-500" />
-              ) : (
-                <Check className="h-3 w-3 opacity-70 text-muted-foreground" />
-              )
+              <>
+                {message.status === 'sending' && (
+                  <Clock className="h-3 w-3 opacity-50 text-muted-foreground animate-pulse" />
+                )}
+                {message.status === 'sent' && (
+                  <Check className="h-3 w-3 opacity-70 text-muted-foreground" />
+                )}
+                {message.status === 'delivered' && (
+                  <CheckCheck className="h-3 w-3 opacity-70 text-muted-foreground" />
+                )}
+                {message.status === 'read' || (message.status === undefined && messageReadStatus) ? (
+                  <CheckCheck className="h-3 w-3 text-green-500" />
+                ) : null}
+                {message.status === 'failed' && (
+                  <AlertCircle className="h-3 w-3 text-destructive" />
+                )}
+              </>
             )}
+          </div>
+        )}
+        
+        {/* Upload progress */}
+        {message.uploadProgress !== undefined && message.uploadProgress < 100 && (
+          <div className="w-full max-w-[75%] sm:max-w-[60%] mt-1">
+            <div className="h-1 bg-muted rounded-full overflow-hidden">
+              <div 
+                className="h-full bg-primary transition-all duration-300"
+                style={{ width: `${message.uploadProgress}%` }}
+              />
+            </div>
+            <span className="text-xs text-muted-foreground mt-1">{message.uploadProgress}%</span>
           </div>
         )}
       </div>

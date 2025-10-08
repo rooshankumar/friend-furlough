@@ -44,6 +44,9 @@ const ChatPage = () => {
   const [messageReadStatus, setMessageReadStatus] = useState<{[messageId: string]: boolean}>({});
   const [isRecording, setIsRecording] = useState(false);
   const [mediaRecorder, setMediaRecorder] = useState<MediaRecorder | null>(null);
+  const [typingTimeout, setTypingTimeout] = useState<NodeJS.Timeout | null>(null);
+  const [recordingDuration, setRecordingDuration] = useState(0);
+  const recordingTimerRef = useRef<NodeJS.Timeout | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const { toast } = useToast();
   
@@ -57,6 +60,7 @@ const ChatPage = () => {
   const { 
     conversations, 
     messages, 
+    typingUsers,
     sendMessage, 
     sendAttachment,
     sendVoiceMessage,
@@ -65,7 +69,9 @@ const ChatPage = () => {
     markAsRead,
     markMessageAsRead,
     subscribeToMessages,
-    unsubscribeFromMessages
+    unsubscribeFromMessages,
+    broadcastTyping,
+    processOfflineQueue
   } = useChatStore();
   
   const { user, profile } = useAuthStore();
@@ -85,6 +91,13 @@ const ChatPage = () => {
     currentConversation?.participants.find(p => p.user_id !== user?.id),
     [currentConversation?.participants, user?.id]
   );
+
+  const currentTypingUsers = useMemo(() => {
+    if (!conversationId || !typingUsers[conversationId]) return [];
+    return Object.entries(typingUsers[conversationId])
+      .filter(([userId]) => userId !== user?.id)
+      .map(([_, userName]) => userName);
+  }, [conversationId, typingUsers, user?.id]);
 
   // Load conversations on mount - memoized to prevent excessive calls
   useEffect(() => {
@@ -119,6 +132,13 @@ const ChatPage = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages[conversationId || '']]);
 
+  // Process offline queue when connection is restored
+  useEffect(() => {
+    if (isOnline) {
+      processOfflineQueue();
+    }
+  }, [isOnline, processOfflineQueue]);
+
   const handleSendMessage = useCallback(async () => {
     if (!newMessage.trim() || !conversationId || !user) return;
 
@@ -148,17 +168,52 @@ const ChatPage = () => {
     }
   }, [newMessage, conversationId, user, isOnline, sendMessage, toast, logEvent]);
 
+  const handleTyping = useCallback(() => {
+    if (!conversationId || !user || !profile) return;
+
+    // Clear existing timeout
+    if (typingTimeout) {
+      clearTimeout(typingTimeout);
+    }
+
+    // Broadcast that user is typing
+    broadcastTyping(conversationId, user.id, profile.name || 'User', true);
+
+    // Set timeout to stop typing indicator after 3 seconds
+    const timeout = setTimeout(() => {
+      broadcastTyping(conversationId, user.id, profile.name || 'User', false);
+    }, 3000);
+
+    setTypingTimeout(timeout);
+  }, [conversationId, user, profile, typingTimeout, broadcastTyping]);
+
   const handleKeyPress = (e: React.KeyboardEvent) => {
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault();
       handleSendMessage();
+      // Stop typing indicator when message is sent
+      if (conversationId && user && profile && typingTimeout) {
+        clearTimeout(typingTimeout);
+        broadcastTyping(conversationId, user.id, profile.name || 'User', false);
+        setTypingTimeout(null);
+      }
     }
   };
 
   const handleAttachmentUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
+    
+    console.log('📎 Attachment selected:', {
+      hasFile: !!file,
+      fileName: file?.name,
+      fileSize: file?.size,
+      fileType: file?.type,
+      conversationId,
+      userId: user?.id
+    });
+    
     if (!file || !conversationId || !user) {
-      console.log('Missing requirements:', { file: !!file, conversationId, user: !!user });
+      console.error('❌ Missing requirements:', { file: !!file, conversationId, user: !!user });
       return;
     }
 
@@ -166,41 +221,33 @@ const ChatPage = () => {
     if (!isOnline) {
       toast({
         title: "No connection",
-        description: "Please check your internet connection before uploading files",
         variant: "destructive"
       });
       e.target.value = '';
       return;
     }
 
-    console.log('Starting attachment upload:', { fileName: file.name, fileSize: file.size, conversationId });
+    console.log('✅ Starting attachment upload:', { fileName: file.name, fileSize: file.size });
     logEvent('attachment_upload_attempt', { fileName: file.name, fileSize: file.size });
     
-    // Show loading toast
-    toast({
-      title: "Uploading attachment...",
-      description: `Sending ${file.name}...`
-    });
-
     try {
+      console.log('📤 Calling sendAttachment...');
       await sendAttachment(conversationId, user.id, file);
+      console.log('✅ Attachment upload complete');
       logEvent('attachment_upload_success', { fileName: file.name });
-      toast({
-        title: "Attachment sent!",
-        description: `${file.name} has been sent successfully.`
-      });
     } catch (error: any) {
-      console.error('Attachment upload error:', error);
+      console.error('❌ Attachment upload error:', error);
+      console.error('Error stack:', error.stack);
       logEvent('attachment_upload_error', { error: error.message, fileName: file.name });
       toast({
-        title: "Failed to send attachment",
-        description: error.message || (isOnline ? "Please try again" : "Connection lost. Please try again when online."),
+        title: "Upload failed",
+        description: error.message || "Please try again",
         variant: "destructive"
       });
+    } finally {
+      // Reset the input
+      e.target.value = '';
     }
-    
-    // Reset the input
-    e.target.value = '';
   };
 
   const handleVoiceRecording = async () => {
@@ -211,6 +258,11 @@ const ChatPage = () => {
       if (mediaRecorder) {
         mediaRecorder.stop();
         setIsRecording(false);
+        setRecordingDuration(0);
+        if (recordingTimerRef.current) {
+          clearInterval(recordingTimerRef.current);
+          recordingTimerRef.current = null;
+        }
       }
     } else {
       // Start recording
@@ -253,36 +305,47 @@ const ChatPage = () => {
         console.log('Using audio format:', selectedMimeType);
         
         const audioChunks: BlobPart[] = [];
+        let isProcessing = false;
 
         recorder.ondataavailable = (event) => {
-          console.log('Data available:', event.data.size, 'bytes');
+          console.log('Data available:', event.data.size, 'bytes', 'at', new Date().toLocaleTimeString());
           if (event.data.size > 0) {
             audioChunks.push(event.data);
+            console.log('Total chunks collected:', audioChunks.length);
           }
         };
 
         recorder.onstop = async () => {
-          console.log('Recording stopped, total chunks:', audioChunks.length);
+          if (isProcessing) return; // Prevent double processing
+          isProcessing = true;
+          
+          console.log('Recording stopped at', new Date().toLocaleTimeString());
+          console.log('Total chunks collected:', audioChunks.length);
+          console.log('Chunk sizes:', audioChunks.map((chunk: any) => chunk.size));
           
           // Ensure we have audio data
           if (audioChunks.length === 0) {
             toast({
               title: "Recording failed",
-              description: "No audio data was captured. Please try again.",
+              description: "No audio data captured.",
               variant: "destructive"
             });
             stream.getTracks().forEach(track => track.stop());
             return;
           }
           
+          // Create blob with explicit type
           const audioBlob = new Blob(audioChunks, { type: selectedMimeType });
-          console.log('Final audio blob size:', audioBlob.size, 'bytes');
+          console.log('Final audio blob:', {
+            size: audioBlob.size,
+            type: audioBlob.type,
+            chunks: audioChunks.length
+          });
           
-          // Validate blob size
-          if (audioBlob.size < 1000) { // Less than 1KB is likely corrupted
+          // Validate blob size - reduced minimum to 500 bytes
+          if (audioBlob.size < 500) {
             toast({
               title: "Recording too short",
-              description: "Please record for at least 1 second.",
               variant: "destructive"
             });
             stream.getTracks().forEach(track => track.stop());
@@ -290,22 +353,11 @@ const ChatPage = () => {
           }
           
           try {
-            toast({
-              title: "Sending voice message...",
-              description: "Please wait while we upload your recording."
-            });
-
             await sendVoiceMessage(conversationId, user.id, audioBlob);
-            
-            toast({
-              title: "Voice message sent!",
-              description: "Your voice message has been delivered."
-            });
           } catch (error: any) {
             console.error('Voice message send error:', error);
             toast({
               title: "Failed to send voice message",
-              description: error.message || "Please try again",
               variant: "destructive"
             });
           }
@@ -314,25 +366,34 @@ const ChatPage = () => {
           stream.getTracks().forEach(track => track.stop());
         };
 
-        // Start recording with more frequent data collection for better reliability
-        recorder.start(250); // Collect data every 250ms for smoother recording
+        // Start recording - use timeslice for consistent data collection
+        // Using 250ms intervals for complete audio capture (critical for short recordings)
+        recorder.start(250);
+        console.log('Recording started with format:', selectedMimeType, 'with 250ms intervals');
         setMediaRecorder(recorder);
         setIsRecording(true);
-
-        toast({
-          title: "Recording started",
-          description: "Tap the mic again to stop recording"
-        });
+        setRecordingDuration(0);
+        
+        // Start duration timer
+        recordingTimerRef.current = setInterval(() => {
+          setRecordingDuration(prev => prev + 1);
+        }, 1000);
 
       } catch (error) {
         console.error('Microphone access error:', error);
         toast({
           title: "Microphone access denied",
-          description: "Please allow microphone access to send voice messages",
           variant: "destructive"
         });
       }
     }
+  };
+  
+  // Format recording duration
+  const formatDuration = (seconds: number) => {
+    const mins = Math.floor(seconds / 60);
+    const secs = seconds % 60;
+    return `${mins}:${secs.toString().padStart(2, '0')}`;
   };
 
   // Load message read status
@@ -541,25 +602,96 @@ const ChatPage = () => {
                   />
                 );
               })}
+              
+              {/* Typing Indicator */}
+              {currentTypingUsers.length > 0 && (
+                <div className="flex items-start">
+                  <div className="max-w-[75%] sm:max-w-[60%] bg-accent text-accent-foreground rounded-2xl px-4 py-3">
+                    <div className="flex items-center gap-2">
+                      <div className="flex gap-1">
+                        <span className="w-2 h-2 bg-current rounded-full animate-bounce" style={{ animationDelay: '0ms' }} />
+                        <span className="w-2 h-2 bg-current rounded-full animate-bounce" style={{ animationDelay: '150ms' }} />
+                        <span className="w-2 h-2 bg-current rounded-full animate-bounce" style={{ animationDelay: '300ms' }} />
+                      </div>
+                      <span className="text-xs opacity-70">
+                        {currentTypingUsers.length === 1 
+                          ? `${currentTypingUsers[0]} is typing...` 
+                          : `${currentTypingUsers.join(', ')} are typing...`}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+              )}
+              
               <div ref={messagesEndRef} />
             </div>
           </div>
 
           {/* Message Input - Fixed at Bottom */}
-          <div className="flex-shrink-0 p-3 border-t border-border/50 bg-background">
-            <div className="flex items-center space-x-2">
+          <div className="flex-shrink-0 border-t border-border/50 bg-background">
+            {/* Recording Indicator */}
+            {isRecording && (
+              <div className="px-4 py-2 bg-destructive/10 border-b border-destructive/20">
+                <div className="flex items-center gap-3">
+                  <div className="flex items-center gap-1.5">
+                    <div className="w-3 h-3 bg-destructive rounded-full animate-pulse" />
+                    <span className="text-sm font-medium text-destructive">Recording</span>
+                  </div>
+                  <div className="flex-1 flex items-center gap-2">
+                    <div className="flex-1 h-8 bg-background/50 rounded-full overflow-hidden flex items-center px-2">
+                      {/* Animated waveform bars */}
+                      <div className="flex items-center justify-center gap-0.5 w-full">
+                        {[...Array(20)].map((_, i) => (
+                          <div
+                            key={i}
+                            className="w-1 bg-destructive rounded-full transition-all duration-150"
+                            style={{
+                              height: `${Math.random() * 60 + 20}%`,
+                              animation: `pulse ${0.8 + Math.random() * 0.4}s ease-in-out infinite`,
+                              animationDelay: `${i * 0.05}s`
+                            }}
+                          />
+                        ))}
+                      </div>
+                    </div>
+                    <span className="text-sm font-mono font-medium text-destructive min-w-[3rem] text-right">
+                      {formatDuration(recordingDuration)}
+                    </span>
+                  </div>
+                </div>
+              </div>
+            )}
+            
+            <div className="flex items-center space-x-2 p-3">
               <Button 
                 size="sm" 
                 variant="ghost" 
                 className="h-9 w-9 p-0 flex-shrink-0"
-                onClick={() => document.getElementById('attachment-upload')?.click()}
+                disabled={isRecording}
+                onClick={(e) => {
+                  e.preventDefault();
+                  console.log('📎 Attachment button clicked');
+                  const input = document.getElementById('attachment-upload') as HTMLInputElement;
+                  if (input) {
+                    input.click();
+                  }
+                }}
+                onTouchEnd={(e) => {
+                  e.preventDefault();
+                  console.log('📎 Attachment button touched');
+                  const input = document.getElementById('attachment-upload') as HTMLInputElement;
+                  if (input) {
+                    input.click();
+                  }
+                }}
               >
                 <Image className="h-4 w-4" />
               </Button>
               <input
                 id="attachment-upload"
                 type="file"
-                accept="image/*,video/*,.pdf,.doc,.docx,.txt"
+                accept="image/*,video/*,audio/*,.pdf,.doc,.docx,.txt"
+                capture="environment"
                 className="hidden"
                 onChange={handleAttachmentUpload}
               />
@@ -567,7 +699,10 @@ const ChatPage = () => {
                 <Input
                   type="text"
                   value={newMessage}
-                  onChange={(e) => setNewMessage(e.target.value)}
+                  onChange={(e) => {
+                    setNewMessage(e.target.value);
+                    handleTyping();
+                  }}
                   onKeyPress={handleKeyPress}
                   placeholder="Type a message..."
                   className="h-9 text-sm"
@@ -581,13 +716,35 @@ const ChatPage = () => {
                 size="sm" 
                 variant={isRecording ? "destructive" : "ghost"} 
                 className={`h-9 w-9 p-0 flex-shrink-0 ${isRecording ? 'animate-pulse' : ''}`}
-                onClick={handleVoiceRecording}
+                onClick={(e) => {
+                  e.preventDefault();
+                  console.log('🎤 Voice button clicked, isRecording:', isRecording);
+                  handleVoiceRecording();
+                }}
+                onTouchEnd={(e) => {
+                  e.stopPropagation();
+                  e.preventDefault();
+                  console.log('🎤 Voice button touched, isRecording:', isRecording);
+                  // Prevent double trigger on mobile
+                  if (e.cancelable) {
+                    handleVoiceRecording();
+                  }
+                }}
               >
                 <Mic className="h-4 w-4" />
               </Button>
               <Button 
-                onClick={handleSendMessage}
-                disabled={!newMessage.trim()}
+                onClick={(e) => {
+                  e.preventDefault();
+                  handleSendMessage();
+                }}
+                onTouchEnd={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  if (!newMessage.trim()) return;
+                  handleSendMessage();
+                }}
+                disabled={!newMessage.trim() || isRecording}
                 size="sm"
                 className="h-9 w-9 p-0 flex-shrink-0"
               >

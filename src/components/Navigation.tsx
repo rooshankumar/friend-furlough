@@ -14,7 +14,8 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { useAuthStore } from "@/stores/authStore";
 import { useNotificationStore } from "@/stores/notificationStore";
-import { useEffect } from "react";
+import { useChatStore } from "@/stores/chatStore";
+import { useEffect, useMemo } from "react";
 import { formatDistanceToNow } from "date-fns";
 import roshLinguaLogo from "@/assets/roshlingua-logo.png";
 
@@ -23,17 +24,28 @@ const Navigation = () => {
   const navigate = useNavigate();
   const { user, profile, isAuthenticated, signOut } = useAuthStore();
   const { notifications, unreadCount, loadNotifications, markAsRead, markAllAsRead, subscribeToNotifications, unsubscribe } = useNotificationStore();
+  const { conversations, loadConversations } = useChatStore();
 
   const isActive = (path: string) => location.pathname === path;
   
   // Check if we're on a specific chat conversation page (not just /chat)
   const isInChatConversation = location.pathname.startsWith('/chat/') && location.pathname !== '/chat';
+  
+  // Calculate total unread messages from all conversations
+  const totalUnreadMessages = useMemo(() => {
+    return conversations.reduce((total, conv) => total + (conv.unreadCount || 0), 0);
+  }, [conversations]);
 
-  // Load notifications when user is authenticated
+  // Load notifications and conversations when user is authenticated
   useEffect(() => {
     if (user?.id) {
       loadNotifications(user.id);
       subscribeToNotifications(user.id);
+      
+      // Load conversations for unread count
+      if (conversations.length === 0) {
+        loadConversations(user.id);
+      }
       
       return () => {
         unsubscribe();
@@ -91,10 +103,15 @@ const Navigation = () => {
               asChild
               className="relative group"
             >
-              <Link to="/chat">
+              <Link to="/chat" className="relative inline-flex">
                 <MessageCircle className="h-5 w-5" />
+                {totalUnreadMessages > 0 && (
+                  <span className="absolute -top-0.5 -right-0.5 flex h-4 w-4 items-center justify-center rounded-full bg-red-500 text-[10px] font-semibold text-white shadow-sm">
+                    {totalUnreadMessages > 9 ? '9+' : totalUnreadMessages}
+                  </span>
+                )}
                 <span className="absolute left-full ml-2 px-2 py-1 bg-popover text-popover-foreground text-xs rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap pointer-events-none">
-                  Chat
+                  Chat {totalUnreadMessages > 0 && `(${totalUnreadMessages})`}
                 </span>
               </Link>
             </Button>
@@ -300,10 +317,17 @@ const Navigation = () => {
               variant={isActive("/chat") ? "cultural" : "ghost"}
               size="sm"
               asChild
-              className="flex-1 mx-1 hover:bg-accent/50 active:bg-accent/70 transition-colors"
+              className="flex-1 mx-1 hover:bg-accent/50 active:bg-accent/70 transition-colors relative"
             >
               <Link to="/chat" className="flex flex-col items-center space-y-1 py-2">
-                <MessageCircle className="h-5 w-5" />
+                <div className="relative inline-flex">
+                  <MessageCircle className="h-5 w-5" />
+                  {totalUnreadMessages > 0 && (
+                    <span className="absolute -top-1 -right-1 flex h-4 w-4 items-center justify-center rounded-full bg-red-500 text-[9px] font-semibold text-white shadow-sm">
+                      {totalUnreadMessages > 9 ? '9+' : totalUnreadMessages}
+                    </span>
+                  )}
+                </div>
                 <span className="text-xs">Chat</span>
               </Link>
             </Button>

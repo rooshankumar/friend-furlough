@@ -2,6 +2,8 @@ import { create } from 'zustand';
 import { supabase } from '@/integrations/supabase/client';
 import { connectionManager, supabaseWrapper } from '@/lib/connectionManager';
 
+type MessageStatus = 'sending' | 'sent' | 'delivered' | 'read' | 'failed';
+
 interface DbMessage {
   id: string;
   conversation_id: string;
@@ -12,6 +14,9 @@ interface DbMessage {
   language?: string;
   translation?: string;
   media_url?: string;
+  status?: MessageStatus;
+  tempId?: string; // For optimistic updates
+  uploadProgress?: number; // For attachment uploads
 }
 
 interface DbConversation {
@@ -33,6 +38,8 @@ interface ChatState {
   messages: { [conversationId: string]: DbMessage[] };
   isLoading: boolean;
   activeChannel: any | null;
+  typingUsers: { [conversationId: string]: { [userId: string]: string } }; // userId -> userName
+  offlineQueue: DbMessage[]; // Messages waiting to be sent
   
   // Actions
   loadConversations: (userId: string) => Promise<void>;
@@ -44,6 +51,9 @@ interface ChatState {
   markAsRead: (conversationId: string, userId: string) => Promise<void>;
   subscribeToMessages: (conversationId: string) => any;
   unsubscribeFromMessages: () => void;
+  broadcastTyping: (conversationId: string, userId: string, userName: string, isTyping: boolean) => void;
+  updateMessageStatus: (tempId: string, status: MessageStatus, realId?: string) => void;
+  processOfflineQueue: () => Promise<void>;
 }
 
 export const useChatStore = create<ChatState>((set, get) => ({
@@ -51,6 +61,8 @@ export const useChatStore = create<ChatState>((set, get) => ({
   messages: {},
   isLoading: false,
   activeChannel: null,
+  typingUsers: {},
+  offlineQueue: [],
   
   loadConversations: async (userId: string) => {
     console.log('📡 Loading conversations for user:', userId);
@@ -207,10 +219,35 @@ export const useChatStore = create<ChatState>((set, get) => ({
   
   sendMessage: async (conversationId: string, senderId: string, content: string, mediaUrl?: string) => {
     console.log('📤 Sending message:', { conversationId, senderId, content: content.substring(0, 50), mediaUrl });
+    
+    // Generate temporary ID for optimistic update
+    const tempId = `temp_${Date.now()}_${Math.random()}`;
+    const messageType = mediaUrl ? 
+      (mediaUrl.includes('.jpg') || mediaUrl.includes('.jpeg') || mediaUrl.includes('.png') || mediaUrl.includes('.gif') || mediaUrl.includes('.webp') ? 'image' : 
+       mediaUrl.includes('.webm') || mediaUrl.includes('.mp3') || mediaUrl.includes('.wav') ? 'voice' : 'file') : 'text';
+    
+    // Create optimistic message
+    const optimisticMessage: DbMessage = {
+      id: tempId,
+      conversation_id: conversationId,
+      sender_id: senderId,
+      content: content || (mediaUrl ? 'Attachment' : ''),
+      created_at: new Date().toISOString(),
+      type: messageType,
+      media_url: mediaUrl,
+      status: 'sending',
+      tempId
+    };
+    
+    // Immediately add to UI (optimistic update)
+    set(state => ({
+      messages: {
+        ...state.messages,
+        [conversationId]: [...(state.messages[conversationId] || []), optimisticMessage]
+      }
+    }));
+    
     try {
-      const messageType = mediaUrl ? 
-        (mediaUrl.includes('.jpg') || mediaUrl.includes('.jpeg') || mediaUrl.includes('.png') || mediaUrl.includes('.gif') || mediaUrl.includes('.webp') ? 'image' : 
-         mediaUrl.includes('.webm') || mediaUrl.includes('.mp3') || mediaUrl.includes('.wav') ? 'voice' : 'file') : 'text';
       const { data, error } = await supabase
         .from('messages')
         .insert({
@@ -227,42 +264,135 @@ export const useChatStore = create<ChatState>((set, get) => ({
       
       if (error) {
         console.error('❌ Error sending message:', error);
+        // Update status to failed
+        get().updateMessageStatus(tempId, 'failed');
         throw error;
       }
       
-      // Optimistically add message to local state
+      // Replace optimistic message with real one
       set(state => ({
         messages: {
           ...state.messages,
-          [conversationId]: [...(state.messages[conversationId] || []), data]
+          [conversationId]: state.messages[conversationId].map(msg => 
+            msg.tempId === tempId ? { ...data, status: 'sent' as MessageStatus } : msg
+          )
         }
       }));
       
       console.log('✅ Message sent successfully');
     } catch (error) {
       console.error('❌ Error sending message:', error);
+      
+      // Check if offline - add to queue
+      if (!navigator.onLine) {
+        set(state => ({
+          offlineQueue: [...state.offlineQueue, optimisticMessage]
+        }));
+      }
+      
       throw error;
     }
   },
 
   sendAttachment: async (conversationId: string, senderId: string, file: File) => {
     console.log('📎 Sending attachment:', { conversationId, senderId, fileName: file.name, fileSize: file.size });
+    
+    // Create temporary message for optimistic update
+    const tempId = `temp_${Date.now()}_${Math.random()}`;
+    const messageType = file.type.startsWith('image/') ? 'image' : 'file';
+    
+    const optimisticMessage: DbMessage = {
+      id: tempId,
+      conversation_id: conversationId,
+      sender_id: senderId,
+      content: file.name,
+      created_at: new Date().toISOString(),
+      type: messageType,
+      media_url: undefined,
+      status: 'sending',
+      tempId,
+      uploadProgress: 0
+    };
+    
+    // Add optimistic message to UI
+    set(state => ({
+      messages: {
+        ...state.messages,
+        [conversationId]: [...(state.messages[conversationId] || []), optimisticMessage]
+      }
+    }));
+    
     try {
       // Import the upload function
       const { uploadChatAttachment } = await import('@/lib/storage');
       
       console.log('📤 Starting file upload...');
-      // Upload the file
-      const mediaUrl = await uploadChatAttachment(file, conversationId);
+      
+      // Upload the file with progress tracking
+      const mediaUrl = await uploadChatAttachment(file, conversationId, (progress) => {
+        // Update upload progress in real-time
+        set(state => ({
+          messages: {
+            ...state.messages,
+            [conversationId]: state.messages[conversationId].map(msg =>
+              msg.tempId === tempId ? { ...msg, uploadProgress: progress } : msg
+            )
+          }
+        }));
+      });
+      
       console.log('📤 File uploaded successfully:', mediaUrl);
       
-      // Send message with attachment
+      // Update message with media URL and mark as sent
+      set(state => ({
+        messages: {
+          ...state.messages,
+          [conversationId]: state.messages[conversationId].map(msg =>
+            msg.tempId === tempId ? { ...msg, media_url: mediaUrl, status: 'sending' as MessageStatus } : msg
+          )
+        }
+      }));
+      
+      // Send message with attachment to database
       console.log('📨 Sending message with attachment...');
-      await get().sendMessage(conversationId, senderId, file.name, mediaUrl);
+      const { data, error } = await supabase
+        .from('messages')
+        .insert({
+          conversation_id: conversationId,
+          sender_id: senderId,
+          content: file.name,
+          type: messageType,
+          media_url: mediaUrl
+        })
+        .select()
+        .single();
+      
+      if (error) throw error;
+      
+      // Replace temporary message with real one
+      set(state => ({
+        messages: {
+          ...state.messages,
+          [conversationId]: state.messages[conversationId].map(msg =>
+            msg.tempId === tempId ? { ...data, status: 'sent' as MessageStatus } : msg
+          )
+        }
+      }));
       
       console.log('✅ Attachment sent successfully');
     } catch (error) {
       console.error('❌ Error sending attachment:', error);
+      
+      // Update status to failed
+      set(state => ({
+        messages: {
+          ...state.messages,
+          [conversationId]: state.messages[conversationId].map(msg =>
+            msg.tempId === tempId ? { ...msg, status: 'failed' as MessageStatus, uploadProgress: undefined } : msg
+          )
+        }
+      }));
+      
       console.error('❌ Error details:', {
         message: error.message,
         stack: error.stack,
@@ -274,23 +404,102 @@ export const useChatStore = create<ChatState>((set, get) => ({
   },
 
   sendVoiceMessage: async (conversationId: string, senderId: string, audioBlob: Blob) => {
-    console.log('🎤 Sending voice message:', { conversationId, senderId, size: audioBlob.size });
+    console.log('🎤 Sending voice message:', { conversationId, senderId, size: audioBlob.size, type: audioBlob.type });
+    
+    // Create temporary message for optimistic update
+    const tempId = `temp_${Date.now()}_${Math.random()}`;
+    
+    const optimisticMessage: DbMessage = {
+      id: tempId,
+      conversation_id: conversationId,
+      sender_id: senderId,
+      content: 'Voice message',
+      created_at: new Date().toISOString(),
+      type: 'voice',
+      media_url: undefined,
+      status: 'sending',
+      tempId,
+      uploadProgress: 0
+    };
+    
+    // Add optimistic message to UI immediately
+    set(state => ({
+      messages: {
+        ...state.messages,
+        [conversationId]: [...(state.messages[conversationId] || []), optimisticMessage]
+      }
+    }));
+    
     try {
       // Import the upload function
       const { uploadVoiceMessage } = await import('@/lib/storage');
       
       console.log('📤 Starting voice upload...');
+      
+      // Simulate progress for voice upload (no actual progress API for blob upload)
+      set(state => ({
+        messages: {
+          ...state.messages,
+          [conversationId]: state.messages[conversationId].map(msg =>
+            msg.tempId === tempId ? { ...msg, uploadProgress: 30 } : msg
+          )
+        }
+      }));
+      
       // Upload the voice message
       const mediaUrl = await uploadVoiceMessage(audioBlob, conversationId);
       console.log('📤 Voice uploaded successfully:', mediaUrl);
       
-      // Send message with voice attachment
-      console.log('📨 Sending voice message...');
-      await get().sendMessage(conversationId, senderId, 'Voice message', mediaUrl);
+      // Update progress to 70% before database save
+      set(state => ({
+        messages: {
+          ...state.messages,
+          [conversationId]: state.messages[conversationId].map(msg =>
+            msg.tempId === tempId ? { ...msg, uploadProgress: 70, media_url: mediaUrl } : msg
+          )
+        }
+      }));
+      
+      // Send message with voice attachment to database
+      console.log('📨 Saving voice message to database...');
+      const { data, error } = await supabase
+        .from('messages')
+        .insert({
+          conversation_id: conversationId,
+          sender_id: senderId,
+          content: 'Voice message',
+          type: 'voice',
+          media_url: mediaUrl
+        })
+        .select()
+        .single();
+      
+      if (error) throw error;
+      
+      // Replace temporary message with real one
+      set(state => ({
+        messages: {
+          ...state.messages,
+          [conversationId]: state.messages[conversationId].map(msg =>
+            msg.tempId === tempId ? { ...data, status: 'sent' as MessageStatus } : msg
+          )
+        }
+      }));
       
       console.log('✅ Voice message sent successfully');
     } catch (error) {
       console.error('❌ Error sending voice message:', error);
+      
+      // Update status to failed
+      set(state => ({
+        messages: {
+          ...state.messages,
+          [conversationId]: state.messages[conversationId].map(msg =>
+            msg.tempId === tempId ? { ...msg, status: 'failed' as MessageStatus, uploadProgress: undefined } : msg
+          )
+        }
+      }));
+      
       console.error('❌ Error details:', {
         message: error.message,
         stack: error.stack,
@@ -389,16 +598,52 @@ export const useChatStore = create<ChatState>((set, get) => ({
               }
               
               console.log('Adding new message to state');
+              const newMessage: DbMessage = {
+                ...(payload.new as DbMessage),
+                status: 'delivered' as MessageStatus
+              };
+              
               return {
                 messages: {
                   ...state.messages,
-                  [conversationId]: [...existingMessages, payload.new as any]
+                  [conversationId]: [...existingMessages, newMessage]
                 }
               };
             });
           }
         }
       )
+      .on('broadcast', { event: 'typing' }, (payload) => {
+        const { userId, userName, isTyping } = payload.payload;
+        
+        set(state => {
+          const updatedTypingUsers = { ...state.typingUsers };
+          if (!updatedTypingUsers[conversationId]) {
+            updatedTypingUsers[conversationId] = {};
+          }
+          
+          if (isTyping) {
+            updatedTypingUsers[conversationId][userId] = userName;
+          } else {
+            delete updatedTypingUsers[conversationId][userId];
+          }
+          
+          return { typingUsers: updatedTypingUsers };
+        });
+        
+        // Auto-clear typing indicator after 3 seconds
+        if (isTyping) {
+          setTimeout(() => {
+            set(state => {
+              const updatedTypingUsers = { ...state.typingUsers };
+              if (updatedTypingUsers[conversationId]?.[userId]) {
+                delete updatedTypingUsers[conversationId][userId];
+              }
+              return { typingUsers: updatedTypingUsers };
+            });
+          }, 3000);
+        }
+      })
       .subscribe((status) => {
         console.log('Subscription status:', status, 'at', new Date().toLocaleTimeString());
         
@@ -457,5 +702,55 @@ export const useChatStore = create<ChatState>((set, get) => ({
       supabase.removeChannel(activeChannel);
       set({ activeChannel: null });
     }
+  },
+  
+  broadcastTyping: (conversationId: string, userId: string, userName: string, isTyping: boolean) => {
+    const { activeChannel } = get();
+    if (activeChannel) {
+      activeChannel.send({
+        type: 'broadcast',
+        event: 'typing',
+        payload: { userId, userName, isTyping }
+      });
+    }
+  },
+  
+  updateMessageStatus: (tempId: string, status: MessageStatus, realId?: string) => {
+    set(state => {
+      const updatedMessages = { ...state.messages };
+      
+      Object.keys(updatedMessages).forEach(convId => {
+        updatedMessages[convId] = updatedMessages[convId].map(msg => {
+          if (msg.tempId === tempId) {
+            return { ...msg, status, ...(realId && { id: realId }) };
+          }
+          return msg;
+        });
+      });
+      
+      return { messages: updatedMessages };
+    });
+  },
+  
+  processOfflineQueue: async () => {
+    const { offlineQueue } = get();
+    if (offlineQueue.length === 0 || !navigator.onLine) return;
+    
+    console.log('📤 Processing offline queue:', offlineQueue.length, 'messages');
+    
+    for (const message of offlineQueue) {
+      try {
+        await get().sendMessage(
+          message.conversation_id,
+          message.sender_id,
+          message.content,
+          message.media_url
+        );
+      } catch (error) {
+        console.error('Failed to send queued message:', error);
+      }
+    }
+    
+    set({ offlineQueue: [] });
   }
 }));

@@ -564,6 +564,41 @@ const ProfilePage = () => {
     );
   }
 
+  {/* Mobile Header */}
+<div className="md:hidden bg-background/95 backdrop-blur-sm border-b border-border/50 sticky top-0 z-40 mx-3 sm:mx-4 rounded-lg mt-2">
+  <div className="flex items-center justify-between p-4">
+    <Button
+      variant="ghost"
+      size="sm"
+      onClick={() => navigate(-1)}
+      className="h-9 w-9 p-0"
+    >
+      <ArrowLeft className="h-5 w-5" />
+    </Button>
+    <h1 className="font-semibold text-lg">
+      {isOwnProfile ? 'My Profile' : profileUser?.name || 'Profile'}
+    </h1>
+    {isOwnProfile && (
+      <DropdownMenu>
+        <DropdownMenuTrigger asChild>
+          <Button variant="ghost" size="sm" className="h-9 w-9 p-0">
+            <MoreHorizontal className="h-5 w-5" />
+          </Button>
+        </DropdownMenuTrigger>
+        <DropdownMenuContent align="end" className="w-48">
+          <DropdownMenuItem onClick={() => navigate('/settings')}>
+            <Settings className="mr-2 h-4 w-4" />
+            Settings
+          </DropdownMenuItem>
+          <DropdownMenuItem>
+            <Share className="mr-2 h-4 w-4" />
+            Share Profile
+          </DropdownMenuItem>
+        </DropdownMenuContent>
+      </DropdownMenu>
+    )}
+  </div>
+</div>
   return (
     <div className="fixed inset-0 top-0 md:left-16 bg-gradient-subtle pb-16 md:pb-0 overflow-auto pt-2 sm:pt-4 md:pt-0">
       <div className="p-3 sm:p-4 md:p-8 max-w-6xl mx-auto">

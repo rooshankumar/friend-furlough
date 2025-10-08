@@ -5,10 +5,13 @@ import { supabase } from '@/integrations/supabase/client';
 class ConnectionManager {
   private isOnline = navigator.onLine;
   private reconnectAttempts = 0;
-  private maxReconnectAttempts = 5;
-  private reconnectDelay = 1000;
+  private maxReconnectAttempts = 10; // Increased from 5
+  private reconnectDelay = 500; // Reduced from 1000ms
   private listeners: Array<(isOnline: boolean) => void> = [];
   private checkInterval: NodeJS.Timeout | null = null;
+  private aggressiveCheckInterval: NodeJS.Timeout | null = null;
+  private lastSuccessfulCheck = Date.now();
+  private isCheckingConnection = false;
 
   constructor() {
     this.setupEventListeners();
@@ -45,12 +48,23 @@ class ConnectionManager {
   }
 
   private startPeriodicCheck() {
-    // Check connection every 30 seconds when app is active
+    // Regular check every 15 seconds (reduced from 30)
     this.checkInterval = setInterval(() => {
       if (document.visibilityState === 'visible') {
         this.checkConnection();
       }
-    }, 30000);
+    }, 15000);
+    
+    // Aggressive check every 5 seconds when connection is unstable
+    this.aggressiveCheckInterval = setInterval(() => {
+      const timeSinceLastSuccess = Date.now() - this.lastSuccessfulCheck;
+      
+      // If no successful check in last 30 seconds, check more frequently
+      if (timeSinceLastSuccess > 30000 && document.visibilityState === 'visible') {
+        console.log('🔄 Aggressive connection check (unstable connection detected)');
+        this.checkConnection();
+      }
+    }, 5000);
   }
 
   private notifyListeners(isOnline: boolean) {
@@ -71,22 +85,65 @@ class ConnectionManager {
   }
 
   public async checkConnection(): Promise<boolean> {
+    if (this.isCheckingConnection) {
+      return this.isOnline; // Prevent multiple simultaneous checks
+    }
+    
+    this.isCheckingConnection = true;
+    
     try {
-      // Use Supabase health check
-      const { error } = await supabase.from('profiles').select('id').limit(1);
+      // Multiple connection tests for reliability
+      const tests = [
+        // Test 1: Basic navigator.onLine
+        Promise.resolve(navigator.onLine),
+        
+        // Test 2: Simple fetch to a reliable endpoint
+        fetch('https://www.google.com/favicon.ico', { 
+          method: 'HEAD',
+          mode: 'no-cors',
+          cache: 'no-cache',
+          signal: AbortSignal.timeout(5000)
+        }).then(() => true).catch(() => false),
+        
+        // Test 3: Supabase health check
+        (async () => {
+          try {
+            const { error } = await supabase.from('profiles').select('id').limit(1);
+            return !error || !['PGRST301', 'PGRST000', 'ENOTFOUND', 'ECONNREFUSED'].includes(error?.code || '');
+          } catch {
+            return false;
+          }
+        })()
+      ];
       
-      const isConnected = !error || error.code !== 'PGRST301'; // Not a connection error
+      const results = await Promise.allSettled(tests);
+      const connectionResults = results.map(result => 
+        result.status === 'fulfilled' ? result.value : false
+      );
+      
+      // Consider connected if at least 2 out of 3 tests pass
+      const passedTests = connectionResults.filter(Boolean).length;
+      const isConnected = passedTests >= 2;
+      
+      console.log(`🔍 Connection test results: ${connectionResults.join(', ')} (${passedTests}/3 passed)`);
       
       if (isConnected !== this.isOnline) {
         this.isOnline = isConnected;
         this.notifyListeners(isConnected);
         
         if (isConnected) {
-          console.log('✅ Connection verified');
+          console.log('✅ Connection verified and restored');
           this.reconnectAttempts = 0;
+          this.lastSuccessfulCheck = Date.now();
+          
+          // Trigger session refresh when connection is restored
+          this.attemptReconnection();
         } else {
-          console.warn('❌ Connection check failed');
+          console.warn('❌ Connection lost - multiple tests failed');
+          this.scheduleReconnection();
         }
+      } else if (isConnected) {
+        this.lastSuccessfulCheck = Date.now();
       }
       
       return isConnected;
@@ -95,8 +152,11 @@ class ConnectionManager {
       if (this.isOnline) {
         this.isOnline = false;
         this.notifyListeners(false);
+        this.scheduleReconnection();
       }
       return false;
+    } finally {
+      this.isCheckingConnection = false;
     }
   }
 
@@ -123,9 +183,46 @@ class ConnectionManager {
     return this.isOnline;
   }
 
+  private scheduleReconnection() {
+    if (this.reconnectAttempts >= this.maxReconnectAttempts) {
+      console.warn(`❌ Max reconnection attempts (${this.maxReconnectAttempts}) reached`);
+      return;
+    }
+    
+    this.reconnectAttempts++;
+    const delay = Math.min(this.reconnectDelay * Math.pow(1.5, this.reconnectAttempts - 1), 10000);
+    
+    console.log(`🔄 Scheduling reconnection attempt ${this.reconnectAttempts}/${this.maxReconnectAttempts} in ${delay}ms`);
+    
+    setTimeout(() => {
+      this.checkConnection();
+    }, delay);
+  }
+  
+  private attemptReconnection() {
+    // Force refresh Supabase connection
+    try {
+      // Refresh auth session
+      supabase.auth.refreshSession();
+      
+      // Re-establish realtime connections
+      supabase.realtime.disconnect();
+      setTimeout(() => {
+        supabase.realtime.connect();
+      }, 1000);
+      
+      console.log('🔄 Supabase connections refreshed');
+    } catch (error) {
+      console.warn('Failed to refresh Supabase connections:', error);
+    }
+  }
+
   public destroy() {
     if (this.checkInterval) {
       clearInterval(this.checkInterval);
+    }
+    if (this.aggressiveCheckInterval) {
+      clearInterval(this.aggressiveCheckInterval);
     }
     this.listeners = [];
   }

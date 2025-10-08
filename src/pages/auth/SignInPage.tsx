@@ -243,12 +243,6 @@ const SignInPage = () => {
                 </Link>
               </p>
             </div>
-            
-            <div className="mt-6 text-center">
-              <p className="text-xs text-muted-foreground">
-                Demo accounts: Use any email with password "123456"
-              </p>
-            </div>
           </CardContent>
         </Card>
       </div>

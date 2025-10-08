@@ -283,12 +283,12 @@ const Navigation = () => {
       {/* Mobile Navigation - Bottom */}
       {isAuthenticated && user && !isInChatConversation && (
         <nav className="md:hidden fixed bottom-0 left-0 right-0 z-50 border-t border-border/50 bg-card/95 backdrop-blur-sm">
-          <div className="flex items-center justify-around py-2 px-4">
+          <div className="flex items-center justify-around py-2 px-2">
             <Button
               variant={isActive("/explore") ? "cultural" : "ghost"}
               size="sm"
               asChild
-              className="flex-1"
+              className="flex-1 mx-1 hover:bg-accent/50 active:bg-accent/70 transition-colors"
             >
               <Link to="/explore" className="flex flex-col items-center space-y-1 py-2">
                 <Search className="h-5 w-5" />
@@ -300,7 +300,7 @@ const Navigation = () => {
               variant={isActive("/chat") ? "cultural" : "ghost"}
               size="sm"
               asChild
-              className="flex-1"
+              className="flex-1 mx-1 hover:bg-accent/50 active:bg-accent/70 transition-colors"
             >
               <Link to="/chat" className="flex flex-col items-center space-y-1 py-2">
                 <MessageCircle className="h-5 w-5" />
@@ -312,7 +312,7 @@ const Navigation = () => {
               variant={isActive("/community") ? "cultural" : "ghost"}
               size="sm"
               asChild
-              className="flex-1"
+              className="flex-1 mx-1 hover:bg-accent/50 active:bg-accent/70 transition-colors"
             >
               <Link to="/community" className="flex flex-col items-center space-y-1 py-2">
                 <Users className="h-5 w-5" />
@@ -324,11 +324,23 @@ const Navigation = () => {
               variant={isActive("/profile") ? "cultural" : "ghost"}
               size="sm"
               asChild
-              className="flex-1"
+              className="flex-1 mx-1 hover:bg-accent/50 active:bg-accent/70 transition-colors"
             >
               <Link to="/profile" className="flex flex-col items-center space-y-1 py-2">
                 <User className="h-5 w-5" />
                 <span className="text-xs">Profile</span>
+              </Link>
+            </Button>
+
+            <Button
+              variant={isActive("/settings") ? "cultural" : "ghost"}
+              size="sm"
+              asChild
+              className="flex-1 mx-1 hover:bg-accent/50 active:bg-accent/70 transition-colors"
+            >
+              <Link to="/settings" className="flex flex-col items-center space-y-1 py-2">
+                <Settings className="h-5 w-5" />
+                <span className="text-xs">Settings</span>
               </Link>
             </Button>
           </div>

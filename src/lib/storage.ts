@@ -196,3 +196,48 @@ export const uploadChatAttachment = async (file: File, conversationId: string): 
     throw error;
   }
 };
+
+/**
+ * Upload voice message (audio file)
+ * @param audioBlob - Audio blob from recording
+ * @param conversationId - Conversation ID for organization
+ * @returns Public URL of uploaded voice message
+ */
+export const uploadVoiceMessage = async (audioBlob: Blob, conversationId: string): Promise<string> => {
+  try {
+    // Validate file size (max 10MB for voice messages)
+    if (audioBlob.size > 10 * 1024 * 1024) {
+      throw new Error('Voice message must be smaller than 10MB');
+    }
+    
+    // Determine file extension based on blob type
+    const blobType = audioBlob.type || 'audio/webm';
+    let fileExt = 'webm';
+    if (blobType.includes('wav')) fileExt = 'wav';
+    else if (blobType.includes('mp3')) fileExt = 'mp3';
+    else if (blobType.includes('ogg')) fileExt = 'ogg';
+    
+    const fileName = `${Date.now()}.${fileExt}`;
+    const filePath = `${conversationId}/${fileName}`; // Store in conversation's folder
+
+    const { error: uploadError } = await supabase.storage
+      .from('voicemail')
+      .upload(filePath, audioBlob, {
+        contentType: blobType
+      });
+
+    if (uploadError) {
+      console.error('Voice message upload error:', uploadError);
+      throw new Error(`Upload failed: ${uploadError.message}`);
+    }
+
+    const { data } = supabase.storage
+      .from('voicemail')
+      .getPublicUrl(filePath);
+
+    return data.publicUrl;
+  } catch (error) {
+    console.error('Voice message upload error:', error);
+    throw error;
+  }
+};

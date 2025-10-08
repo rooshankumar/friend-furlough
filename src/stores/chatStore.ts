@@ -36,7 +36,10 @@ interface ChatState {
   // Actions
   loadConversations: (userId: string) => Promise<void>;
   loadMessages: (conversationId: string, limit?: number) => Promise<void>;
-  sendMessage: (conversationId: string, senderId: string, content: string) => Promise<void>;
+  sendMessage: (conversationId: string, senderId: string, content: string, mediaUrl?: string) => Promise<void>;
+  sendAttachment: (conversationId: string, senderId: string, file: File) => Promise<void>;
+  sendVoiceMessage: (conversationId: string, senderId: string, audioBlob: Blob) => Promise<void>;
+  markMessageAsRead: (messageId: string, userId: string) => Promise<void>;
   markAsRead: (conversationId: string, userId: string) => Promise<void>;
   subscribeToMessages: (conversationId: string) => any;
   unsubscribeFromMessages: () => void;
@@ -199,16 +202,20 @@ export const useChatStore = create<ChatState>((set, get) => ({
     }
   },
   
-  sendMessage: async (conversationId: string, senderId: string, content: string) => {
-    console.log('📤 Sending message:', { conversationId, senderId, content: content.substring(0, 50) });
+  sendMessage: async (conversationId: string, senderId: string, content: string, mediaUrl?: string) => {
+    console.log('📤 Sending message:', { conversationId, senderId, content: content.substring(0, 50), mediaUrl });
     try {
+      const messageType = mediaUrl ? 
+        (mediaUrl.includes('.jpg') || mediaUrl.includes('.jpeg') || mediaUrl.includes('.png') || mediaUrl.includes('.gif') || mediaUrl.includes('.webp') ? 'image' : 
+         mediaUrl.includes('.webm') || mediaUrl.includes('.mp3') || mediaUrl.includes('.wav') ? 'voice' : 'file') : 'text';
       const { data, error } = await supabase
         .from('messages')
         .insert({
           conversation_id: conversationId,
           sender_id: senderId,
-          content,
-          type: 'text'
+          content: content || (mediaUrl ? 'Attachment' : ''),
+          type: messageType,
+          media_url: mediaUrl
         })
         .select()
         .single();
@@ -232,6 +239,93 @@ export const useChatStore = create<ChatState>((set, get) => ({
     } catch (error) {
       console.error('❌ Error sending message:', error);
       throw error;
+    }
+  },
+
+  sendAttachment: async (conversationId: string, senderId: string, file: File) => {
+    console.log('📎 Sending attachment:', { conversationId, senderId, fileName: file.name, fileSize: file.size });
+    try {
+      // Import the upload function
+      const { uploadChatAttachment } = await import('@/lib/storage');
+      
+      console.log('📤 Starting file upload...');
+      // Upload the file
+      const mediaUrl = await uploadChatAttachment(file, conversationId);
+      console.log('📤 File uploaded successfully:', mediaUrl);
+      
+      // Send message with attachment
+      console.log('📨 Sending message with attachment...');
+      await get().sendMessage(conversationId, senderId, file.name, mediaUrl);
+      
+      console.log('✅ Attachment sent successfully');
+    } catch (error) {
+      console.error('❌ Error sending attachment:', error);
+      console.error('❌ Error details:', {
+        message: error.message,
+        stack: error.stack,
+        conversationId,
+        fileName: file.name
+      });
+      throw error;
+    }
+  },
+
+  sendVoiceMessage: async (conversationId: string, senderId: string, audioBlob: Blob) => {
+    console.log('🎤 Sending voice message:', { conversationId, senderId, size: audioBlob.size });
+    try {
+      // Import the upload function
+      const { uploadVoiceMessage } = await import('@/lib/storage');
+      
+      console.log('📤 Starting voice upload...');
+      // Upload the voice message
+      const mediaUrl = await uploadVoiceMessage(audioBlob, conversationId);
+      console.log('📤 Voice uploaded successfully:', mediaUrl);
+      
+      // Send message with voice attachment
+      console.log('📨 Sending voice message...');
+      await get().sendMessage(conversationId, senderId, 'Voice message', mediaUrl);
+      
+      console.log('✅ Voice message sent successfully');
+    } catch (error) {
+      console.error('❌ Error sending voice message:', error);
+      console.error('❌ Error details:', {
+        message: error.message,
+        stack: error.stack,
+        conversationId,
+        audioSize: audioBlob.size
+      });
+      throw error;
+    }
+  },
+
+  markMessageAsRead: async (messageId: string, userId: string) => {
+    try {
+      // Insert or update message read status - use upsert with onConflict
+      const { error } = await supabase
+        .from('message_reads')
+        .upsert({
+          message_id: messageId,
+          user_id: userId,
+          read_at: new Date().toISOString()
+        }, {
+          onConflict: 'message_id,user_id'
+        });
+
+      if (error) {
+        console.error('❌ Error marking message as read:', error);
+        // Don't throw error for duplicate key - it's expected
+        if (error.code !== '23505') {
+          throw error;
+        }
+      }
+      
+      console.log('✅ Message marked as read');
+    } catch (error) {
+      console.error('❌ Error marking message as read:', error);
+      // Don't throw for duplicate key errors
+      if (error.code !== '23505') {
+        throw error;
+      }
     }
   },
   

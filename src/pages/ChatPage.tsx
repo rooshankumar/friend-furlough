@@ -16,7 +16,9 @@ import {
   Trash2,
   Ban,
   Flag,
-  ArrowLeft
+  ArrowLeft,
+  Check,
+  CheckCheck
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { useChatStore } from '@/stores/chatStore';
@@ -30,10 +32,14 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { formatDistanceToNow } from 'date-fns';
+import { supabase } from '@/integrations/supabase/client';
 
 const ChatPage = () => {
   const { conversationId } = useParams();
   const [newMessage, setNewMessage] = useState('');
+  const [messageReadStatus, setMessageReadStatus] = useState<{[messageId: string]: boolean}>({});
+  const [isRecording, setIsRecording] = useState(false);
+  const [mediaRecorder, setMediaRecorder] = useState<MediaRecorder | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const { toast } = useToast();
   
@@ -41,14 +47,26 @@ const ChatPage = () => {
     conversations, 
     messages, 
     sendMessage, 
+    sendAttachment,
+    sendVoiceMessage,
     loadConversations,
     loadMessages,
     markAsRead,
+    markMessageAsRead,
     subscribeToMessages,
     unsubscribeFromMessages
   } = useChatStore();
   
   const { user, profile } = useAuthStore();
+
+  // Define conversation data first
+  const currentConversation = conversationId 
+    ? conversations.find(c => c.id === conversationId)
+    : null;
+
+  const conversationMessages = conversationId 
+    ? messages[conversationId] || []
+    : [];
 
   // Load conversations on mount
   useEffect(() => {
@@ -96,13 +114,184 @@ const ChatPage = () => {
     }
   };
 
-  const currentConversation = conversationId 
-    ? conversations.find(c => c.id === conversationId)
-    : null;
+  const handleAttachmentUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file || !conversationId || !user) {
+      console.log('Missing requirements:', { file: !!file, conversationId, user: !!user });
+      return;
+    }
 
-  const conversationMessages = conversationId 
-    ? messages[conversationId] || []
-    : [];
+    console.log('Starting attachment upload:', { fileName: file.name, fileSize: file.size, conversationId });
+    
+    // Show loading toast
+    toast({
+      title: "Uploading attachment...",
+      description: `Sending ${file.name}...`
+    });
+
+    try {
+      await sendAttachment(conversationId, user.id, file);
+      toast({
+        title: "Attachment sent!",
+        description: `${file.name} has been sent successfully.`
+      });
+    } catch (error: any) {
+      console.error('Attachment upload error:', error);
+      toast({
+        title: "Failed to send attachment",
+        description: error.message || "Please try again",
+        variant: "destructive"
+      });
+    }
+    
+    // Reset the input
+    e.target.value = '';
+  };
+
+  const handleVoiceRecording = async () => {
+    if (!conversationId || !user) return;
+
+    if (isRecording) {
+      // Stop recording
+      if (mediaRecorder) {
+        mediaRecorder.stop();
+        setIsRecording(false);
+      }
+    } else {
+      // Start recording
+      try {
+        const stream = await navigator.mediaDevices.getUserMedia({ 
+          audio: {
+            echoCancellation: true,
+            noiseSuppression: true,
+            sampleRate: 44100
+          }
+        });
+        
+        // Try WAV format first (uncompressed, no codec issues)
+        let recorder;
+        let selectedMimeType = 'audio/wav';
+        
+        if (MediaRecorder.isTypeSupported('audio/wav')) {
+          recorder = new MediaRecorder(stream, { mimeType: 'audio/wav' });
+          selectedMimeType = 'audio/wav';
+        } else if (MediaRecorder.isTypeSupported('audio/webm;codecs=pcm')) {
+          recorder = new MediaRecorder(stream, { mimeType: 'audio/webm;codecs=pcm' });
+          selectedMimeType = 'audio/webm;codecs=pcm';
+        } else {
+          // Fallback to default (usually webm with vorbis, not opus)
+          recorder = new MediaRecorder(stream);
+          selectedMimeType = recorder.mimeType || 'audio/webm';
+        }
+        
+        console.log('Using audio format:', selectedMimeType);
+        
+        const audioChunks: BlobPart[] = [];
+
+        recorder.ondataavailable = (event) => {
+          if (event.data.size > 0) {
+            audioChunks.push(event.data);
+          }
+        };
+
+        recorder.onstop = async () => {
+          const audioBlob = new Blob(audioChunks, { type: selectedMimeType });
+          
+          try {
+            toast({
+              title: "Sending voice message...",
+              description: "Please wait while we upload your recording."
+            });
+
+            await sendVoiceMessage(conversationId, user.id, audioBlob);
+            
+            toast({
+              title: "Voice message sent!",
+              description: "Your voice message has been delivered."
+            });
+          } catch (error: any) {
+            toast({
+              title: "Failed to send voice message",
+              description: error.message || "Please try again",
+              variant: "destructive"
+            });
+          }
+
+          // Stop all tracks to release microphone
+          stream.getTracks().forEach(track => track.stop());
+        };
+
+        recorder.start(1000); // Collect data every 1 second
+        setMediaRecorder(recorder);
+        setIsRecording(true);
+
+        toast({
+          title: "Recording started",
+          description: "Tap the mic again to stop recording"
+        });
+
+      } catch (error) {
+        toast({
+          title: "Microphone access denied",
+          description: "Please allow microphone access to send voice messages",
+          variant: "destructive"
+        });
+      }
+    }
+  };
+
+  // Load message read status
+  const loadMessageReadStatus = async (messageIds: string[]) => {
+    if (!user || messageIds.length === 0) return;
+    
+    try {
+      const { data, error } = await supabase
+        .from('message_reads')
+        .select('message_id')
+        .in('message_id', messageIds)
+        .neq('user_id', user.id); // Get reads by other users
+      
+      if (error) {
+        console.error('Error loading message read status:', error);
+        return;
+      }
+      
+      const readStatusMap: {[messageId: string]: boolean} = {};
+      messageIds.forEach(id => {
+        readStatusMap[id] = data?.some(read => read.message_id === id) || false;
+      });
+      
+      setMessageReadStatus(readStatusMap);
+    } catch (error) {
+      console.error('Error loading message read status:', error);
+    }
+  };
+
+  // Load read status when messages change
+  useEffect(() => {
+    if (conversationMessages.length > 0 && user) {
+      const userMessageIds = conversationMessages
+        .filter(msg => msg.sender_id === user.id)
+        .map(msg => msg.id);
+      
+      if (userMessageIds.length > 0) {
+        loadMessageReadStatus(userMessageIds);
+      }
+    }
+  }, [conversationMessages, user]);
+
+  // Mark received messages as read when they're loaded - DISABLED due to RLS issues
+  // useEffect(() => {
+  //   if (conversationMessages.length > 0 && user) {
+  //     const unreadMessages = conversationMessages
+  //       .filter(msg => msg.sender_id !== user.id)
+  //       .slice(-5); // Mark last 5 received messages as read
+      
+  //     unreadMessages.forEach(message => {
+  //       markMessageAsRead(message.id, user.id);
+  //     });
+  //   }
+  // }, [conversationMessages, user, markMessageAsRead]);
     
   const otherParticipant = currentConversation?.participants.find(
     p => p.user_id !== user?.id
@@ -319,6 +508,11 @@ const ChatPage = () => {
                   ? new Date(conversationMessages[index - 1].created_at).toDateString()
                   : null;
                 const showDateSeparator = currentDate !== previousDate;
+                const isLastMessage = index === conversationMessages.length - 1;
+                const isLastUserMessage = message.sender_id === user?.id && 
+                  conversationMessages.slice(index + 1).every(msg => msg.sender_id !== user?.id);
+                
+                // Clean attachment rendering without filename display
 
                 return (
                   <React.Fragment key={message.id}>
@@ -333,15 +527,95 @@ const ChatPage = () => {
                         </span>
                       </div>
                     )}
-                    <div 
-                      className={`flex ${message.sender_id === user?.id ? 'justify-end' : 'justify-start'}`}
-                    >
-                      <div className={`max-w-[75%] sm:max-w-[60%] ${message.sender_id === user?.id 
-                        ? 'bg-primary text-primary-foreground' 
-                        : 'bg-accent text-accent-foreground'
-                      } rounded-2xl px-3 py-2`}>
-                        <p className="text-sm">{message.content}</p>
+                    <div className={`flex flex-col ${message.sender_id === user?.id ? 'items-end' : 'items-start'}`}>
+                      {/* Message content */}
+                      <div className={`max-w-[75%] sm:max-w-[60%] ${
+                        message.media_url && (message.type === 'image' || message.type === 'voice')
+                          ? '' // No styling for images and voice messages
+                          : `${message.sender_id === user?.id 
+                              ? 'bg-primary text-primary-foreground' 
+                              : 'bg-accent text-accent-foreground'
+                            } rounded-2xl px-3 py-2`
+                      }`}>
+                        
+                        {/* Attachment rendering */}
+                        {message.media_url && (
+                          <div>
+                            {message.type === 'image' ? (
+                              <img 
+                                src={message.media_url} 
+                                alt="Attachment" 
+                                className="max-w-full h-auto cursor-pointer max-h-64 object-cover rounded-2xl"
+                                onClick={() => window.open(message.media_url, '_blank')}
+                                onError={(e) => {
+                                  console.error('Image failed to load:', message.media_url);
+                                  e.currentTarget.style.display = 'none';
+                                }}
+                              />
+                            ) : message.type === 'voice' ? (
+                              <div className="flex items-center gap-2 max-w-xs">
+                                <div className="w-6 h-6 flex items-center justify-center">
+                                  🎤
+                                </div>
+                                <audio 
+                                  controls 
+                                  className="flex-1"
+                                  preload="metadata"
+                                  src={message.media_url}
+                                >
+                                  Your browser does not support the audio element.
+                                </audio>
+                              </div>
+                            ) : (
+                              <div className="flex items-center gap-2 p-3 bg-background/10 rounded-lg cursor-pointer hover:bg-background/20 transition-colors"
+                                   onClick={() => window.open(message.media_url, '_blank')}>
+                                <div className="w-10 h-10 bg-background/20 rounded-lg flex items-center justify-center">
+                                  📎
+                                </div>
+                                <div className="flex-1 min-w-0">
+                                  <p className="text-sm font-medium truncate">{message.content}</p>
+                                  <p className="text-xs opacity-70">Click to download</p>
+                                </div>
+                                <div className="text-xs opacity-50">⬇️</div>
+                              </div>
+                            )}
+                          </div>
+                        )}
+                        
+                        {/* Text content - hide for attachments */}
+                        {!message.media_url && (
+                          <p className="text-sm">{message.content}</p>
+                        )}
                       </div>
+
+                      {/* Status indicators below the message */}
+                      {message.sender_id === user?.id && isLastUserMessage && (
+                        <div className="flex items-center gap-1 mt-1">
+                          <span className="text-xs opacity-70 text-muted-foreground">
+                            {new Date(message.created_at).toLocaleTimeString('en-US', { 
+                              hour: '2-digit', 
+                              minute: '2-digit' 
+                            })}
+                          </span>
+                          {messageReadStatus[message.id] ? (
+                            <CheckCheck className="h-3 w-3 text-green-500" />
+                          ) : (
+                            <Check className="h-3 w-3 opacity-70 text-muted-foreground" />
+                          )}
+                        </div>
+                      )}
+                      
+                      {/* Timestamp for received messages - below message */}
+                      {message.sender_id !== user?.id && isLastMessage && (
+                        <div className="mt-1">
+                          <span className="text-xs opacity-70 text-muted-foreground">
+                            {new Date(message.created_at).toLocaleTimeString('en-US', { 
+                              hour: '2-digit', 
+                              minute: '2-digit' 
+                            })}
+                          </span>
+                        </div>
+                      )}
                     </div>
                   </React.Fragment>
                 );
@@ -353,19 +627,41 @@ const ChatPage = () => {
           {/* Message Input - Fixed at Bottom */}
           <div className="flex-shrink-0 p-3 border-t border-border/50 bg-background">
             <div className="flex items-center space-x-2">
-              <Button size="sm" variant="ghost" className="h-9 w-9 p-0 flex-shrink-0">
+              <Button 
+                size="sm" 
+                variant="ghost" 
+                className="h-9 w-9 p-0 flex-shrink-0"
+                onClick={() => document.getElementById('attachment-upload')?.click()}
+              >
                 <Image className="h-4 w-4" />
               </Button>
+              <input
+                id="attachment-upload"
+                type="file"
+                accept="image/*,video/*,.pdf,.doc,.docx,.txt"
+                className="hidden"
+                onChange={handleAttachmentUpload}
+              />
               <div className="flex-1">
                 <Input
+                  type="text"
                   value={newMessage}
                   onChange={(e) => setNewMessage(e.target.value)}
                   onKeyPress={handleKeyPress}
                   placeholder="Type a message..."
                   className="h-9 text-sm"
+                  autoComplete="off"
+                  autoCorrect="off"
+                  autoCapitalize="sentences"
+                  spellCheck="true"
                 />
               </div>
-              <Button size="sm" variant="ghost" className="h-9 w-9 p-0 flex-shrink-0">
+              <Button 
+                size="sm" 
+                variant={isRecording ? "destructive" : "ghost"} 
+                className={`h-9 w-9 p-0 flex-shrink-0 ${isRecording ? 'animate-pulse' : ''}`}
+                onClick={handleVoiceRecording}
+              >
                 <Mic className="h-4 w-4" />
               </Button>
               <Button 

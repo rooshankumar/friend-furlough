@@ -36,6 +36,8 @@ import { useToast } from '@/hooks/use-toast';
 import { useAuthStore } from '@/stores/authStore';
 import { useFriendRequestStore } from '@/stores/friendRequestStore';
 import { useProfileReactionStore } from '@/stores/profileReactionStore';
+import { usePostReactionStore } from '@/stores/postReactionStore';
+import { usePostCommentStore } from '@/stores/postCommentStore';
 import { CulturalBadge } from '@/components/CulturalBadge';
 import { uploadAvatar } from '@/lib/storage';
 import { supabase } from '@/integrations/supabase/client';
@@ -50,6 +52,17 @@ const ProfilePage = () => {
   const { user, profile: authProfile, updateProfile } = useAuthStore();
   const { sendFriendRequest, unsendFriendRequest, checkFriendStatus, checkAreFriends, friendRequestStatus, areFriends } = useFriendRequestStore();
   const { toggleReaction, loadReactionData, reactions, userReactions } = useProfileReactionStore();
+  const { 
+    toggleReaction: togglePostReaction, 
+    reactions: postReactions, 
+    userReactions: userPostReactions, 
+    loadMultiplePostReactions 
+  } = usePostReactionStore();
+  const { 
+    loadComments, 
+    commentCounts, 
+    loadMultiplePostComments 
+  } = usePostCommentStore();
 
   useEffect(() => {
     // Check if viewing own profile - either no username or username matches user ID
@@ -173,7 +186,14 @@ const ProfilePage = () => {
         try {
           const { data: postsData, count: postsCount, error: postsError } = await supabase
             .from('community_posts')
-            .select('*', { count: 'exact' })
+            .select(`
+              *,
+              profiles!community_posts_user_id_fkey (
+                name,
+                avatar_url,
+                country_flag
+              )
+            `, { count: 'exact' })
             .eq('user_id', targetUserId)
             .order('created_at', { ascending: false });
           
@@ -294,6 +314,15 @@ const ProfilePage = () => {
     }
   }, [profileUser?.id, loadReactionData]);
 
+  // Load post reactions and comments when posts are loaded
+  useEffect(() => {
+    if (userPosts.length > 0) {
+      const postIds = userPosts.map(post => post.id);
+      loadMultiplePostReactions(postIds, 'like');
+      loadMultiplePostComments(postIds);
+    }
+  }, [userPosts, loadMultiplePostReactions, loadMultiplePostComments]);
+
   const handleFriendRequest = async () => {
     if (!profileUser?.id) return;
     
@@ -391,6 +420,19 @@ const ProfilePage = () => {
       });
     }
   };
+
+  // Handle like/reaction toggle for posts
+  const handleLikePost = async (postId: string) => {
+    const success = await togglePostReaction(postId, 'like');
+    if (!success) {
+      toast({
+        title: "Failed to update reaction",
+        description: "Please try again later",
+        variant: "destructive",
+      });
+    }
+  };
+
   const startConversation = async () => {
     if (!profileUser?.id) return;
     
@@ -637,7 +679,7 @@ const ProfilePage = () => {
                   <div className="flex items-center gap-2">
                     {isOwnProfile ? (
                       <>
-                        <div className="flex items-center gap-2 px-3 py-2 bg-red-50 rounded-lg border border-red-200">
+                        <div className="flex items-center gap-2 px-3 py-2 bg-red-50 rounded-lg">
                           <Heart className="h-4 w-4 text-red-500 fill-current" />
                           <span className="text-sm font-medium text-red-700">
                             {reactions[profileUser.id] || 0} Hearts
@@ -705,20 +747,7 @@ const ProfilePage = () => {
                 </p>
 
                 {/* Languages */}
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4">
-                  <div>
-                    <h3 className="font-semibold mb-2 flex items-center gap-2">
-                      <Languages className="h-4 w-4" />
-                      Native Languages
-                    </h3>
-                    <div className="flex flex-wrap gap-2">
-                      {(profileUser.nativeLanguages || []).map((lang: string) => (
-                        <Badge key={lang} className="bg-gradient-cultural text-white">
-                          {lang}
-                        </Badge>
-                      ))}
-                    </div>
-                  </div>
+                <div className="grid grid-cols-1 gap-4 mb-4">
                   <div>
                     <h3 className="font-semibold mb-2 flex items-center gap-2">
                       <BookOpen className="h-4 w-4" />
@@ -799,7 +828,7 @@ const ProfilePage = () => {
                 )}
 
                 {/* Stats */}
-                <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3 sm:gap-4">
+                <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
                   <div className="text-center">
                     <div className="text-2xl font-bold text-primary">{stats.friendsCount}</div>
                     <div className="text-xs text-muted-foreground">Friends</div>
@@ -815,13 +844,6 @@ const ProfilePage = () => {
                   <div className="text-center">
                     <div className="text-2xl font-bold text-primary">{stats.culturalExchanges}</div>
                     <div className="text-xs text-muted-foreground">Exchanges</div>
-                  </div>
-                  <div className="text-center">
-                    <div className="text-2xl font-bold text-red-500 flex items-center justify-center gap-1">
-                      <Heart className="h-5 w-5 fill-current" />
-                      {stats.heartsReceived}
-                    </div>
-                    <div className="text-xs text-muted-foreground">Hearts</div>
                   </div>
                 </div>
               </div>
@@ -892,17 +914,33 @@ const ProfilePage = () => {
                         />
                       </div>
                     )}
-                    <div className="flex items-center justify-between text-sm text-muted-foreground border-t border-border/50 pt-3">
-                      <div className="flex items-center gap-4">
-                        <span className="flex items-center gap-1">
-                          <Heart className="h-4 w-4" />
-                          {Array.isArray(post.reactions) ? post.reactions.length : 0}
+                    <div className="flex items-center gap-1 sm:gap-2 text-muted-foreground border-t pt-2">
+                      <Button 
+                        variant="ghost" 
+                        size="sm" 
+                        className={`flex-1 ${userPostReactions[`${post.id}_like`] ? 'text-red-500' : ''}`}
+                        onClick={() => handleLikePost(post.id)}
+                      >
+                        <Heart className={`h-4 w-4 mr-1 ${userPostReactions[`${post.id}_like`] ? 'fill-current' : ''}`} />
+                        <span className="text-xs">
+                          {postReactions[`${post.id}_like`] || 0} Like{(postReactions[`${post.id}_like`] || 0) !== 1 ? 's' : ''}
                         </span>
-                        <span className="flex items-center gap-1">
-                          <MessageCircle className="h-4 w-4" />
-                          {Array.isArray(post.comments) ? post.comments.length : 0}
+                      </Button>
+                      <Button 
+                        variant="ghost" 
+                        size="sm" 
+                        className="flex-1"
+                        onClick={() => navigate(`/community/post/${post.id}`)}
+                      >
+                        <MessageCircle className="h-4 w-4 mr-1" />
+                        <span className="text-xs">
+                          {commentCounts[post.id] || 0} Comment{(commentCounts[post.id] || 0) !== 1 ? 's' : ''}
                         </span>
-                      </div>
+                      </Button>
+                      <Button variant="ghost" size="sm" className="flex-1">
+                        <Share className="h-4 w-4 mr-1" />
+                        <span className="text-xs">Share</span>
+                      </Button>
                     </div>
                   </CardContent>
                 </Card>

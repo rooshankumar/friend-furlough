@@ -30,7 +30,7 @@ export default defineConfig(({ mode }) => ({
           // Vendor chunks
           'react-vendor': ['react', 'react-dom'],
           'router-vendor': ['react-router-dom'],
-          'ui-vendor': ['@radix-ui/react-avatar', '@radix-ui/react-button', '@radix-ui/react-dialog'],
+          'ui-vendor': ['@radix-ui/react-avatar', '@radix-ui/react-dialog', '@radix-ui/react-dropdown-menu'],
           'query-vendor': ['@tanstack/react-query'],
           'supabase-vendor': ['@supabase/supabase-js'],
           

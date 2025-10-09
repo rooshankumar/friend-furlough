@@ -3,7 +3,8 @@ import * as React from "react";
 import type { ToastActionElement, ToastProps } from "@/components/ui/toast";
 
 const TOAST_LIMIT = 1;
-const TOAST_REMOVE_DELAY = 1000000;
+const TOAST_REMOVE_DELAY = 3500; // auto-dismiss faster to reduce noise
+const DEFAULT_RATE_LIMIT_MS = 4000; // collapse identical toasts fired within this window
 
 type ToasterToast = ToastProps & {
   id: string;
@@ -24,6 +25,15 @@ let count = 0;
 function genId() {
   count = (count + 1) % Number.MAX_SAFE_INTEGER;
   return count.toString();
+}
+
+// Track recently shown toast signatures to dedupe
+const recentToastKeys = new Map<string, number>();
+function makeToastKey(props: Partial<ToasterToast>): string {
+  const title = typeof props.title === 'string' ? props.title : '';
+  const description = typeof props.description === 'string' ? props.description : '';
+  const variant = props.variant || '';
+  return `${title}::${description}::${variant}`;
 }
 
 type ActionType = typeof actionTypes;
@@ -136,6 +146,21 @@ type Toast = Omit<ToasterToast, "id">;
 
 function toast({ ...props }: Toast) {
   const id = genId();
+
+  // Global rate limiting & dedupe of identical toasts
+  const key = (props as any).key || makeToastKey(props as Partial<ToasterToast>);
+  const windowMs = (props as any).rateLimitMs ?? DEFAULT_RATE_LIMIT_MS;
+  const now = Date.now();
+  const lastAt = recentToastKeys.get(key) || 0;
+  if (windowMs > 0 && now - lastAt < windowMs) {
+    // Suppress duplicate toast; return a no-op handle to keep API shape
+    return {
+      id: id,
+      dismiss: () => {},
+      update: () => {},
+    };
+  }
+  recentToastKeys.set(key, now);
 
   const update = (props: ToasterToast) =>
     dispatch({

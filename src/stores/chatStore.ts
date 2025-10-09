@@ -1,6 +1,8 @@
 import { create } from 'zustand';
 import { supabase } from '@/integrations/supabase/client';
 import { connectionManager, supabaseWrapper } from '@/lib/connectionManager';
+import { outbox, OutboxItem } from '@/lib/db/outbox';
+import { messagesCache } from '@/lib/db/messagesCache';
 
 type MessageStatus = 'sending' | 'sent' | 'delivered' | 'read' | 'failed';
 
@@ -17,6 +19,7 @@ interface DbMessage {
   status?: MessageStatus;
   tempId?: string; // For optimistic updates
   uploadProgress?: number; // For attachment uploads
+  client_id?: string; // For idempotency and reconciliation
 }
 
 interface DbConversation {
@@ -40,11 +43,12 @@ interface ChatState {
   activeChannel: any | null;
   typingUsers: { [conversationId: string]: { [userId: string]: string } }; // userId -> userName
   offlineQueue: DbMessage[]; // Messages waiting to be sent
+  isProcessingOutbox?: boolean;
   
   // Actions
   loadConversations: (userId: string) => Promise<void>;
   loadMessages: (conversationId: string, limit?: number) => Promise<void>;
-  sendMessage: (conversationId: string, senderId: string, content: string, mediaUrl?: string) => Promise<void>;
+  sendMessage: (conversationId: string, senderId: string, content: string, mediaUrl?: string, clientIdOverride?: string) => Promise<void>;
   sendAttachment: (conversationId: string, senderId: string, file: File) => Promise<void>;
   sendVoiceMessage: (conversationId: string, senderId: string, audioBlob: Blob) => Promise<void>;
   markMessageAsRead: (messageId: string, userId: string) => Promise<void>;
@@ -56,6 +60,9 @@ interface ChatState {
   processOfflineQueue: () => Promise<void>;
 }
 
+// Generate idempotent client IDs (safe for reconciliation)
+const generateClientId = () => `${Date.now()}_${Math.random().toString(36).slice(2, 10)}`;
+
 export const useChatStore = create<ChatState>((set, get) => ({
   conversations: [],
   messages: {},
@@ -63,6 +70,7 @@ export const useChatStore = create<ChatState>((set, get) => ({
   activeChannel: null,
   typingUsers: {},
   offlineQueue: [],
+  isProcessingOutbox: false,
   
   loadConversations: async (userId: string) => {
     console.log('📡 Loading conversations for user:', userId);
@@ -186,6 +194,24 @@ export const useChatStore = create<ChatState>((set, get) => ({
   loadMessages: async (conversationId: string, limit: number = 50) => {
     console.log('📨 Loading messages for conversation:', conversationId);
     try {
+      // Hydrate from cache first for instant UI
+      try {
+        await messagesCache.init();
+        const cached = await messagesCache.getRecentMessages(conversationId, limit);
+        if (cached && cached.length > 0) {
+          const cachedInOrder = [...cached];
+          set(state => ({
+            messages: {
+              ...state.messages,
+              [conversationId]: cachedInOrder
+            }
+          }));
+          console.log('💾 Hydrated from cache:', cachedInOrder.length);
+        }
+      } catch (e) {
+        console.warn('Messages cache hydrate failed', e);
+      }
+
       // Load recent messages with pagination
       const { data, error } = await supabase
         .from('messages')
@@ -210,6 +236,13 @@ export const useChatStore = create<ChatState>((set, get) => ({
           [conversationId]: messagesInOrder
         }
       }));
+      // Persist to cache
+      try {
+        await messagesCache.init();
+        await messagesCache.saveMessages(messagesInOrder as any);
+      } catch (e) {
+        console.warn('Messages cache save failed', e);
+      }
       
       console.log('✅ Messages loaded successfully:', messagesInOrder.length);
     } catch (error) {
@@ -217,55 +250,150 @@ export const useChatStore = create<ChatState>((set, get) => ({
     }
   },
   
-  sendMessage: async (conversationId: string, senderId: string, content: string, mediaUrl?: string) => {
+  sendMessage: async (conversationId: string, senderId: string, content: string, mediaUrl?: string, clientIdOverride?: string) => {
     console.log('📤 Sending message:', { conversationId, senderId, content: content.substring(0, 50), mediaUrl });
     
     // Generate temporary ID for optimistic update
-    const tempId = `temp_${Date.now()}_${Math.random()}`;
+    let tempId = `temp_${Date.now()}_${Math.random()}`;
+    const clientId = clientIdOverride || generateClientId();
     const messageType = mediaUrl ? 
       (mediaUrl.includes('.jpg') || mediaUrl.includes('.jpeg') || mediaUrl.includes('.png') || mediaUrl.includes('.gif') || mediaUrl.includes('.webp') ? 'image' : 
        mediaUrl.includes('.webm') || mediaUrl.includes('.mp3') || mediaUrl.includes('.wav') ? 'voice' : 'file') : 'text';
     
     // Create optimistic message
+    const createdAt = new Date().toISOString();
     const optimisticMessage: DbMessage = {
       id: tempId,
       conversation_id: conversationId,
       sender_id: senderId,
       content: content || (mediaUrl ? 'Attachment' : ''),
-      created_at: new Date().toISOString(),
+      created_at: createdAt,
       type: messageType,
       media_url: mediaUrl,
       status: 'sending',
-      tempId
+      tempId,
+      client_id: clientId
     };
     
-    // Immediately add to UI (optimistic update)
-    set(state => ({
-      messages: {
-        ...state.messages,
-        [conversationId]: [...(state.messages[conversationId] || []), optimisticMessage]
-      }
-    }));
+    // Avoid duplicate optimistic messages for the same client_id
+    const existing = (get().messages[conversationId] || []).find(m => m.client_id === clientId);
+    if (existing) {
+      tempId = existing.tempId || existing.id;
+      // Ensure existing message is marked as sending
+      set(state => ({
+        messages: {
+          ...state.messages,
+          [conversationId]: (state.messages[conversationId] || []).map(m =>
+            m.client_id === clientId ? { ...m, status: 'sending' as MessageStatus } : m
+          )
+        }
+      }));
+    } else {
+      // Immediately add to UI (optimistic update)
+      set(state => ({
+        messages: {
+          ...state.messages,
+          [conversationId]: [...(state.messages[conversationId] || []), optimisticMessage]
+        }
+      }));
+      // Save optimistic to cache
+      try { await messagesCache.init(); await messagesCache.saveMessage(optimisticMessage as any); } catch {}
+    }
     
     try {
-      const { data, error } = await supabase
-        .from('messages')
-        .insert({
-          conversation_id: conversationId,
-          sender_id: senderId,
-          content: content || (mediaUrl ? 'Attachment' : ''),
-          type: messageType,
-          media_url: mediaUrl
-        })
-        .select()
-        .single();
+      // Try to insert with client_id (idempotency). Fallback if column doesn't exist.
+      let data: any = null;
+      let error: any = null;
+      const basePayload: any = {
+        conversation_id: conversationId,
+        sender_id: senderId,
+        content: content || (mediaUrl ? 'Attachment' : ''),
+        type: messageType,
+        media_url: mediaUrl,
+        client_id: clientId
+      };
+      try {
+        const res = await supabase
+          .from('messages')
+          .insert(basePayload)
+          .select()
+          .single();
+        data = res.data;
+        error = res.error;
+      } catch (e: any) {
+        error = e;
+      }
+      // If server doesn't have client_id column, retry without it
+      if (error && (error.code === '42703' || (error.message && /column .*client_id.* does not exist/i.test(error.message)))) {
+        console.warn('client_id column missing on server, retrying without it');
+        const fallbackRes = await supabase
+          .from('messages')
+          .insert({
+            conversation_id: conversationId,
+            sender_id: senderId,
+            content: content || (mediaUrl ? 'Attachment' : ''),
+            type: messageType,
+            media_url: mediaUrl
+          })
+          .select()
+          .single();
+        data = fallbackRes.data;
+        error = fallbackRes.error;
+      }
       
       console.log('📊 Send result:', { data, error });
       
       if (error) {
         console.error('❌ Error sending message:', error);
-        // Update status to failed
-        get().updateMessageStatus(tempId, 'failed');
+        // Handle duplicate unique constraint -> fetch existing by client_id
+        const msgText = (error.message || '').toLowerCase();
+        const isConflict = error.status === 409 || msgText.includes('duplicate key') || msgText.includes('unique constraint');
+        if (isConflict && clientId) {
+          try {
+            const existingRes = await supabase
+              .from('messages')
+              .select('*')
+              .eq('conversation_id', conversationId)
+              .eq('sender_id', senderId)
+              .eq('client_id', clientId)
+              .single();
+            if (existingRes.data) {
+              set(state => ({
+                messages: {
+                  ...state.messages,
+                  [conversationId]: (state.messages[conversationId] || []).map(m =>
+                    m.tempId === tempId || m.client_id === clientId
+                      ? { ...(existingRes.data as any), status: 'sent' as MessageStatus }
+                      : m
+                  )
+                }
+              }));
+              try { await outbox.init(); await outbox.delete(clientId); } catch {}
+              return;
+            }
+          } catch (selErr) {
+            console.warn('Conflict fetch by client_id failed', selErr);
+          }
+        }
+
+        // Persist to outbox if connection issue
+        if (!navigator.onLine || !connectionManager.connected) {
+          const item: OutboxItem = {
+            client_id: clientId,
+            tempId,
+            conversation_id: conversationId,
+            sender_id: senderId,
+            content: content || (mediaUrl ? 'Attachment' : ''),
+            type: messageType,
+            media_url: mediaUrl,
+            created_at: createdAt
+          };
+          try { await outbox.init(); await outbox.put(item); } catch (e) { console.warn('Outbox persist failed', e); }
+        }
+        // Update status to failed only if online (true failure). If offline, keep as sending.
+        if (navigator.onLine && connectionManager.connected) {
+          get().updateMessageStatus(tempId, 'failed');
+        }
         throw error;
       }
       
@@ -278,13 +406,17 @@ export const useChatStore = create<ChatState>((set, get) => ({
           )
         }
       }));
+      // Remove from outbox if it was persisted
+      try { await outbox.init(); await outbox.delete(clientId); } catch {}
+      // Save real message to cache
+      try { await messagesCache.init(); await messagesCache.saveMessage({ ...(data as any), status: 'sent' } as any); } catch {}
       
       console.log('✅ Message sent successfully');
     } catch (error) {
       console.error('❌ Error sending message:', error);
       
-      // Check if offline - add to queue
-      if (!navigator.onLine) {
+      // Check if offline - add to queue (in-memory)
+      if (!navigator.onLine || !connectionManager.connected) {
         set(state => ({
           offlineQueue: [...state.offlineQueue, optimisticMessage]
         }));
@@ -299,6 +431,7 @@ export const useChatStore = create<ChatState>((set, get) => ({
     
     // Create temporary message for optimistic update
     const tempId = `temp_${Date.now()}_${Math.random()}`;
+    const clientId = generateClientId();
     const messageType = file.type.startsWith('image/') ? 'image' : 'file';
     
     const optimisticMessage: DbMessage = {
@@ -311,6 +444,7 @@ export const useChatStore = create<ChatState>((set, get) => ({
       media_url: undefined,
       status: 'sending',
       tempId,
+      client_id: clientId,
       uploadProgress: 0
     };
     
@@ -353,19 +487,42 @@ export const useChatStore = create<ChatState>((set, get) => ({
         }
       }));
       
-      // Send message with attachment to database
+      // Send message with attachment to database (with client_id for idempotency)
       console.log('📨 Sending message with attachment...');
-      const { data, error } = await supabase
-        .from('messages')
-        .insert({
-          conversation_id: conversationId,
-          sender_id: senderId,
-          content: file.name,
-          type: messageType,
-          media_url: mediaUrl
-        })
-        .select()
-        .single();
+      let data: any = null;
+      let error: any = null;
+      try {
+        const res = await supabase
+          .from('messages')
+          .insert({
+            conversation_id: conversationId,
+            sender_id: senderId,
+            content: file.name,
+            type: messageType,
+            media_url: mediaUrl,
+            client_id: clientId
+          })
+          .select()
+          .single();
+        data = res.data; error = res.error;
+      } catch (e: any) {
+        error = e;
+      }
+      if (error && (error.code === '42703' || (error.message && /column .*client_id.* does not exist/i.test(error.message)))) {
+        console.warn('client_id column missing on server (attachment), retrying without it');
+        const fallback = await supabase
+          .from('messages')
+          .insert({
+            conversation_id: conversationId,
+            sender_id: senderId,
+            content: file.name,
+            type: messageType,
+            media_url: mediaUrl
+          })
+          .select()
+          .single();
+        data = fallback.data; error = fallback.error;
+      }
       
       if (error) throw error;
       
@@ -408,6 +565,7 @@ export const useChatStore = create<ChatState>((set, get) => ({
     
     // Create temporary message for optimistic update
     const tempId = `temp_${Date.now()}_${Math.random()}`;
+    const clientId = generateClientId();
     
     const optimisticMessage: DbMessage = {
       id: tempId,
@@ -419,6 +577,7 @@ export const useChatStore = create<ChatState>((set, get) => ({
       media_url: undefined,
       status: 'sending',
       tempId,
+      client_id: clientId,
       uploadProgress: 0
     };
     
@@ -460,19 +619,39 @@ export const useChatStore = create<ChatState>((set, get) => ({
         }
       }));
       
-      // Send message with voice attachment to database
+      // Send message with voice attachment to database (with client_id for idempotency)
       console.log('📨 Saving voice message to database...');
-      const { data, error } = await supabase
-        .from('messages')
-        .insert({
-          conversation_id: conversationId,
-          sender_id: senderId,
-          content: 'Voice message',
-          type: 'voice',
-          media_url: mediaUrl
-        })
-        .select()
-        .single();
+      let data: any = null; let error: any = null;
+      try {
+        const res = await supabase
+          .from('messages')
+          .insert({
+            conversation_id: conversationId,
+            sender_id: senderId,
+            content: 'Voice message',
+            type: 'voice',
+            media_url: mediaUrl,
+            client_id: clientId
+          })
+          .select()
+          .single();
+        data = res.data; error = res.error;
+      } catch (e: any) { error = e; }
+      if (error && (error.code === '42703' || (error.message && /column .*client_id.* does not exist/i.test(error.message)))) {
+        console.warn('client_id column missing on server (voice), retrying without it');
+        const fallback = await supabase
+          .from('messages')
+          .insert({
+            conversation_id: conversationId,
+            sender_id: senderId,
+            content: 'Voice message',
+            type: 'voice',
+            media_url: mediaUrl
+          })
+          .select()
+          .single();
+        data = fallback.data; error = fallback.error;
+      }
       
       if (error) throw error;
       
@@ -500,6 +679,29 @@ export const useChatStore = create<ChatState>((set, get) => ({
         }
       }));
       
+      // Persist to outbox for retry if upload succeeded and connection issue
+      try {
+        if (!navigator.onLine || !connectionManager.connected) {
+          await outbox.init();
+          const last = get().messages[conversationId]?.find(m => m.tempId === tempId);
+          const mediaUrl = last?.media_url;
+          if (mediaUrl) {
+            await outbox.put({
+              client_id: clientId,
+              tempId,
+              conversation_id: conversationId,
+              sender_id: senderId,
+              content: 'Voice message',
+              type: 'voice',
+              media_url: mediaUrl,
+              created_at: optimisticMessage.created_at
+            });
+          }
+        }
+      } catch (e) {
+        console.warn('Outbox persist (voice) failed', e);
+      }
+
       console.error('❌ Error details:', {
         message: error.message,
         stack: error.stack,
@@ -587,22 +789,41 @@ export const useChatStore = create<ChatState>((set, get) => ({
         (payload) => {
           console.log('New message received:', payload);
           if (payload.new && payload.new.conversation_id === conversationId) {
-            
             set(state => {
               const existingMessages = state.messages[conversationId] || [];
-              const messageExists = existingMessages.some((m: any) => m.id === payload.new.id);
-              
-              if (messageExists) {
-                console.log('Message already exists, skipping');
+              const incoming: any = payload.new;
+
+              // If already present by id, skip
+              const messageExistsById = existingMessages.some((m: any) => m.id === incoming.id);
+              if (messageExistsById) {
+                console.log('Message already exists by id, skipping');
                 return state;
               }
-              
-              console.log('Adding new message to state');
-              const newMessage: DbMessage = {
-                ...(payload.new as DbMessage),
-                status: 'delivered' as MessageStatus
-              };
-              
+
+              // Try to reconcile with optimistic message (by client_id or heuristic)
+              let replaced = false;
+              const reconciled = existingMessages.map((m: any) => {
+                const clientMatch = incoming.client_id && m.client_id && incoming.client_id === m.client_id;
+                const heuristicMatch = m.status === 'sending' && m.sender_id === incoming.sender_id && m.type === incoming.type && (m.media_url || '') === (incoming.media_url || '') && (m.content || '') === (incoming.content || '');
+                if (!replaced && (clientMatch || heuristicMatch)) {
+                  replaced = true;
+                  const merged: DbMessage = { ...(incoming as DbMessage), status: 'delivered' };
+                  return merged;
+                }
+                return m;
+              });
+
+              if (replaced) {
+                return {
+                  messages: {
+                    ...state.messages,
+                    [conversationId]: reconciled
+                  }
+                };
+              }
+
+              // Otherwise append new delivered message
+              const newMessage: DbMessage = { ...(incoming as DbMessage), status: 'delivered' };
               return {
                 messages: {
                   ...state.messages,
@@ -610,6 +831,13 @@ export const useChatStore = create<ChatState>((set, get) => ({
                 }
               };
             });
+            // Persist incoming to cache (non-blocking)
+            (async () => {
+              try {
+                await messagesCache.init();
+                await messagesCache.saveMessage({ ...(payload.new as any), status: 'delivered' } as any);
+              } catch {}
+            })();
           }
         }
       )
@@ -733,24 +961,57 @@ export const useChatStore = create<ChatState>((set, get) => ({
   },
   
   processOfflineQueue: async () => {
-    const { offlineQueue } = get();
-    if (offlineQueue.length === 0 || !navigator.onLine) return;
-    
-    console.log('📤 Processing offline queue:', offlineQueue.length, 'messages');
-    
-    for (const message of offlineQueue) {
+    if (!navigator.onLine || !connectionManager.connected) return;
+    // Guard against concurrent processing
+    if (get().isProcessingOutbox) {
+      return;
+    }
+    set({ isProcessingOutbox: true });
+    try { await outbox.init(); } catch {}
+    const items = await outbox.getAll();
+    if (!items || items.length === 0) {
+      console.log('📭 No outbox items to process');
+      set({ isProcessingOutbox: false });
+      return;
+    }
+    console.log('📤 Processing outbox:', items.length, 'items');
+    for (const item of items) {
       try {
-        await get().sendMessage(
-          message.conversation_id,
-          message.sender_id,
-          message.content,
-          message.media_url
-        );
-      } catch (error) {
-        console.error('Failed to send queued message:', error);
+        await get().sendMessage(item.conversation_id, item.sender_id, item.content, item.media_url, item.client_id);
+        await outbox.delete(item.client_id);
+        // Update UI status if any optimistic message still shows as failed/sending
+        set(state => {
+          const updated = { ...state.messages };
+          const list = updated[item.conversation_id] || [];
+          updated[item.conversation_id] = list.map(m => {
+            if ((m.client_id && m.client_id === item.client_id) || (m.tempId && m.tempId === item.tempId)) {
+              return { ...m, status: 'sent' as MessageStatus };
+            }
+            return m;
+          });
+          return { messages: updated };
+        });
+      } catch (err) {
+        console.warn('Retry send failed for outbox item:', item.client_id, err);
       }
     }
-    
-    set({ offlineQueue: [] });
+    set({ isProcessingOutbox: false });
   }
 }));
+
+// Initialize outbox and wire connection listener for automatic retries
+try {
+  outbox.init().then(() => {
+    // Attempt processing on load if online
+    if (typeof navigator !== 'undefined' && navigator.onLine) {
+      useChatStore.getState().processOfflineQueue();
+    }
+    connectionManager.onConnectionChange((isOnline) => {
+      if (isOnline) {
+        setTimeout(() => useChatStore.getState().processOfflineQueue(), 1000);
+      }
+    });
+  });
+} catch (e) {
+  console.warn('Outbox init failed', e);
+}

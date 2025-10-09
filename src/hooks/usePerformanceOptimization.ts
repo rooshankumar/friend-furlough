@@ -68,7 +68,7 @@ export function useConnectionStatus() {
 
 // Hook for performance monitoring
 export function usePerformanceMonitor(componentName: string) {
-  const mountTime = useRef(Date.now());
+  const lastRenderTime = useRef(Date.now());
   const renderCount = useRef(0);
 
   useEffect(() => {
@@ -76,9 +76,11 @@ export function usePerformanceMonitor(componentName: string) {
     
     // Log slow renders in development
     if (process.env.NODE_ENV === 'development') {
-      const renderTime = Date.now() - mountTime.current;
-      if (renderTime > 100) {
-        console.warn(`🐌 Slow render detected in ${componentName}: ${renderTime}ms (render #${renderCount.current})`);
+      const now = Date.now();
+      const delta = now - lastRenderTime.current;
+      lastRenderTime.current = now;
+      if (delta > 100) {
+        console.warn(`🐌 Slow render detected in ${componentName}: ${delta}ms (render #${renderCount.current})`);
       }
     }
   });

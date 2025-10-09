@@ -142,29 +142,29 @@ const ChatPage = () => {
   const handleSendMessage = useCallback(async () => {
     if (!newMessage.trim() || !conversationId || !user) return;
 
-    // Check connection before sending
-    if (!isOnline) {
-      toast({
-        title: "No connection",
-        description: "Please check your internet connection and try again",
-        variant: "destructive"
-      });
-      return;
-    }
+    const msg = newMessage.trim();
+    // Clear input immediately to avoid duplicate submissions on double taps/offline
+    setNewMessage('');
 
-    logEvent('message_send_attempt', { messageLength: newMessage.trim().length });
+    logEvent('message_send_attempt', { messageLength: msg.length });
 
     try {
-      await sendMessage(conversationId, user.id, newMessage.trim());
-      setNewMessage('');
+      await sendMessage(conversationId, user.id, msg);
       logEvent('message_send_success');
     } catch (error: any) {
       logEvent('message_send_error', { error: error.message });
-      toast({
-        title: "Failed to send message",
-        description: isOnline ? "Please try again" : "Connection lost. Please try again when online.",
-        variant: "destructive"
-      });
+      if (!isOnline) {
+        toast({
+          title: "Message queued",
+          description: "We'll send it automatically when you're back online.",
+        });
+      } else {
+        toast({
+          title: "Failed to send message",
+          description: "Please try again",
+          variant: "destructive"
+        });
+      }
     }
   }, [newMessage, conversationId, user, isOnline, sendMessage, toast, logEvent]);
 
@@ -217,10 +217,11 @@ const ChatPage = () => {
       return;
     }
 
-    // Check connection before uploading
+    // P0: attachments require connection (no resumable upload yet)
     if (!isOnline) {
       toast({
-        title: "No connection",
+        title: "Offline",
+        description: "Attachments require an internet connection.",
         variant: "destructive"
       });
       e.target.value = '';
@@ -252,6 +253,15 @@ const ChatPage = () => {
 
   const handleVoiceRecording = async () => {
     if (!conversationId || !user) return;
+    // P0: voice messages require connection (no resumable upload yet)
+    if (!isOnline) {
+      toast({
+        title: "Offline",
+        description: "Voice messages require an internet connection.",
+        variant: "destructive"
+      });
+      return;
+    }
 
     if (isRecording) {
       // Stop recording
@@ -401,10 +411,14 @@ const ChatPage = () => {
     if (!user || messageIds.length === 0) return;
     
     try {
+      // Filter out temporary IDs (non-UUID) to avoid 400 errors from PostgREST
+      const uuidIds = messageIds.filter(id => /^(?:[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-5][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12})$/.test(id));
+      if (uuidIds.length === 0) return;
+
       const { data, error } = await supabase
         .from('message_reads')
         .select('message_id')
-        .in('message_id', messageIds)
+        .in('message_id', uuidIds)
         .neq('user_id', user.id); // Get reads by other users
       
       if (error) {
@@ -423,7 +437,7 @@ const ChatPage = () => {
     }
   };
 
-  // Load read status when messages change
+  // Load read status when messages change (for own sent messages)
   useEffect(() => {
     if (conversationMessages.length > 0 && user) {
       const userMessageIds = conversationMessages
@@ -435,6 +449,28 @@ const ChatPage = () => {
       }
     }
   }, [conversationMessages, user]);
+
+  // Auto-mark messages as read for the active conversation
+  const markedIdsRef = useRef<Set<string>>(new Set());
+  const isUUID = (id: string) => /^(?:[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-5][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12})$/.test(id);
+
+  useEffect(() => {
+    if (!conversationId || !user) return;
+    if (!conversationMessages || conversationMessages.length === 0) return;
+
+    const unreadFromOthers = conversationMessages.filter(m => m.sender_id !== user.id && isUUID(m.id));
+    if (unreadFromOthers.length === 0) return;
+
+    // Mark each message once
+    unreadFromOthers.forEach(m => {
+      if (!markedIdsRef.current.has(m.id)) {
+        markedIdsRef.current.add(m.id);
+        markMessageAsRead(m.id, user.id).catch(() => {});
+      }
+    });
+    // Zero unread count for this conversation
+    markAsRead(conversationId, user.id).catch(() => {});
+  }, [conversationId, user, conversationMessages, markMessageAsRead, markAsRead]);
 
   // Mark received messages as read when they're loaded - DISABLED due to RLS issues
   // useEffect(() => {
@@ -667,18 +703,11 @@ const ChatPage = () => {
                 size="sm" 
                 variant="ghost" 
                 className="h-9 w-9 p-0 flex-shrink-0"
-                disabled={isRecording}
+                disabled={isRecording || !isOnline}
+                title={!isOnline ? 'Attachments require internet' : undefined}
                 onClick={(e) => {
                   e.preventDefault();
                   console.log('📎 Attachment button clicked');
-                  const input = document.getElementById('attachment-upload') as HTMLInputElement;
-                  if (input) {
-                    input.click();
-                  }
-                }}
-                onTouchEnd={(e) => {
-                  e.preventDefault();
-                  console.log('📎 Attachment button touched');
                   const input = document.getElementById('attachment-upload') as HTMLInputElement;
                   if (input) {
                     input.click();
@@ -716,19 +745,12 @@ const ChatPage = () => {
                 size="sm" 
                 variant={isRecording ? "destructive" : "ghost"} 
                 className={`h-9 w-9 p-0 flex-shrink-0 ${isRecording ? 'animate-pulse' : ''}`}
+                disabled={!isOnline}
+                title={!isOnline ? 'Voice requires internet' : undefined}
                 onClick={(e) => {
                   e.preventDefault();
                   console.log('🎤 Voice button clicked, isRecording:', isRecording);
                   handleVoiceRecording();
-                }}
-                onTouchEnd={(e) => {
-                  e.stopPropagation();
-                  e.preventDefault();
-                  console.log('🎤 Voice button touched, isRecording:', isRecording);
-                  // Prevent double trigger on mobile
-                  if (e.cancelable) {
-                    handleVoiceRecording();
-                  }
                 }}
               >
                 <Mic className="h-4 w-4" />
@@ -736,12 +758,6 @@ const ChatPage = () => {
               <Button 
                 onClick={(e) => {
                   e.preventDefault();
-                  handleSendMessage();
-                }}
-                onTouchEnd={(e) => {
-                  e.preventDefault();
-                  e.stopPropagation();
-                  if (!newMessage.trim()) return;
                   handleSendMessage();
                 }}
                 disabled={!newMessage.trim() || isRecording}

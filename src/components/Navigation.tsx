@@ -18,6 +18,7 @@ import { useChatStore } from "@/stores/chatStore";
 import { useEffect, useMemo } from "react";
 import { formatDistanceToNow } from "date-fns";
 import roshLinguaLogo from "@/assets/roshlingua-logo.png";
+import { registerPushNotifications } from "@/lib/push";
 
 const Navigation = () => {
   const location = useLocation();
@@ -41,6 +42,8 @@ const Navigation = () => {
     if (user?.id) {
       loadNotifications(user.id);
       subscribeToNotifications(user.id);
+      // Register Web Push (non-blocking)
+      registerPushNotifications(user.id).catch(() => {});
       
       // Load conversations for unread count
       if (conversations.length === 0) {

@@ -37,6 +37,8 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { formatDistanceToNow } from 'date-fns';
 import { supabase } from '@/integrations/supabase/client';
+import { useMobileOptimization } from '@/hooks/useMobileOptimization';
+import { mobileFileHandler } from '@/lib/mobileFileHandler';
 
 const ChatPage = () => {
   const { conversationId } = useParams();
@@ -48,40 +50,36 @@ const ChatPage = () => {
   const [recordingDuration, setRecordingDuration] = useState(0);
   const recordingTimerRef = useRef<NodeJS.Timeout | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
-  const { toast } = useToast();
   
-  // Performance monitoring and connection status
+  // Hooks
+  const { toast } = useToast();
   const { logEvent } = usePerformanceMonitor('ChatPage');
   const isOnline = useConnectionStatus();
+  const { isMobile, isLowEndDevice, optimizeFileUpload } = useMobileOptimization();
   
-  // Preload conversations data
-  useConversationsPreloader();
-  
+  // Store data
+  const { user, profile } = useAuthStore();
   const { 
     conversations, 
     messages, 
-    typingUsers,
+    loadConversations, 
+    loadMessages, 
     sendMessage, 
     sendAttachment,
     sendVoiceMessage,
-    loadConversations,
-    loadMessages,
     markAsRead,
     markMessageAsRead,
     subscribeToMessages,
     unsubscribeFromMessages,
-    broadcastTyping,
-    processOfflineQueue
+    processOfflineQueue,
+    typingUsers,
+    broadcastTyping
   } = useChatStore();
-  
-  const { user, profile } = useAuthStore();
 
-  // Memoize expensive computations
   const currentConversation = useMemo(() => 
     conversationId ? conversations.find(c => c.id === conversationId) : null,
     [conversationId, conversations]
   );
-
   const conversationMessages = useMemo(() => 
     conversationId ? messages[conversationId] || [] : [],
     [conversationId, messages]
@@ -589,7 +587,7 @@ const ChatPage = () => {
     });
     // Zero unread count for this conversation
     markAsRead(conversationId, user.id).catch(() => {});
-  }, [conversationId, user, conversationMessages, markMessageAsRead, markAsRead]);
+  }, [conversationId, user, conversationMessages, markAsRead, markMessageAsRead]);
 
   // Mark received messages as read when they're loaded - DISABLED due to RLS issues
   // useEffect(() => {

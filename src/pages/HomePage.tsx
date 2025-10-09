@@ -1,11 +1,72 @@
+import React, { memo, useMemo, useEffect } from 'react';
 import { Button } from "@/components/ui/button";
 import { CulturalBadge } from "@/components/CulturalBadge";
 import { Globe, MessageCircle, Users, Heart, Languages, MapPin } from "lucide-react";
 import { Link } from "react-router-dom";
 import roshLinguaLogo from "@/assets/roshlingua-logo.png";
+import { useHomePageOptimization } from "@/hooks/usePageOptimization";
+import { LazyImage } from "@/components/optimized/LazyImage";
+
+// Memoized feature card component
+const FeatureCard = memo<{
+  icon: React.ReactNode;
+  title: string;
+  description: string;
+}>(({ icon, title, description }) => (
+  <div className="text-center p-6 rounded-lg border bg-card hover:shadow-lg transition-shadow duration-200">
+    <div className="flex justify-center mb-4">{icon}</div>
+    <h3 className="text-xl font-semibold mb-2">{title}</h3>
+    <p className="text-muted-foreground leading-relaxed">{description}</p>
+  </div>
+));
+
+FeatureCard.displayName = 'FeatureCard';
+
+// Memoized testimonial card component
+const TestimonialCard = memo<{
+  name: string;
+  country: string;
+  flag: string;
+  text: string;
+  languages: string[];
+}>(({ name, country, flag, text, languages }) => (
+  <div className="bg-card p-6 rounded-lg border shadow-sm hover:shadow-md transition-shadow duration-200">
+    <div className="flex items-center mb-4">
+      <div className="text-2xl mr-3">{flag}</div>
+      <div>
+        <h4 className="font-semibold">{name}</h4>
+        <p className="text-sm text-muted-foreground">{country}</p>
+      </div>
+    </div>
+    <p className="text-muted-foreground mb-4 italic">"{text}"</p>
+    <div className="flex flex-wrap gap-1">
+      {languages.map((lang) => (
+        <CulturalBadge key={lang} type="language-learning">
+          {lang}
+        </CulturalBadge>
+      ))}
+    </div>
+  </div>
+));
+
+TestimonialCard.displayName = 'TestimonialCard';
 
 const HomePage = () => {
-  const culturalFeatures = [
+  // Performance optimization
+  const { trackMetric, preloadData } = useHomePageOptimization();
+
+  // Track page render time
+  useEffect(() => {
+    const startTime = performance.now();
+    const endTime = performance.now();
+    trackMetric('render_time', endTime - startTime);
+
+    // Preload related pages
+    preloadData(['explore', 'community', 'auth']);
+  }, [trackMetric, preloadData]);
+
+  // Memoized data to prevent re-renders
+  const culturalFeatures = useMemo(() => [
     {
       icon: <Globe className="h-8 w-8 text-primary" />,
       title: "Cultural Discovery",
@@ -26,9 +87,9 @@ const HomePage = () => {
       title: "Safe Community",
       description: "Join a moderated platform focused on learning, respect, and building international friendships."
     }
-  ];
+  ], []);
 
-  const testimonials = [
+  const testimonials = useMemo(() => [
     {
       name: "Maria Santos",
       country: "Brazil",
@@ -50,7 +111,7 @@ const HomePage = () => {
       text: "The cultural exchange here goes beyond just language. I've learned to cook Brazilian dishes and understand Middle Eastern traditions!",
       languages: ["Japanese", "Portuguese", "English"]
     }
-  ];
+  ], []);
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-background via-muted to-card-cultural">
@@ -122,17 +183,12 @@ const HomePage = () => {
 
           <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-8">
             {culturalFeatures.map((feature, index) => (
-              <div key={index} className="card-cultural p-8 text-center group hover:scale-105 transition-transform">
-                <div className="mb-6 flex justify-center group-hover:animate-cultural-pulse">
-                  {feature.icon}
-                </div>
-                <h3 className="text-xl font-semibold mb-4 text-card-foreground">
-                  {feature.title}
-                </h3>
-                <p className="text-muted-foreground leading-relaxed">
-                  {feature.description}
-                </p>
-              </div>
+              <FeatureCard
+                key={index}
+                icon={feature.icon}
+                title={feature.title}
+                description={feature.description}
+              />
             ))}
           </div>
         </div>
@@ -153,35 +209,14 @@ const HomePage = () => {
 
           <div className="grid md:grid-cols-3 gap-8 max-w-6xl mx-auto">
             {testimonials.map((testimonial, index) => (
-              <div key={index} className="card-warm p-8">
-                <div className="mb-6">
-                  <div className="flex items-center space-x-3 mb-4">
-                    <span className="text-2xl">{testimonial.flag}</span>
-                    <div>
-                      <h4 className="font-semibold text-card-foreground">{testimonial.name}</h4>
-                      <p className="text-sm text-muted-foreground flex items-center">
-                        <MapPin className="h-3 w-3 mr-1" />
-                        {testimonial.country}
-                      </p>
-                    </div>
-                  </div>
-                  
-                  <div className="flex flex-wrap gap-2 mb-4">
-                    {testimonial.languages.map((lang, langIndex) => (
-                      <CulturalBadge 
-                        key={langIndex} 
-                        type={langIndex === 0 ? "language-native" : "language-learning"}
-                      >
-                        {lang}
-                      </CulturalBadge>
-                    ))}
-                  </div>
-                </div>
-                
-                <blockquote className="text-muted-foreground italic leading-relaxed">
-                  "{testimonial.text}"
-                </blockquote>
-              </div>
+              <TestimonialCard
+                key={index}
+                name={testimonial.name}
+                country={testimonial.country}
+                flag={testimonial.flag}
+                text={testimonial.text}
+                languages={testimonial.languages}
+              />
             ))}
           </div>
         </div>

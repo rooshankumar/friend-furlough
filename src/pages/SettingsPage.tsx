@@ -91,7 +91,7 @@ export default function SettingsPage() {
 
 
   return (
-    <div className="fixed inset-0 top-0 md:left-16 bg-gradient-subtle pb-16 md:pb-0 overflow-auto pt-4 md:pt-0">
+    <div className="min-h-screen md:ml-16 bg-gradient-subtle pb-16 md:pb-0 overflow-auto pt-4 md:pt-0">
       <div className="p-4 md:p-8 max-w-4xl mx-auto">
         <div className="mb-8">
           <h1 className="text-3xl font-bold">Settings</h1>

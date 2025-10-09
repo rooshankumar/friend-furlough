@@ -131,7 +131,7 @@ export default function ExplorePage() {
 
   if (isLoading) {
     return (
-      <div className="fixed inset-0 top-0 md:left-16 bg-gradient-subtle pb-16 md:pb-0 overflow-auto pt-4 md:pt-0">
+      <div className="min-h-screen md:ml-16 bg-gradient-subtle pb-16 md:pb-0 overflow-auto pt-4 md:pt-0">
         <div className="p-4 md:p-8">
           <h1 className="text-3xl font-bold mb-8">Explore Language Partners</h1>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
@@ -150,7 +150,7 @@ export default function ExplorePage() {
   }
 
   return (
-    <div className="fixed inset-0 top-0 md:left-16 bg-gradient-subtle pb-16 md:pb-0 overflow-auto pt-4 md:pt-0">
+    <div className="min-h-screen md:ml-16 bg-gradient-subtle pb-16 md:pb-0 overflow-auto pt-4 md:pt-0">
       <div className="p-4 md:p-8">
         <div className="mb-8">
           <h1 className="text-3xl font-bold mb-2">Explore Language Partners</h1>

@@ -26,7 +26,7 @@ export default function EventsPage() {
 
   if (isLoading) {
     return (
-      <div className="fixed inset-0 top-0 md:left-16 bg-gradient-subtle pb-16 md:pb-0 overflow-auto pt-4 md:pt-0">
+      <div className="min-h-screen md:ml-16 bg-gradient-subtle pb-16 md:pb-0 overflow-auto pt-4 md:pt-0">
         <div className="p-4 md:p-8 max-w-6xl mx-auto">
           <Skeleton className="h-10 w-64 mb-2" />
           <Skeleton className="h-6 w-96 mb-8" />
@@ -41,7 +41,7 @@ export default function EventsPage() {
   }
 
   return (
-    <div className="fixed inset-0 top-0 md:left-16 bg-gradient-subtle pb-16 md:pb-0 overflow-auto pt-4 md:pt-0">
+    <div className="min-h-screen md:ml-16 bg-gradient-subtle pb-16 md:pb-0 overflow-auto pt-4 md:pt-0">
       <div className="p-4 md:p-8 max-w-6xl mx-auto">
         <div className="mb-8">
           <h1 className="text-3xl font-bold mb-2">Cultural Events</h1>

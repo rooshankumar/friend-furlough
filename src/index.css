@@ -206,6 +206,28 @@ All colors MUST be HSL. Cultural, warm, and inclusive design.
   .animate-cultural-pulse {
     animation: cultural-pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
   }
+
+  /* Line Clamp Utilities */
+  .line-clamp-1 {
+    overflow: hidden;
+    display: -webkit-box;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 1;
+  }
+
+  .line-clamp-2 {
+    overflow: hidden;
+    display: -webkit-box;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 2;
+  }
+
+  .line-clamp-3 {
+    overflow: hidden;
+    display: -webkit-box;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 3;
+  }
 }
 
 @keyframes cultural-float {

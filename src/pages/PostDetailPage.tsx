@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -282,7 +282,7 @@ const PostDetailPage: React.FC = () => {
 
   const organizedComments = post ? organizeComments(comments[post.id] || []) : [];
 
-  const CommentComponent: React.FC<{ comment: Comment; level?: number }> = ({ comment, level = 0 }) => (
+  const CommentComponent: React.FC<{ comment: Comment; level?: number }> = useCallback(({ comment, level = 0 }) => (
     <div className={`${level > 0 ? 'ml-4 sm:ml-8 mt-3' : 'mt-4'}`}>
       <div className="flex gap-2 sm:gap-3">
         <UserAvatar 
@@ -392,13 +392,18 @@ const PostDetailPage: React.FC = () => {
                 <Input
                   placeholder={`Reply to ${comment.profiles?.name}...`}
                   value={replyTexts[comment.id] || ''}
-                  onChange={(e) => setReplyTexts(prev => ({
-                    ...prev,
-                    [comment.id]: e.target.value
-                  }))}
-                  onKeyPress={(e) => {
+                  onChange={(e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    setReplyTexts(prev => ({
+                      ...prev,
+                      [comment.id]: e.target.value
+                    }));
+                  }}
+                  onKeyDown={(e) => {
                     if (e.key === 'Enter' && !e.shiftKey) {
                       e.preventDefault();
+                      e.stopPropagation();
                       handleAddReply(comment.id);
                     }
                   }}
@@ -442,11 +447,11 @@ const PostDetailPage: React.FC = () => {
         </div>
       </div>
     </div>
-  );
+  ), [replyingTo, replyTexts, editingComment, editText, user, handleAddReply, handleEditComment, handleDeleteComment]);
 
   if (loading) {
     return (
-      <div className="fixed inset-0 top-0 md:left-16 bg-gradient-subtle pb-16 md:pb-0">
+      <div className="min-h-screen md:ml-16 bg-gradient-subtle pb-16 md:pb-0">
         <div className="p-4 md:p-8 max-w-2xl mx-auto">
           <div className="animate-pulse space-y-4">
             <div className="h-4 bg-muted rounded w-1/4"></div>
@@ -460,7 +465,7 @@ const PostDetailPage: React.FC = () => {
 
   if (!post) {
     return (
-      <div className="fixed inset-0 top-0 md:left-16 bg-gradient-subtle pb-16 md:pb-0">
+      <div className="min-h-screen md:ml-16 bg-gradient-subtle pb-16 md:pb-0">
         <div className="p-4 md:p-8 max-w-2xl mx-auto text-center">
           <h1 className="text-2xl font-bold mb-4">Post not found</h1>
           <Button onClick={() => navigate('/community')}>
@@ -472,7 +477,7 @@ const PostDetailPage: React.FC = () => {
   }
 
   return (
-    <div className="fixed inset-0 top-0 md:left-16 bg-gradient-subtle pb-16 md:pb-0 overflow-auto">
+    <div className="min-h-screen md:ml-16 bg-gradient-subtle pb-16 md:pb-0 overflow-auto">
       <div className="p-3 sm:p-4 md:p-8 max-w-2xl mx-auto">
         {/* Back Button */}
         <div className="mb-4">

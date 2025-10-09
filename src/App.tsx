@@ -8,7 +8,7 @@ import { ThemeProvider } from "@/components/ThemeProvider";
 import { useAuthStore } from "./stores/authStore";
 import { Skeleton } from "@/components/ui/skeleton";
 import ConnectionStatus from "./components/ConnectionStatus";
-import Navigation from "./components/Navigation";
+import MinimalNavigation from "./components/MinimalNavigation";
 import InstallPWA from "./components/InstallPWA";
 import PerformanceMonitor from "./components/PerformanceMonitor";
 import { useAppDataPreloader } from "./hooks/useDataPreloader";
@@ -98,7 +98,7 @@ const AppContent = () => {
   useAppDataPreloader();
   return (
     <div className="min-h-screen bg-background">
-      <Navigation />
+      <MinimalNavigation />
       <ConnectionStatus />
       <PerformanceMonitor />
       <InstallPWA />
@@ -166,7 +166,7 @@ const AppContent = () => {
           
           <Route path="/friends" element={
             <ProtectedRoute>
-              <FriendsPage />
+              <Navigate to="/profile" replace />
             </ProtectedRoute>
           } />
           

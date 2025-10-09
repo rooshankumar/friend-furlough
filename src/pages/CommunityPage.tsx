@@ -335,7 +335,7 @@ const CommunityPage = () => {
 
   if (isLoading) {
     return (
-      <div className="fixed inset-0 top-0 md:left-16 bg-gradient-subtle pb-16 md:pb-0">
+      <div className="min-h-screen md:ml-16 bg-gradient-subtle pb-16 md:pb-0">
         <div className="h-full flex flex-col md:flex-row">
           <div className="md:w-96 md:border-r md:border-border/50 bg-card/30 p-3 md:p-6">
             <div className="flex items-center justify-between mb-3">
@@ -365,7 +365,7 @@ const CommunityPage = () => {
   }
 
   return (
-    <div className="fixed inset-0 top-0 md:left-16 bg-gradient-subtle pb-16 md:pb-0 overflow-hidden">
+    <div className="h-screen md:ml-16 bg-gradient-subtle pb-16 md:pb-0 overflow-hidden">
       <div className="h-full flex flex-col md:flex-row">
         {/* Left Column - Create Post (Compact Horizontal Layout) */}
         <div className="md:w-96 md:border-r md:border-border/50 bg-card/30 overflow-y-auto md:h-full">

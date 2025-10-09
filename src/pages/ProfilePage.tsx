@@ -9,6 +9,12 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Separator } from '@/components/ui/separator';
 import { Progress } from '@/components/ui/progress';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
+import { ProfileHeader } from '@/components/profile/ProfileHeader';
+import { QuickStats } from '@/components/profile/QuickStats';
+import { ProfileBio } from '@/components/profile/ProfileBio';
+import { ProfileLanguages } from '@/components/profile/ProfileLanguages';
+import { ProfilePosts } from '@/components/profile/ProfilePosts';
+import { ProfileFriends } from '@/components/profile/ProfileFriends';
 import { 
   MessageCircle, 
   Globe, 
@@ -45,13 +51,39 @@ import { uploadAvatar } from '@/lib/storage';
 import { supabase } from '@/integrations/supabase/client';
 
 const ProfilePage = () => {
-  const { username } = useParams();
+  const { userId } = useParams();
   const navigate = useNavigate();
   const [isOwnProfile, setIsOwnProfile] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
   const { toast } = useToast();
   
-  const { user, profile: authProfile, updateProfile } = useAuthStore();
+  const { user: authUser, profile: authProfile, updateProfile } = useAuthStore();
+  
+  // Convert auth profile to User type for components
+  const currentUser: User | null = authProfile ? {
+    id: authProfile.id,
+    name: authProfile.name,
+    email: authUser?.email || '',
+    country: authProfile.country || '',
+    countryCode: authProfile.country_code || '',
+    countryFlag: authProfile.country_flag || '',
+    city: authProfile.city || '',
+    nativeLanguages: [],
+    learningLanguages: [],
+    culturalInterests: [],
+    bio: authProfile.bio || '',
+    age: authProfile.age || 0,
+    gender: authProfile.gender,
+    profilePhoto: authProfile.avatar_url,
+    avatar_url: authProfile.avatar_url,
+    online: authProfile.online,
+    lastSeen: authProfile.last_seen,
+    joinedDate: authProfile.created_at,
+    languageGoals: authProfile.language_goals || [],
+    lookingFor: authProfile.looking_for || [],
+    teachingExperience: authProfile.teaching_experience || false,
+    countriesVisited: authProfile.countries_visited || []
+  } : null;
   const { sendFriendRequest, unsendFriendRequest, checkFriendStatus, checkAreFriends, friendRequestStatus, areFriends } = useFriendRequestStore();
   const { toggleReaction, loadReactionData, reactions, userReactions } = useProfileReactionStore();
   const { 
@@ -67,16 +99,18 @@ const ProfilePage = () => {
   } = usePostCommentStore();
 
   useEffect(() => {
-    // Check if viewing own profile - either no username or username matches user ID
-    setIsOwnProfile(!username || username === user?.id);
-  }, [username, user]);
+    // Check if viewing own profile - either no userId or userId matches user ID
+    const isOwn = !userId || userId === authUser?.id;
+    console.log('Profile page - userId:', userId, 'authUser.id:', authUser?.id, 'isOwnProfile:', isOwn);
+    setIsOwnProfile(isOwn);
+  }, [userId, authUser]);
 
   const [profileUser, setProfileUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    if (!user?.id) {
+    if (!authUser?.id) {
       console.log('No authenticated user found');
       setError('Please sign in to view profiles');
       setLoading(false);
@@ -88,12 +122,12 @@ const ProfilePage = () => {
       setError(null);
       
       try {
-        let targetUserId = user.id;
+        let targetUserId = authUser.id;
         
-        // If viewing someone else's profile, use the username as user ID
-        if (!isOwnProfile && username) {
-          console.log('Fetching profile for user ID:', username);
-          targetUserId = username;
+        // If viewing someone else's profile, use the userId as user ID
+        if (!isOwnProfile && userId) {
+          console.log('Fetching profile for user ID:', userId);
+          targetUserId = userId;
         }
         
         console.log('Fetching profile for user:', targetUserId);
@@ -131,16 +165,16 @@ const ProfilePage = () => {
     }
     
     fetchProfile();
-  }, [username, user, isOwnProfile]);
+  }, [userId, authUser, isOwnProfile]);
 
 
   const handleAvatarUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
-    if (!file || !user?.id) return;
+    if (!file || !authUser?.id) return;
 
     try {
       setIsUploading(true);
-      const avatarUrl = await uploadAvatar(file, user.id);
+      const avatarUrl = await uploadAvatar(file, authUser.id);
       await updateProfile({ avatar_url: avatarUrl });
       
       if (profileUser) {
@@ -176,12 +210,12 @@ const ProfilePage = () => {
   
   // Fetch all real-time data
   useEffect(() => {
-    if (!user?.id) return;
+    if (!authUser?.id) return;
     
     const fetchAllData = async () => {
       try {
         // Determine which user's data to fetch
-        const targetUserId = profileUser?.id || user.id;
+        const targetUserId = profileUser?.id || authUser.id;
         console.log('Fetching real-time data for user:', targetUserId);
         
         // Fetch posts from community_posts
@@ -300,14 +334,14 @@ const ProfilePage = () => {
     };
     
     fetchAllData();
-  }, [user?.id, profileUser]);
+  }, [authUser?.id, profileUser]);
 
   // Check friend status for other users
   useEffect(() => {
-    if (!isOwnProfile && profileUser?.id && user?.id) {
+    if (!isOwnProfile && profileUser?.id && authUser?.id) {
       checkFriendStatus(profileUser.id).then(setFriendStatus);
     }
-  }, [isOwnProfile, profileUser?.id, user?.id, checkFriendStatus]);
+  }, [isOwnProfile, profileUser?.id, authUser?.id, checkFriendStatus]);
 
   // Load reaction data when profile loads
   useEffect(() => {
@@ -450,12 +484,12 @@ const ProfilePage = () => {
         return;
       }
 
-      if (profileUser.id === user?.id) return;
+      if (profileUser.id === authUser?.id) return;
 
       const { data: existingParticipants } = await supabase
         .from('conversation_participants')
         .select('conversation_id')
-        .eq('user_id', user!.id);
+        .eq('user_id', authUser!.id);
 
       if (existingParticipants) {
         for (const participant of existingParticipants) {
@@ -514,7 +548,7 @@ const ProfilePage = () => {
   const languageProgress = [];
 
 
-  if (!user) return null;
+  if (!authUser) return null;
   
   if (loading) {
     return <ProfileLoadingSkeleton />;
@@ -542,569 +576,68 @@ const ProfilePage = () => {
   }
 
   return (
-    <div className="fixed inset-0 top-0 md:left-16 bg-gradient-subtle pb-16 md:pb-0 overflow-auto">
-      {/* Mobile Header */}
-      <div className="md:hidden bg-background/95 backdrop-blur-sm border-b border-border/50 sticky top-0 z-40 mx-3 sm:mx-4 rounded-lg mt-2">
-  <div className="flex items-center justify-between p-4">
-    <Button
-      variant="ghost"
-      size="sm"
-      onClick={() => navigate(-1)}
-      className="h-9 w-9 p-0"
-    >
-      <ArrowLeft className="h-5 w-5" />
-    </Button>
-    <h1 className="font-semibold text-lg">
-      {isOwnProfile ? 'My Profile' : profileUser?.name || 'Profile'}
-    </h1>
-    {isOwnProfile && (
-      <DropdownMenu>
-        <DropdownMenuTrigger asChild>
-          <Button variant="ghost" size="sm" className="h-9 w-9 p-0">
-            <MoreHorizontal className="h-5 w-5" />
-          </Button>
-        </DropdownMenuTrigger>
-        <DropdownMenuContent align="end" className="w-48">
-          <EditProfileModal 
-            trigger={
-              <DropdownMenuItem className="cursor-pointer">
-                <Settings className="mr-2 h-4 w-4" />
-                Edit Profile
-              </DropdownMenuItem>
-            }
-          />
-          <DropdownMenuItem>
-            <Share className="mr-2 h-4 w-4" />
-            Share Profile
-          </DropdownMenuItem>
-        </DropdownMenuContent>
-      </DropdownMenu>
-    )}
-      </div>
-    </div>
-
-      <div className="fixed inset-0 top-0 md:left-16 bg-gradient-subtle pb-16 md:pb-0 overflow-auto pt-2 sm:pt-4 md:pt-0">
+    <div className="min-h-screen md:ml-16 bg-gradient-subtle pb-16 md:pb-0">
       <div className="p-3 sm:p-4 md:p-8 max-w-6xl mx-auto">
-        {/* Back Button for Other Users' Profiles */}
-        {!isOwnProfile && (
-          <div className="mb-4">
-            <Button 
-              variant="ghost" 
-              size="sm"
-              onClick={() => navigate(-1)}
-              className="flex items-center gap-2"
-            >
-              <ArrowLeft className="h-4 w-4" />
-              Back
-            </Button>
-          </div>
-        )}
-
         {/* Profile Header */}
-        <Card className="mb-4 sm:mb-6">
-          <CardContent className="pt-6">
-            <div className="flex flex-col lg:flex-row lg:items-start gap-6">
-              <div className="flex flex-col items-center lg:items-start">
-                <div className="relative">
-                  <UserAvatar 
-                    profile={profileUser}
-                    user={isOwnProfile ? user : undefined}
-                    className="h-24 w-24 sm:h-32 sm:w-32 border-4 border-primary/20"
-                    fallbackClassName="text-xl sm:text-2xl"
-                  />
-                  {isOwnProfile && (
-                    <label htmlFor="avatar-upload">
-                      <Button 
-                        size="sm" 
-                        className="absolute -bottom-2 -right-2 rounded-full h-8 w-8 p-0"
-                        disabled={isUploading}
-                        asChild
-                      >
-                        <span>
-                          {isUploading ? (
-                            <Loader2 className="h-4 w-4 animate-spin" />
-                          ) : (
-                            <Camera className="h-4 w-4" />
-                          )}
-                        </span>
-                      </Button>
-                      <input
-                        id="avatar-upload"
-                        type="file"
-                        accept="image/*"
-                        className="hidden"
-                        onChange={handleAvatarUpload}
-                      />
-                    </label>
-                  )}
-                </div>
-                
-                {/* Status & Location */}
-                <div className="text-center lg:text-left mt-4 space-y-2">
-                  <div className="flex items-center justify-center lg:justify-start gap-2">
-                    <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>
-                    <span className="text-sm text-muted-foreground">Online</span>
-                  </div>
-                  <div className="flex items-center justify-center lg:justify-start gap-2 text-muted-foreground">
-                    <MapPin className="h-4 w-4" />
-                    <span className="text-sm">{profileUser.city || ''}, {profileUser.country || ''}</span>
-                  </div>
-                  <div className="flex items-center justify-center lg:justify-start gap-2 text-muted-foreground">
-                    <Calendar className="h-4 w-4" />
-                    <span className="text-sm">Joined {new Date(profileUser.joinedDate).toLocaleDateString()}</span>
-                  </div>
-                </div>
-              </div>
+        <ProfileHeader
+          profileUser={profileUser}
+          isOwnProfile={isOwnProfile}
+          user={isOwnProfile ? currentUser : undefined}
+          reactions={reactions}
+          userReactions={userReactions}
+          friendStatus={friendStatus}
+          isUploading={isUploading}
+          onAvatarUpload={handleAvatarUpload}
+          onHeartReaction={handleHeartReaction}
+          onFriendRequest={handleFriendRequest}
+          onStartConversation={startConversation}
+        />
 
-              {/* Profile Info */}
-              <div className="flex-1 lg:ml-8">
-                <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4 mb-4">
-                  <div>
-                    <h1 className="text-3xl font-bold text-foreground mb-2">
-                      {profileUser.name}
-                    </h1>
-                    <div className="flex items-center gap-3 flex-wrap">
-                      <CulturalBadge type="country" flag={profileUser.countryFlag || ''}>{profileUser.country || ''}</CulturalBadge>
-                      <Badge variant="outline" className="text-xs">
-                        Age {profileUser.age || ''}
-                      </Badge>
-                      {profileUser.gender && (
-                        <Badge variant="outline" className="text-xs flex items-center gap-1">
-                          <img 
-                            src={
-                              profileUser.gender === 'male' 
-                                ? 'https://bblrxervgwkphkctdghe.supabase.co/storage/v1/object/public/rest_pic/male.png'
-                                : profileUser.gender === 'female'
-                                ? 'https://bblrxervgwkphkctdghe.supabase.co/storage/v1/object/public/rest_pic/female.png'
-                                : 'https://bblrxervgwkphkctdghe.supabase.co/storage/v1/object/public/rest_pic/others.png'
-                            }
-                            alt={profileUser.gender}
-                            className="h-3 w-3"
-                          />
-                          {profileUser.gender === 'prefer-not-to-say' ? 'Other' : profileUser.gender.charAt(0).toUpperCase() + profileUser.gender.slice(1)}
-                        </Badge>
-                      )}
-                      {profileUser.teachingExperience && (
-                        <Badge className="bg-gradient-cultural text-white text-xs">
-                          <Award className="h-3 w-3 mr-1" />
-                          Teacher
-                        </Badge>
-                      )}
-                    </div>
-                  </div>
-                  
-                  {/* Action Buttons */}
-                  <div className="flex items-center gap-2">
-                    {isOwnProfile ? (
-                      <>
-                        <div className="flex items-center gap-2 px-3 py-2 bg-red-50 rounded-lg">
-                          <Heart className="h-4 w-4 text-red-500 fill-current" />
-                          <span className="text-sm font-medium text-red-700">
-                            {reactions[profileUser.id] || 0}
-                          </span>
-                        </div>
-                        <EditProfileModal />
-                      </>
-                    ) : (
-                      <>
-                        <Button 
-                          variant="ghost" 
-                          size="sm"
-                          onClick={handleHeartReaction}
-                          className={`flex items-center gap-1 ${userReactions[profileUser.id] ? 'text-red-500' : 'text-muted-foreground'}`}
-                        >
-                          <Heart className={`h-4 w-4 ${userReactions[profileUser.id] ? 'fill-current' : ''}`} />
-                          <span className="text-xs">{reactions[profileUser.id] || 0}</span>
-                        </Button>
-                        <Button className="bg-gradient-cultural text-white" onClick={startConversation}>
-                          <MessageCircle className="h-4 w-4 mr-2" />
-                          Message
-                        </Button>
-                        <Button 
-                          variant="outline" 
-                          onClick={handleFriendRequest}
-                          disabled={friendStatus === 'accepted'}
-                        >
-                          <Users className="h-4 w-4 mr-2" />
-                          {friendStatus === 'pending' ? 'Cancel Request' : 
-                           friendStatus === 'accepted' ? 'Friends' : 
-                           friendStatus === 'received' ? 'Accept Request' :
-                           'Add Friend'}
-                        </Button>
-                        <Button variant="ghost" size="sm">
-                          <Share className="h-4 w-4" />
-                        </Button>
-                        <DropdownMenu>
-                          <DropdownMenuTrigger asChild>
-                            <Button variant="ghost" size="sm">
-                              <MoreHorizontal className="h-4 w-4" />
-                            </Button>
-                          </DropdownMenuTrigger>
-                          <DropdownMenuContent align="end">
-                            <DropdownMenuItem onClick={handleReport} className="text-orange-600">
-                              <Flag className="h-4 w-4 mr-2" />
-                              Report User
-                            </DropdownMenuItem>
-                            <DropdownMenuItem onClick={handleBlock} className="text-red-600">
-                              <Ban className="h-4 w-4 mr-2" />
-                              Block User
-                            </DropdownMenuItem>
-                          </DropdownMenuContent>
-                        </DropdownMenu>
-                      </>
-                    )}
-                  </div>
-                </div>
+        {/* Quick Stats */}
+        <QuickStats
+          stats={stats}
+          isOwnProfile={isOwnProfile}
+        />
 
-                {/* Bio */}
-                <p className="text-muted-foreground leading-relaxed mb-4">
-                  {profileUser.bio}
-                </p>
+        {/* Bio Section */}
+        <ProfileBio
+          profileUser={profileUser}
+          culturalInterests={culturalInterests}
+          lookingFor={lookingFor}
+        />
 
-                {/* Languages */}
-                <div className="grid grid-cols-1 gap-4 mb-4">
-                  <div>
-                    <h3 className="font-semibold mb-2 flex items-center gap-2">
-                      <BookOpen className="h-4 w-4" />
-                      Native Languages
-                    </h3>
-                    <div className="flex flex-wrap gap-2">
-                      {nativeLanguages.map((lang: string, index: number) => (
-                        <CulturalBadge key={`native-${lang}-${index}`} type="language-native">
-                          {lang}
-                        </CulturalBadge>
-                      ))}
-                    </div>
-                  </div>
-                </div>
+        {/* Languages Section */}
+        <div id="languages-section">
+          <ProfileLanguages
+            profileUser={profileUser}
+            nativeLanguages={nativeLanguages}
+            learningLanguages={learningLanguages}
+          />
+        </div>
 
-                {/* Learning Languages */}
-                <div className="mb-4">
-                  <h3 className="font-semibold mb-2 flex items-center gap-2">
-                    <BookOpen className="h-4 w-4" />
-                    Learning Languages
-                  </h3>
-                  <div className="flex flex-wrap gap-2">
-                    {learningLanguages.map((lang: string, index: number) => (
-                      <CulturalBadge key={`learning-${lang}-${index}`} type="language-learning">
-                        {lang}
-                      </CulturalBadge>
-                    ))}
-                  </div>
-                </div>
+        {/* Friends Section */}
+        <div id="friends-section">
+          <ProfileFriends
+            profileUser={profileUser}
+            isOwnProfile={isOwnProfile}
+            friendsCount={friendsCount}
+          />
+        </div>
 
-                {/* Cultural Interests */}
-                <div className="mb-4">
-                  <h3 className="font-semibold mb-2 flex items-center gap-2">
-                    <Globe className="h-4 w-4" />
-                    Cultural Interests
-                  </h3>
-                  <div className="flex flex-wrap gap-2">
-                    {culturalInterests.map((interest: string, index: number) => (
-                      <Badge key={`${interest}-${index}`} variant="secondary" className="text-xs">
-                        #{interest}
-                      </Badge>
-                    ))}
-                  </div>
-                </div>
-
-                {/* Looking For */}
-                {lookingFor.length > 0 && (
-                  <div className="mb-4">
-                    <h3 className="font-semibold mb-2 flex items-center gap-2">
-                      <Users className="h-4 w-4" />
-                      Looking For
-                    </h3>
-                    <div className="flex flex-wrap gap-2">
-                      {lookingFor.map((item: string, index: number) => (
-                        <Badge key={`${item}-${index}`} className="bg-primary/10 text-primary border-primary/20">
-                          {item.replace(/-/g, ' ').replace(/\b\w/g, l => l.toUpperCase())}
-                        </Badge>
-                      ))}
-                    </div>
-                  </div>
-                )}
-
-                {/* Countries Visited */}
-                {profileUser.countriesVisited && profileUser.countriesVisited.length > 0 && (
-                  <div className="mb-4">
-                    <h3 className="font-semibold mb-2 flex items-center gap-2">
-                      <Plane className="h-4 w-4" />
-                      Countries Visited ({profileUser.countriesVisited.length})
-                    </h3>
-                    <div className="flex flex-wrap gap-2">
-                      {profileUser.countriesVisited.map((country: string, index: number) => (
-                        <Badge key={`${country}-${index}`} variant="outline" className="text-xs">
-                          {country}
-                        </Badge>
-                      ))}
-                    </div>
-                  </div>
-                )}
-
-                {/* Stats */}
-                <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
-                  <button 
-                    onClick={() => navigate('/friends')}
-                    className="text-center hover:bg-muted/50 rounded-lg p-2 transition-colors cursor-pointer"
-                  >
-                    <div className="text-2xl font-bold text-primary">{stats.friendsCount}</div>
-                    <div className="text-xs text-muted-foreground">Friends</div>
-                  </button>
-                  <div className="text-center">
-                    <div className="text-2xl font-bold text-primary">{stats.postsCount}</div>
-                    <div className="text-xs text-muted-foreground">Posts</div>
-                  </div>
-                  <div className="text-center">
-                    <div className="text-2xl font-bold text-primary">{stats.languagesLearning}</div>
-                    <div className="text-xs text-muted-foreground">Languages</div>
-                  </div>
-                  <div className="text-center">
-                    <div className="text-2xl font-bold text-primary">{stats.culturalExchanges}</div>
-                    <div className="text-xs text-muted-foreground">Exchanges</div>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-
-        {/* Profile Content Tabs */}
-        <Tabs defaultValue="posts" className="space-y-6">
-          <TabsList className="grid w-full grid-cols-4">
-            <TabsTrigger value="posts">Posts</TabsTrigger>
-            <TabsTrigger value="languages">Languages</TabsTrigger>
-            <TabsTrigger value="culture">Culture</TabsTrigger>
-            <TabsTrigger value="activity">Activity</TabsTrigger>
-          </TabsList>
-
-          {/* Posts Tab */}
-          <TabsContent value="posts" className="space-y-6">
-            {userPosts.length === 0 ? (
-              <div className="text-center py-8">
-                <MessageCircle className="h-12 w-12 mx-auto mb-4 text-muted-foreground" />
-                <h3 className="text-lg font-semibold mb-2">No posts yet</h3>
-                <p className="text-muted-foreground">
-                  {isOwnProfile 
-                    ? "Share your thoughts and experiences with the community!" 
-                    : `${profileUser.name} hasn't posted anything yet.`}
-                </p>
-                {isOwnProfile && (
-                  <Button 
-                    className="mt-4" 
-                    onClick={() => navigate('/community')}
-                  >
-                    Create Your First Post
-                  </Button>
-                )}
-              </div>
-            ) : (
-              userPosts.map((post: any) => (
-                <Card key={post.id}>
-                  <CardHeader className="pb-3">
-                    <div className="flex items-start justify-between">
-                      <div className="flex items-start space-x-3">
-                        <UserAvatar 
-                          profile={profileUser}
-                          user={isOwnProfile ? user : undefined}
-                          size="lg"
-                          className="flex-shrink-0"
-                        />
-                        <div>
-                          <h3 className="font-semibold">{profileUser.name}</h3>
-                          <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                            <span>{post.created_at ? new Date(post.created_at).toLocaleDateString() : ''}</span>
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-                  </CardHeader>
-                  <CardContent>
-                    <p className="text-foreground leading-relaxed mb-4">
-                      {post.content}
-                    </p>
-                    {post.image_url && (
-                      <div className="mb-4">
-                        <img 
-                          src={post.image_url} 
-                          alt="Post image" 
-                          className="rounded-lg max-w-full h-auto"
-                        />
-                      </div>
-                    )}
-                    <div className="flex items-center gap-1 sm:gap-2 text-muted-foreground border-t pt-2">
-                      <Button 
-                        variant="ghost" 
-                        size="sm" 
-                        className={`flex-1 ${userPostReactions[`${post.id}_like`] ? 'text-red-500' : ''}`}
-                        onClick={() => handleLikePost(post.id)}
-                      >
-                        <Heart className={`h-4 w-4 mr-1 ${userPostReactions[`${post.id}_like`] ? 'fill-current' : ''}`} />
-                        <span className="text-xs">
-                          {postReactions[`${post.id}_like`] || 0} Like{(postReactions[`${post.id}_like`] || 0) !== 1 ? 's' : ''}
-                        </span>
-                      </Button>
-                      <Button 
-                        variant="ghost" 
-                        size="sm" 
-                        className="flex-1"
-                        onClick={() => navigate(`/community/post/${post.id}`)}
-                      >
-                        <MessageCircle className="h-4 w-4 mr-1" />
-                        <span className="text-xs">
-                          {commentCounts[post.id] || 0} Comment{(commentCounts[post.id] || 0) !== 1 ? 's' : ''}
-                        </span>
-                      </Button>
-                      <Button variant="ghost" size="sm" className="flex-1">
-                        <Share className="h-4 w-4 mr-1" />
-                        <span className="text-xs">Share</span>
-                      </Button>
-                    </div>
-                  </CardContent>
-                </Card>
-              ))
-            )}
-          </TabsContent>
-
-          {/* Languages Tab */}
-          <TabsContent value="languages" className="space-y-6">
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <Languages className="h-5 w-5" />
-                  Language Learning Progress
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-6">
-                {(languageProgress || []).length === 0 ? (
-                  <div className="text-center text-muted-foreground">No language progress data.</div>
-                ) : (
-                  (languageProgress || []).map((lang: any) => (
-                    <div key={lang.language} className="space-y-2">
-                      <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-2">
-                          <span className="font-medium">{lang.language}</span>
-                          <Badge variant="outline" className="text-xs">
-                            {lang.level}
-                          </Badge>
-                        </div>
-                        <span className="text-sm text-muted-foreground">
-                          {lang.progress}%
-                        </span>
-                      </div>
-                      <Progress value={lang.progress} className="h-2" />
-                    </div>
-                  ))
-                )}
-                
-                {/* Language Goals */}
-                <Separator />
-                <div>
-                  <h3 className="font-semibold mb-3">Language Goals</h3>
-                  <div className="space-y-2">
-                    {(profileUser.languageGoals || []).length === 0 ? (
-                      <div className="text-center text-muted-foreground">No language goals set.</div>
-                    ) : (
-                      (profileUser.languageGoals || []).map((goal: string, index: number) => (
-                        <div key={index} className="flex items-center gap-2">
-                          <div className="w-2 h-2 bg-primary rounded-full"></div>
-                          <span className="text-sm">{goal}</span>
-                        </div>
-                      ))
-                    )}
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-          </TabsContent>
-
-          {/* Culture Tab */}
-          <TabsContent value="culture" className="space-y-6">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              {/* Cultural Background */}
-              <Card>
-                <CardHeader>
-                  <CardTitle className="flex items-center gap-2">
-                    <Globe className="h-5 w-5" />
-                    Cultural Background
-                  </CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                  <div className="flex items-center gap-3">
-                    <span className="text-2xl">{profileUser.countryFlag}</span>
-                    <div>
-                      <p className="font-medium">{profileUser.country}</p>
-                      <p className="text-sm text-muted-foreground">{profileUser.city}</p>
-                    </div>
-                  </div>
-                  
-                  <Separator />
-                  
-                  <div>
-                    <h4 className="font-medium mb-2 flex items-center gap-2">
-                      <Plane className="h-4 w-4" />
-                      Countries Visited
-                    </h4>
-                    <div className="flex flex-wrap gap-2">
-                      {(profileUser.countriesVisited || []).map((country: string, index: number) => (
-                        <Badge key={`travel-${country}-${index}`} variant="outline" className="text-xs">
-                          {country}
-                        </Badge>
-                      ))}
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-
-              {/* Cultural Interests */}
-              <Card>
-                <CardHeader>
-                  <CardTitle>Cultural Passions</CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                  <div className="grid grid-cols-2 gap-4">
-                    <div className="flex items-center gap-3 p-3 bg-accent/50 rounded-lg">
-                      <Music className="h-5 w-5 text-primary" />
-                      <span className="text-sm">Music</span>
-                    </div>
-                    <div className="flex items-center gap-3 p-3 bg-accent/50 rounded-lg">
-                      <Utensils className="h-5 w-5 text-primary" />
-                      <span className="text-sm">Food</span>
-                    </div>
-                    <div className="flex items-center gap-3 p-3 bg-accent/50 rounded-lg">
-                      <Globe className="h-5 w-5 text-primary" />
-                      <span className="text-sm">Travel</span>
-                    </div>
-                    <div className="flex items-center gap-3 p-3 bg-accent/50 rounded-lg">
-                      <Award className="h-5 w-5 text-primary" />
-                      <span className="text-sm">Festivals</span>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-            </div>
-          </TabsContent>
-
-          {/* Activity Tab */}
-          <TabsContent value="activity" className="space-y-6">
-            <Card>
-              <CardHeader>
-                <CardTitle>Recent Activity</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="text-center py-8">
-                  <BookOpen className="h-12 w-12 mx-auto mb-4 text-muted-foreground" />
-                  <h3 className="text-lg font-semibold mb-2">No Recent Activity</h3>
-                  <p className="text-muted-foreground">
-                    Activity tracking is not yet implemented. This will show real user activities in the future.
-                  </p>
-                </div>
-              </CardContent>
-            </Card>
-          </TabsContent>
-        </Tabs>
+        {/* Posts Section */}
+        <div id="posts-section">
+          <ProfilePosts
+            userPosts={userPosts}
+            profileUser={profileUser}
+            isOwnProfile={isOwnProfile}
+            user={isOwnProfile ? currentUser : undefined}
+            postReactions={postReactions}
+            userPostReactions={userPostReactions}
+            commentCounts={commentCounts}
+            onLikePost={handleLikePost}
+          />
+        </div>
       </div>
-    </div>
     </div>
   );
 };

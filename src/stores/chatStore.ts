@@ -895,3 +895,24 @@ try {
 } catch (e) {
   console.warn('Outbox init failed', e);
 }
+
+// Listen for Supabase reconnection events
+if (typeof window !== 'undefined') {
+  window.addEventListener('supabase-reconnected', () => {
+    console.log('🔄 Supabase reconnected, resubscribing to active channels...');
+    
+    const state = useChatStore.getState();
+    const { activeChannel } = state;
+    
+    // If there was an active channel, resubscribe
+    if (activeChannel && activeChannel.topic) {
+      const conversationId = activeChannel.topic.split(':')[1];
+      if (conversationId) {
+        console.log('🔄 Resubscribing to conversation:', conversationId);
+        setTimeout(() => {
+          state.subscribeToMessages(conversationId);
+        }, 1500);
+      }
+    }
+  });
+}

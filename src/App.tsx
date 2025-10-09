@@ -12,6 +12,8 @@ import Navigation from "./components/Navigation";
 import InstallPWA from "./components/InstallPWA";
 import PerformanceMonitor from "./components/PerformanceMonitor";
 import { useAppDataPreloader } from "./hooks/useDataPreloader";
+import { useGlobalSync } from "./hooks/useGlobalSync";
+import { globalDataManager } from "./lib/globalDataManager";
 
 // Lazy load pages for better performance
 const HomePage = React.lazy(() => import("./pages/HomePage"));
@@ -78,16 +80,116 @@ const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
   return <>{children}</>;
 };
 
+// Component that uses QueryClient - must be inside QueryClientProvider
+const AppContent = () => {
+  const { user } = useAuthStore();
+  
+  // Initialize global sync system (needs QueryClient)
+  useGlobalSync();
+  
+  // Setup global data manager when user is available
+  React.useEffect(() => {
+    if (user) {
+      globalDataManager.setupRealtimeSubscriptions(user.id);
+    }
+  }, [user]);
+  
+  // Preload app data for better performance
+  useAppDataPreloader();
+  return (
+    <div className="min-h-screen bg-background">
+      <Navigation />
+      <ConnectionStatus />
+      <PerformanceMonitor />
+      <InstallPWA />
+      <Suspense fallback={<PageLoadingFallback />}>
+        <Routes>
+          <Route path="/" element={<HomePage />} />
+          
+          {/* Authentication Routes */}
+          <Route path="/auth/signup" element={<SignUpPage />} />
+          <Route path="/auth/signin" element={<SignInPage />} />
+          
+          {/* Onboarding Routes */}
+          <Route path="/onboarding/welcome" element={<WelcomePage />} />
+          <Route path="/onboarding/cultural-profile" element={<CulturalProfilePage />} />
+          <Route path="/onboarding/learning-goals" element={<LearningGoalsPage />} />
+          
+          {/* Protected Routes */}
+          <Route path="/explore" element={
+            <ProtectedRoute>
+              <ExplorePage />
+            </ProtectedRoute>
+          } />
+          
+          <Route path="/chat" element={
+            <ProtectedRoute>
+              <ChatPage />
+            </ProtectedRoute>
+          } />
+          
+          <Route path="/chat/:conversationId" element={
+            <ProtectedRoute>
+              <ChatPage />
+            </ProtectedRoute>
+          } />
+          
+          <Route path="/community" element={
+            <ProtectedRoute>
+              <CommunityPage />
+            </ProtectedRoute>
+          } />
+          
+          <Route path="/post/:postId" element={
+            <ProtectedRoute>
+              <PostDetailPage />
+            </ProtectedRoute>
+          } />
+          
+          <Route path="/profile" element={
+            <ProtectedRoute>
+              <ProfilePage />
+            </ProtectedRoute>
+          } />
+          
+          <Route path="/profile/:userId" element={
+            <ProtectedRoute>
+              <ProfilePage />
+            </ProtectedRoute>
+          } />
+          
+          <Route path="/settings" element={
+            <ProtectedRoute>
+              <SettingsPage />
+            </ProtectedRoute>
+          } />
+          
+          <Route path="/friends" element={
+            <ProtectedRoute>
+              <FriendsPage />
+            </ProtectedRoute>
+          } />
+          
+          <Route path="/events" element={
+            <ProtectedRoute>
+              <EventsPage />
+            </ProtectedRoute>
+          } />
+          
+          {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
+          <Route path="*" element={<NotFound />} />
+        </Routes>
+      </Suspense>
+    </div>
+  );
+};
+
 const App = () => {
   const { initialize } = useAuthStore();
-  
   // Initialize auth on mount
   React.useEffect(() => {
     initialize();
   }, [initialize]);
-  
-  // Preload app data for better performance
-  useAppDataPreloader();
   
   return (
     <QueryClientProvider client={queryClient}>
@@ -101,86 +203,7 @@ const App = () => {
               v7_relativeSplatPath: true,
             }}
           >
-            <div className="min-h-screen bg-background">
-              <Navigation />
-              <ConnectionStatus />
-              <PerformanceMonitor />
-              <InstallPWA />
-              <Suspense fallback={<PageLoadingFallback />}>
-                <Routes>
-              <Route path="/" element={<HomePage />} />
-              
-              {/* Authentication Routes */}
-              <Route path="/auth/signup" element={<SignUpPage />} />
-              <Route path="/auth/signin" element={<SignInPage />} />
-              
-              {/* Onboarding Routes */}
-              <Route path="/onboarding/welcome" element={<WelcomePage />} />
-              <Route path="/onboarding/cultural-profile" element={<CulturalProfilePage />} />
-              <Route path="/onboarding/learning-goals" element={<LearningGoalsPage />} />
-              
-              {/* Protected Routes */}
-              <Route path="/dashboard" element={
-                <ProtectedRoute>
-                  <ExplorePage />
-                </ProtectedRoute>
-              } />
-              <Route path="/explore" element={
-                <ProtectedRoute>
-                  <ExplorePage />
-                </ProtectedRoute>
-              } />
-              <Route path="/chat" element={
-                <ProtectedRoute>
-                  <ChatPage />
-                </ProtectedRoute>
-              } />
-              <Route path="/chat/:conversationId" element={
-                <ProtectedRoute>
-                  <ChatPage />
-                </ProtectedRoute>
-              } />
-              <Route path="/community" element={
-                <ProtectedRoute>
-                  <CommunityPage />
-                </ProtectedRoute>
-              } />
-              <Route path="/community/post/:postId" element={
-                <ProtectedRoute>
-                  <PostDetailPage />
-                </ProtectedRoute>
-              } />
-              <Route path="/profile" element={
-                <ProtectedRoute>
-                  <ProfilePage />
-                </ProtectedRoute>
-              } />
-              <Route path="/profile/:username" element={
-                <ProtectedRoute>
-                  <ProfilePage />
-                </ProtectedRoute>
-              } />
-              <Route path="/settings" element={
-                <ProtectedRoute>
-                  <SettingsPage />
-                </ProtectedRoute>
-              } />
-              <Route path="/friends" element={
-                <ProtectedRoute>
-                  <FriendsPage />
-                </ProtectedRoute>
-              } />
-              <Route path="/events" element={
-                <ProtectedRoute>
-                  <EventsPage />
-                </ProtectedRoute>
-              } />
-              
-              {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
-              <Route path="*" element={<NotFound />} />
-              </Routes>
-              </Suspense>
-            </div>
+            <AppContent />
           </BrowserRouter>
         </ThemeProvider>
       </TooltipProvider>

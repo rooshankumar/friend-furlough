@@ -19,11 +19,13 @@ class ConnectionManager {
   }
 
   private setupEventListeners() {
+    // Network status events
     window.addEventListener('online', () => {
       console.log('🌐 Connection restored');
       this.isOnline = true;
       this.reconnectAttempts = 0;
       this.notifyListeners(true);
+      this.attemptReconnection();
     });
 
     window.addEventListener('offline', () => {
@@ -32,18 +34,51 @@ class ConnectionManager {
       this.notifyListeners(false);
     });
 
-    // Handle page visibility changes (app backgrounding)
+    // Page visibility changes (app backgrounding/foregrounding)
     document.addEventListener('visibilitychange', () => {
       if (document.visibilityState === 'visible') {
         console.log('👁️ App became visible, checking connection...');
-        this.checkConnection();
+        // Immediate check when app becomes visible
+        setTimeout(() => this.checkConnection(), 100);
+        // Force reconnection for real-time subscriptions
+        setTimeout(() => this.attemptReconnection(), 500);
+      } else {
+        console.log('👁️ App went to background');
       }
     });
 
-    // Handle focus events
+    // Window focus events (tab switching)
     window.addEventListener('focus', () => {
       console.log('🎯 App gained focus, checking connection...');
-      this.checkConnection();
+      setTimeout(() => this.checkConnection(), 100);
+      setTimeout(() => this.attemptReconnection(), 300);
+    });
+
+    window.addEventListener('blur', () => {
+      console.log('🎯 App lost focus');
+    });
+
+    // Mobile-specific events
+    if ('serviceWorker' in navigator) {
+      // Handle service worker messages (for background sync)
+      navigator.serviceWorker.addEventListener('message', (event) => {
+        if (event.data?.type === 'BACKGROUND_SYNC') {
+          console.log('📱 Background sync triggered');
+          this.checkConnection();
+        }
+      });
+    }
+
+    // Handle page load/reload
+    window.addEventListener('load', () => {
+      console.log('🔄 Page loaded, initializing connection...');
+      setTimeout(() => this.checkConnection(), 1000);
+    });
+
+    // Handle before page unload
+    window.addEventListener('beforeunload', () => {
+      console.log('👋 Page unloading, cleaning up...');
+      this.destroy();
     });
   }
 
@@ -202,18 +237,72 @@ class ConnectionManager {
   private attemptReconnection() {
     // Force refresh Supabase connection
     try {
-      // Refresh auth session
-      supabase.auth.refreshSession();
+      console.log('🔄 Attempting full reconnection...');
       
-      // Re-establish realtime connections
-      supabase.realtime.disconnect();
-      setTimeout(() => {
-        supabase.realtime.connect();
-      }, 1000);
+      // 1. Refresh auth session
+      supabase.auth.refreshSession().then(({ error }) => {
+        if (error) {
+          console.warn('Auth refresh failed:', error);
+        } else {
+          console.log('✅ Auth session refreshed');
+        }
+      });
       
-      console.log('🔄 Supabase connections refreshed');
+      // 2. Re-establish realtime connections more aggressively
+      const reconnectRealtime = () => {
+        try {
+          // Disconnect all existing channels
+          supabase.realtime.disconnect();
+          
+          // Wait a bit then reconnect
+          setTimeout(() => {
+            supabase.realtime.connect();
+            console.log('✅ Realtime reconnected');
+            
+            // Trigger a custom event for components to resubscribe
+            window.dispatchEvent(new CustomEvent('supabase-reconnected'));
+          }, 1000);
+        } catch (error) {
+          console.warn('Realtime reconnection failed:', error);
+          // Retry after delay
+          setTimeout(reconnectRealtime, 2000);
+        }
+      };
+      
+      reconnectRealtime();
+      
+      // 3. Clear any stale data/caches
+      this.clearStaleData();
+      
     } catch (error) {
       console.warn('Failed to refresh Supabase connections:', error);
+    }
+  }
+
+  private clearStaleData() {
+    try {
+      // Clear any cached data that might be stale
+      if (typeof window !== 'undefined') {
+        // Clear localStorage items that might be stale
+        const keysToCheck = ['supabase.auth.token', 'offline_messages'];
+        keysToCheck.forEach(key => {
+          const item = localStorage.getItem(key);
+          if (item) {
+            try {
+              const parsed = JSON.parse(item);
+              // Check if data is older than 1 hour
+              if (parsed.timestamp && Date.now() - parsed.timestamp > 3600000) {
+                localStorage.removeItem(key);
+                console.log(`🧹 Cleared stale data: ${key}`);
+              }
+            } catch {
+              // Not JSON, skip
+            }
+          }
+        });
+      }
+    } catch (error) {
+      console.warn('Failed to clear stale data:', error);
     }
   }
 

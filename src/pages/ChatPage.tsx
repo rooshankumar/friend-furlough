@@ -132,41 +132,104 @@ const ChatPage = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages[conversationId || '']]);
 
+  const processOfflineMessages = useCallback(async () => {
+    const queuedMessages = JSON.parse(localStorage.getItem('offline_messages') || '[]');
+    
+    if (queuedMessages.length === 0) return;
+    
+    console.log('📤 Processing offline messages:', queuedMessages.length);
+    
+    for (const queuedMsg of queuedMessages) {
+      try {
+        await sendMessage(queuedMsg.conversationId, queuedMsg.userId, queuedMsg.content);
+        console.log('✅ Offline message sent:', queuedMsg.content.substring(0, 30));
+      } catch (error) {
+        console.error('❌ Failed to send offline message:', error);
+        // Keep failed messages in queue for next attempt
+        continue;
+      }
+    }
+    
+    // Clear the queue after processing
+    localStorage.removeItem('offline_messages');
+    
+    toast({
+      title: "Offline messages sent",
+      description: `${queuedMessages.length} queued messages delivered`,
+    });
+    
+    // Reload messages to show the sent ones
+    if (conversationId) {
+      setTimeout(() => loadMessages(conversationId), 200);
+    }
+  }, [sendMessage, conversationId, loadMessages, toast]);
+
   // Process offline queue when connection is restored
   useEffect(() => {
     if (isOnline) {
       processOfflineQueue();
+      // Also process our simple offline message queue
+      processOfflineMessages();
     }
-  }, [isOnline, processOfflineQueue]);
+  }, [isOnline, processOfflineQueue, processOfflineMessages]);
 
   const handleSendMessage = useCallback(async () => {
     if (!newMessage.trim() || !conversationId || !user) return;
 
     const msg = newMessage.trim();
-    // Clear input immediately to avoid duplicate submissions on double taps/offline
     setNewMessage('');
-
     logEvent('message_send_attempt', { messageLength: msg.length });
 
     try {
       await sendMessage(conversationId, user.id, msg);
       logEvent('message_send_success');
+      
+      // Force reload messages to ensure UI updates
+      setTimeout(() => {
+        loadMessages(conversationId);
+      }, 100);
     } catch (error: any) {
+      console.error('❌ Message send failed:', error);
       logEvent('message_send_error', { error: error.message });
-      if (!isOnline) {
+      
+      // Check if it's a network error (offline)
+      const isNetworkError = !navigator.onLine || 
+        error.message?.includes('fetch') || 
+        error.message?.includes('network') ||
+        error.message?.includes('Failed to fetch');
+      
+      if (isNetworkError) {
+        // Queue message for when connection returns
+        const queuedMessage = {
+          conversationId,
+          userId: user.id,
+          content: msg,
+          timestamp: Date.now()
+        };
+        
+        // Store in localStorage for persistence
+        const existingQueue = JSON.parse(localStorage.getItem('offline_messages') || '[]');
+        existingQueue.push(queuedMessage);
+        localStorage.setItem('offline_messages', JSON.stringify(existingQueue));
+        
         toast({
           title: "Message queued",
-          description: "We'll send it automatically when you're back online.",
+          description: "Will send when connection is restored",
         });
+        
+        console.log('📦 Message queued for offline sending:', queuedMessage);
       } else {
+        // Restore message to input on failure
+        setNewMessage(msg);
+        
         toast({
           title: "Failed to send message",
-          description: "Please try again",
+          description: error.message || "Please try again",
           variant: "destructive"
         });
       }
     }
-  }, [newMessage, conversationId, user, isOnline, sendMessage, toast, logEvent]);
+  }, [newMessage, conversationId, user, sendMessage, toast, logEvent, loadMessages]);
 
   const handleTyping = useCallback(() => {
     if (!conversationId || !user || !profile) return;
@@ -214,6 +277,23 @@ const ChatPage = () => {
     
     if (!file || !conversationId || !user) {
       console.error('❌ Missing requirements:', { file: !!file, conversationId, user: !!user });
+      toast({
+        title: "Upload failed",
+        description: "Missing file, conversation, or user information",
+        variant: "destructive"
+      });
+      e.target.value = '';
+      return;
+    }
+
+    // Check file size (20MB limit)
+    if (file.size > 20 * 1024 * 1024) {
+      toast({
+        title: "File too large",
+        description: "Please select a file smaller than 20MB",
+        variant: "destructive"
+      });
+      e.target.value = '';
       return;
     }
 
@@ -236,13 +316,45 @@ const ChatPage = () => {
       await sendAttachment(conversationId, user.id, file);
       console.log('✅ Attachment upload complete');
       logEvent('attachment_upload_success', { fileName: file.name });
+      
+      // Simple success indicator - just a brief green tick
+      const successDiv = document.createElement('div');
+      successDiv.innerHTML = '✅';
+      successDiv.style.cssText = 'position:fixed;top:20px;right:20px;font-size:24px;z-index:9999;animation:fadeInOut 2s forwards';
+      document.body.appendChild(successDiv);
+      setTimeout(() => document.body.removeChild(successDiv), 2000);
+      
+      // Add CSS animation if not exists
+      if (!document.getElementById('fadeInOutStyle')) {
+        const style = document.createElement('style');
+        style.id = 'fadeInOutStyle';
+        style.textContent = '@keyframes fadeInOut { 0% { opacity: 0; transform: scale(0.5); } 20% { opacity: 1; transform: scale(1); } 80% { opacity: 1; } 100% { opacity: 0; } }';
+        document.head.appendChild(style);
+      }
     } catch (error: any) {
       console.error('❌ Attachment upload error:', error);
-      console.error('Error stack:', error.stack);
+      console.error('Error details:', {
+        message: error.message,
+        stack: error.stack,
+        name: error.name,
+        cause: error.cause
+      });
       logEvent('attachment_upload_error', { error: error.message, fileName: file.name });
+      
+      let errorMessage = "Please try again";
+      if (error.message?.includes('bucket')) {
+        errorMessage = "Storage bucket not configured. Please contact support.";
+      } else if (error.message?.includes('policy')) {
+        errorMessage = "Permission denied. Please check your account permissions.";
+      } else if (error.message?.includes('size')) {
+        errorMessage = "File is too large. Please select a smaller file.";
+      } else if (error.message?.includes('type')) {
+        errorMessage = "File type not supported.";
+      }
+      
       toast({
         title: "Upload failed",
-        description: error.message || "Please try again",
+        description: `${error.message || errorMessage}`,
         variant: "destructive"
       });
     } finally {
@@ -364,6 +476,13 @@ const ChatPage = () => {
           
           try {
             await sendVoiceMessage(conversationId, user.id, audioBlob);
+            
+            // Simple success indicator - just a brief green tick with mic icon
+            const successDiv = document.createElement('div');
+            successDiv.innerHTML = '🎤✅';
+            successDiv.style.cssText = 'position:fixed;top:20px;right:20px;font-size:20px;z-index:9999;animation:fadeInOut 2s forwards';
+            document.body.appendChild(successDiv);
+            setTimeout(() => document.body.removeChild(successDiv), 2000);
           } catch (error: any) {
             console.error('Voice message send error:', error);
             toast({
@@ -770,6 +889,7 @@ const ChatPage = () => {
           </div>
         </div>
       </div>
+      
     </div>
   );
 };

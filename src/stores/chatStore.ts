@@ -48,7 +48,7 @@ interface ChatState {
   // Actions
   loadConversations: (userId: string) => Promise<void>;
   loadMessages: (conversationId: string, limit?: number) => Promise<void>;
-  sendMessage: (conversationId: string, senderId: string, content: string, mediaUrl?: string, clientIdOverride?: string) => Promise<void>;
+  sendMessage: (conversationId: string, senderId: string, content: string, mediaUrl?: string, clientIdOverride?: string) => Promise<any>;
   sendAttachment: (conversationId: string, senderId: string, file: File) => Promise<void>;
   sendVoiceMessage: (conversationId: string, senderId: string, audioBlob: Blob) => Promise<void>;
   markMessageAsRead: (messageId: string, userId: string) => Promise<void>;
@@ -193,25 +193,17 @@ export const useChatStore = create<ChatState>((set, get) => ({
   
   loadMessages: async (conversationId: string, limit: number = 50) => {
     console.log('📨 Loading messages for conversation:', conversationId);
+    
+    // Validate conversation ID
+    if (!conversationId || conversationId === 'undefined') {
+      console.error('❌ Invalid conversation ID:', conversationId);
+      return;
+    }
+    
     try {
-      // Hydrate from cache first for instant UI
-      try {
-        await messagesCache.init();
-        const cached = await messagesCache.getRecentMessages(conversationId, limit);
-        if (cached && cached.length > 0) {
-          const cachedInOrder = [...cached];
-          set(state => ({
-            messages: {
-              ...state.messages,
-              [conversationId]: cachedInOrder
-            }
-          }));
-          console.log('💾 Hydrated from cache:', cachedInOrder.length);
-        }
-      } catch (e) {
-        console.warn('Messages cache hydrate failed', e);
-      }
-
+      // Skip cache for now to ensure fresh data
+      console.log('🔍 Loading messages from database...');
+      
       // Load recent messages with pagination
       const { data, error } = await supabase
         .from('messages')
@@ -220,11 +212,23 @@ export const useChatStore = create<ChatState>((set, get) => ({
         .order('created_at', { ascending: false })
         .limit(limit);
       
-      console.log('📊 Messages result:', { count: data?.length, error });
+      console.log('📊 Messages query result:', { 
+        conversationId, 
+        count: data?.length, 
+        error: error?.message,
+        firstMessage: data?.[0]?.content?.substring(0, 50)
+      });
       
       if (error) {
         console.error('❌ Error loading messages:', error);
-        throw error;
+        // Don't throw, just set empty array
+        set(state => ({
+          messages: {
+            ...state.messages,
+            [conversationId]: []
+          }
+        }));
+        return;
       }
       
       // Reverse to show oldest first (chat order)
@@ -236,192 +240,68 @@ export const useChatStore = create<ChatState>((set, get) => ({
           [conversationId]: messagesInOrder
         }
       }));
-      // Persist to cache
-      try {
-        await messagesCache.init();
-        await messagesCache.saveMessages(messagesInOrder as any);
-      } catch (e) {
-        console.warn('Messages cache save failed', e);
-      }
       
-      console.log('✅ Messages loaded successfully:', messagesInOrder.length);
+      console.log('✅ Messages loaded successfully:', {
+        conversationId,
+        count: messagesInOrder.length,
+        messages: messagesInOrder.map(m => ({ id: m.id, content: m.content?.substring(0, 30) }))
+      });
+      
     } catch (error) {
       console.error('❌ Error loading messages:', error);
+      // Set empty array on error
+      set(state => ({
+        messages: {
+          ...state.messages,
+          [conversationId]: []
+        }
+      }));
     }
   },
   
   sendMessage: async (conversationId: string, senderId: string, content: string, mediaUrl?: string, clientIdOverride?: string) => {
-    console.log('📤 Sending message:', { conversationId, senderId, content: content.substring(0, 50), mediaUrl });
+    console.log('📤 ChatStore sendMessage called:', { conversationId, senderId, content: content.substring(0, 50), mediaUrl });
     
-    // Generate temporary ID for optimistic update
-    let tempId = `temp_${Date.now()}_${Math.random()}`;
-    const clientId = clientIdOverride || generateClientId();
+    // Validate inputs
+    if (!conversationId || !senderId || !content.trim()) {
+      console.error('❌ Invalid message data:', { conversationId, senderId, hasContent: !!content.trim() });
+      throw new Error('Missing required message data');
+    }
+    
     const messageType = mediaUrl ? 
       (mediaUrl.includes('.jpg') || mediaUrl.includes('.jpeg') || mediaUrl.includes('.png') || mediaUrl.includes('.gif') || mediaUrl.includes('.webp') ? 'image' : 
        mediaUrl.includes('.webm') || mediaUrl.includes('.mp3') || mediaUrl.includes('.wav') ? 'voice' : 'file') : 'text';
     
-    // Create optimistic message
-    const createdAt = new Date().toISOString();
-    const optimisticMessage: DbMessage = {
-      id: tempId,
-      conversation_id: conversationId,
-      sender_id: senderId,
-      content: content || (mediaUrl ? 'Attachment' : ''),
-      created_at: createdAt,
-      type: messageType,
-      media_url: mediaUrl,
-      status: 'sending',
-      tempId,
-      client_id: clientId
-    };
-    
-    // Avoid duplicate optimistic messages for the same client_id
-    const existing = (get().messages[conversationId] || []).find(m => m.client_id === clientId);
-    if (existing) {
-      tempId = existing.tempId || existing.id;
-      // Ensure existing message is marked as sending
-      set(state => ({
-        messages: {
-          ...state.messages,
-          [conversationId]: (state.messages[conversationId] || []).map(m =>
-            m.client_id === clientId ? { ...m, status: 'sending' as MessageStatus } : m
-          )
-        }
-      }));
-    } else {
-      // Immediately add to UI (optimistic update)
-      set(state => ({
-        messages: {
-          ...state.messages,
-          [conversationId]: [...(state.messages[conversationId] || []), optimisticMessage]
-        }
-      }));
-      // Save optimistic to cache
-      try { await messagesCache.init(); await messagesCache.saveMessage(optimisticMessage as any); } catch {}
-    }
-    
     try {
-      // Try to insert with client_id (idempotency). Fallback if column doesn't exist.
-      let data: any = null;
-      let error: any = null;
-      const basePayload: any = {
-        conversation_id: conversationId,
-        sender_id: senderId,
-        content: content || (mediaUrl ? 'Attachment' : ''),
-        type: messageType,
-        media_url: mediaUrl,
-        client_id: clientId
-      };
-      try {
-        const res = await supabase
-          .from('messages')
-          .insert(basePayload)
-          .select()
-          .single();
-        data = res.data;
-        error = res.error;
-      } catch (e: any) {
-        error = e;
-      }
-      // If server doesn't have client_id column, retry without it
-      if (error && (error.code === '42703' || (error.message && /column .*client_id.* does not exist/i.test(error.message)))) {
-        console.warn('client_id column missing on server, retrying without it');
-        const fallbackRes = await supabase
-          .from('messages')
-          .insert({
-            conversation_id: conversationId,
-            sender_id: senderId,
-            content: content || (mediaUrl ? 'Attachment' : ''),
-            type: messageType,
-            media_url: mediaUrl
-          })
-          .select()
-          .single();
-        data = fallbackRes.data;
-        error = fallbackRes.error;
-      }
+      // Direct database insertion without optimistic updates
+      const { data, error } = await supabase
+        .from('messages')
+        .insert({
+          conversation_id: conversationId,
+          sender_id: senderId,
+          content: content || (mediaUrl ? 'Attachment' : ''),
+          type: messageType,
+          media_url: mediaUrl
+        })
+        .select()
+        .single();
       
-      console.log('📊 Send result:', { data, error });
+      console.log('📊 Database insert result:', { data, error });
       
       if (error) {
-        console.error('❌ Error sending message:', error);
-        // Handle duplicate unique constraint -> fetch existing by client_id
-        const msgText = (error.message || '').toLowerCase();
-        const isConflict = error.status === 409 || msgText.includes('duplicate key') || msgText.includes('unique constraint');
-        if (isConflict && clientId) {
-          try {
-            const existingRes = await supabase
-              .from('messages')
-              .select('*')
-              .eq('conversation_id', conversationId)
-              .eq('sender_id', senderId)
-              .eq('client_id', clientId)
-              .single();
-            if (existingRes.data) {
-              set(state => ({
-                messages: {
-                  ...state.messages,
-                  [conversationId]: (state.messages[conversationId] || []).map(m =>
-                    m.tempId === tempId || m.client_id === clientId
-                      ? { ...(existingRes.data as any), status: 'sent' as MessageStatus }
-                      : m
-                  )
-                }
-              }));
-              try { await outbox.init(); await outbox.delete(clientId); } catch {}
-              return;
-            }
-          } catch (selErr) {
-            console.warn('Conflict fetch by client_id failed', selErr);
-          }
-        }
-
-        // Persist to outbox if connection issue
-        if (!navigator.onLine || !connectionManager.connected) {
-          const item: OutboxItem = {
-            client_id: clientId,
-            tempId,
-            conversation_id: conversationId,
-            sender_id: senderId,
-            content: content || (mediaUrl ? 'Attachment' : ''),
-            type: messageType,
-            media_url: mediaUrl,
-            created_at: createdAt
-          };
-          try { await outbox.init(); await outbox.put(item); } catch (e) { console.warn('Outbox persist failed', e); }
-        }
-        // Update status to failed only if online (true failure). If offline, keep as sending.
-        if (navigator.onLine && connectionManager.connected) {
-          get().updateMessageStatus(tempId, 'failed');
-        }
-        throw error;
+        console.error('❌ Database insert failed:', error);
+        throw new Error(`Failed to send message: ${error.message}`);
       }
       
-      // Replace optimistic message with real one
-      set(state => ({
-        messages: {
-          ...state.messages,
-          [conversationId]: state.messages[conversationId].map(msg => 
-            msg.tempId === tempId ? { ...data, status: 'sent' as MessageStatus } : msg
-          )
-        }
-      }));
-      // Remove from outbox if it was persisted
-      try { await outbox.init(); await outbox.delete(clientId); } catch {}
-      // Save real message to cache
-      try { await messagesCache.init(); await messagesCache.saveMessage({ ...(data as any), status: 'sent' } as any); } catch {}
-      
-      console.log('✅ Message sent successfully');
-    } catch (error) {
-      console.error('❌ Error sending message:', error);
-      
-      // Check if offline - add to queue (in-memory)
-      if (!navigator.onLine || !connectionManager.connected) {
-        set(state => ({
-          offlineQueue: [...state.offlineQueue, optimisticMessage]
-        }));
+      if (!data) {
+        console.error('❌ No data returned from insert');
+        throw new Error('Failed to send message: No data returned');
       }
       
+      console.log('✅ Message sent successfully to database:', data.id);
+      return data;
+    } catch (error: any) {
+      console.error('❌ SendMessage error:', error);
       throw error;
     }
   },

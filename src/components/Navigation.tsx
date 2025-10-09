@@ -174,6 +174,20 @@ const Navigation = () => {
                 </span>
               </Link>
             </Button>
+
+            <Button
+              variant={isActive("/settings") ? "cultural" : "ghost"}
+              size="icon"
+              asChild
+              className="relative group"
+            >
+              <Link to="/settings">
+                <Settings className="h-5 w-5" />
+                <span className="absolute left-full ml-2 px-2 py-1 bg-popover text-popover-foreground text-xs rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap pointer-events-none">
+                  Settings
+                </span>
+              </Link>
+            </Button>
           </div>
 
           {/* Notifications Dropdown */}

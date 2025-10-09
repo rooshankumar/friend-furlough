@@ -163,7 +163,7 @@ const CommunityPage = () => {
     }
 
     try {
-      console.log('Deleting post:', postId, 'User ID:', user?.id);
+      console.log('Deleting post:', postId);
       
       const { data, error } = await supabase
         .from('community_posts' as any)

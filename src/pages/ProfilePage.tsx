@@ -39,6 +39,8 @@ import { useProfileReactionStore } from '@/stores/profileReactionStore';
 import { usePostReactionStore } from '@/stores/postReactionStore';
 import { usePostCommentStore } from '@/stores/postCommentStore';
 import { CulturalBadge } from '@/components/CulturalBadge';
+import { EditProfileModal } from '@/components/EditProfileModal';
+import { ProfileLoadingSkeleton, ErrorState } from '@/components/LoadingStates';
 import { uploadAvatar } from '@/lib/storage';
 import { supabase } from '@/integrations/supabase/client';
 
@@ -512,60 +514,37 @@ const ProfilePage = () => {
   const languageProgress = [];
 
 
-  if (!user) return (
-    <div className="p-8 text-center">
-      <p className="text-red-500">Please sign in to view profiles</p>
-    </div>
-  );
-
-  if (loading) return (
-    <div className="p-8 text-center">
-      <p>Loading profile...</p>
-      <p className="text-sm text-gray-500">User ID: {user?.id}</p>
-    </div>
-  );
+  if (!user) return null;
   
-  if (error) return (
-    <div className="p-8 text-center">
-      <p className="text-red-500">{error}</p>
-      <p className="text-sm text-gray-500">User ID: {user?.id}</p>
-      <pre className="mt-4 text-left text-xs text-gray-600 bg-gray-100 p-4 rounded">
-        Debug info:
-        {JSON.stringify({ user, profileUser }, null, 2)}
-      </pre>
-      <button 
-        className="mt-4 text-blue-500 text-sm"
-        onClick={() => window.location.reload()}
-      >
-        Retry loading profile
-      </button>
-    </div>
-  );
+  if (loading) {
+    return <ProfileLoadingSkeleton />;
+  }
   
-  if (!profileUser) return (
-    <div className="p-8 text-center">
-      <p>Profile not found</p>
-      <p className="text-sm text-gray-500">User ID: {user?.id}</p>
-      <button 
-        className="mt-4 text-blue-500 text-sm"
-        onClick={() => window.location.reload()}
-      >
-        Retry loading profile
-      </button>
-    </div>
-  );
-
-  // Debug: show raw profile data if something is wrong
-  if (profileUser && typeof profileUser === 'object' && !profileUser.name) {
+  if (error) {
     return (
-      <div className="p-8 text-center text-yellow-600">
-        Profile loaded but missing expected fields.<br />
-      </div>
+      <ErrorState 
+        title="Failed to load profile"
+        description={error}
+        onRetry={() => window.location.reload()}
+      />
+    );
+  }
+  
+  if (!profileUser) {
+    return (
+      <ErrorState 
+        title="Profile not found"
+        description="The profile you're looking for doesn't exist or has been removed."
+        onRetry={() => navigate('/explore')}
+        showRetry={true}
+      />
     );
   }
 
-  {/* Mobile Header */}
-<div className="md:hidden bg-background/95 backdrop-blur-sm border-b border-border/50 sticky top-0 z-40 mx-3 sm:mx-4 rounded-lg mt-2">
+  return (
+    <div className="fixed inset-0 top-0 md:left-16 bg-gradient-subtle pb-16 md:pb-0 overflow-auto">
+      {/* Mobile Header */}
+      <div className="md:hidden bg-background/95 backdrop-blur-sm border-b border-border/50 sticky top-0 z-40 mx-3 sm:mx-4 rounded-lg mt-2">
   <div className="flex items-center justify-between p-4">
     <Button
       variant="ghost"
@@ -586,10 +565,14 @@ const ProfilePage = () => {
           </Button>
         </DropdownMenuTrigger>
         <DropdownMenuContent align="end" className="w-48">
-          <DropdownMenuItem onClick={() => navigate('/settings')}>
-            <Settings className="mr-2 h-4 w-4" />
-            Settings
-          </DropdownMenuItem>
+          <EditProfileModal 
+            trigger={
+              <DropdownMenuItem className="cursor-pointer">
+                <Settings className="mr-2 h-4 w-4" />
+                Edit Profile
+              </DropdownMenuItem>
+            }
+          />
           <DropdownMenuItem>
             <Share className="mr-2 h-4 w-4" />
             Share Profile
@@ -597,10 +580,10 @@ const ProfilePage = () => {
         </DropdownMenuContent>
       </DropdownMenu>
     )}
-  </div>
-</div>
-  return (
-    <div className="fixed inset-0 top-0 md:left-16 bg-gradient-subtle pb-16 md:pb-0 overflow-auto pt-2 sm:pt-4 md:pt-0">
+      </div>
+    </div>
+
+      <div className="fixed inset-0 top-0 md:left-16 bg-gradient-subtle pb-16 md:pb-0 overflow-auto pt-2 sm:pt-4 md:pt-0">
       <div className="p-3 sm:p-4 md:p-8 max-w-6xl mx-auto">
         {/* Back Button for Other Users' Profiles */}
         {!isOwnProfile && (
@@ -717,13 +700,10 @@ const ProfilePage = () => {
                         <div className="flex items-center gap-2 px-3 py-2 bg-red-50 rounded-lg">
                           <Heart className="h-4 w-4 text-red-500 fill-current" />
                           <span className="text-sm font-medium text-red-700">
-                            {reactions[profileUser.id] || 0} Hearts
+                            {reactions[profileUser.id] || 0}
                           </span>
                         </div>
-                        <Button variant="outline" onClick={() => navigate('/settings')}>
-                          <Settings className="h-4 w-4 mr-2" />
-                          Settings
-                        </Button>
+                        <EditProfileModal />
                       </>
                     ) : (
                       <>
@@ -864,10 +844,13 @@ const ProfilePage = () => {
 
                 {/* Stats */}
                 <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
-                  <div className="text-center">
+                  <button 
+                    onClick={() => navigate('/friends')}
+                    className="text-center hover:bg-muted/50 rounded-lg p-2 transition-colors cursor-pointer"
+                  >
                     <div className="text-2xl font-bold text-primary">{stats.friendsCount}</div>
                     <div className="text-xs text-muted-foreground">Friends</div>
-                  </div>
+                  </button>
                   <div className="text-center">
                     <div className="text-2xl font-bold text-primary">{stats.postsCount}</div>
                     <div className="text-xs text-muted-foreground">Posts</div>
@@ -1121,6 +1104,7 @@ const ProfilePage = () => {
           </TabsContent>
         </Tabs>
       </div>
+    </div>
     </div>
   );
 };

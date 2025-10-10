@@ -337,7 +337,9 @@ const ChatPage = () => {
       fileSize: file?.size,
       fileType: file?.type,
       conversationId,
-      userId: user?.id
+      userId: user?.id,
+      isMobile: /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent),
+      isPWA: window.matchMedia('(display-mode: standalone)').matches
     });
     
     if (!file || !conversationId || !user) {
@@ -395,7 +397,15 @@ const ChatPage = () => {
         message: error.message,
         stack: error.stack,
         name: error.name,
-        cause: error.cause
+        cause: error.cause,
+        isMobile: /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent),
+        isPWA: window.matchMedia('(display-mode: standalone)').matches,
+        fileInfo: file ? {
+          name: file.name,
+          size: file.size,
+          type: file.type,
+          lastModified: file.lastModified
+        } : null
       });
       
       let errorMessage = "Please try again";
@@ -407,21 +417,23 @@ const ChatPage = () => {
         errorMessage = "File is too large. Please select a smaller file.";
       } else if (error.message?.includes('type')) {
         errorMessage = "File type not supported.";
+      } else if (error.message?.includes('network') || error.message?.includes('fetch')) {
+        errorMessage = "Network error. Check your connection and try again.";
+      } else {
+        errorMessage = `Upload failed: ${error.message}`;
       }
       
       toast({
         title: "Upload failed",
-        description: `${error.message || errorMessage}`,
+        description: errorMessage,
         variant: "destructive"
       });
     } finally {
-      // Reset the input
       e.target.value = '';
     }
   };
 
   const handleVoiceRecording = async () => {
-    if (!conversationId || !user) return;
     // P0: voice messages require connection (no resumable upload yet)
     if (!isOnline) {
       toast({
@@ -809,7 +821,7 @@ const ChatPage = () => {
             </div>
             
             {/* Messages - Scrollable over fixed wallpaper */}
-            <div className="absolute inset-0 overflow-y-auto p-2 md:p-4 overscroll-contain pb-20 md:pb-4">
+            <div className="absolute inset-0 overflow-y-auto p-2 md:p-4 overscroll-contain pb-2 md:pb-4">
               <div className="space-y-1 relative z-10">
               {conversationMessages.length === 0 ? (
                 <EmptyState otherParticipant={otherParticipant} />
@@ -894,7 +906,7 @@ const ChatPage = () => {
               </div>
             )}
             
-            <div className="flex items-center space-x-2 p-2 md:p-3">
+            <div className="flex items-center space-x-2 p-1 md:p-3">
               <Button 
                 size="sm" 
                 variant="ghost" 
@@ -916,7 +928,6 @@ const ChatPage = () => {
                 id="attachment-upload"
                 type="file"
                 accept="image/*,video/*,audio/*,.pdf,.doc,.docx,.txt"
-                capture="environment"
                 className="hidden"
                 onChange={handleAttachmentUpload}
                 multiple={false}

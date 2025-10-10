@@ -71,10 +71,10 @@ export const uploadAvatar = async (file: File, userId: string): Promise<string> 
       throw new Error('Image must be smaller than 5MB');
     }
     
-    // Compress image
-    const compressedFile = await compressImage(file, 400, 0.85);
+    // Skip compression - use original file
+    const compressedFile = file;
     
-    const fileExt = 'jpg'; // Always save as jpg after compression
+    const fileExt = file.name.split('.').pop() || 'jpg';
     const fileName = `${Date.now()}.${fileExt}`;
     const filePath = `${userId}/${fileName}`; // Store in user's folder
 
@@ -82,7 +82,7 @@ export const uploadAvatar = async (file: File, userId: string): Promise<string> 
       .from('avatars')
       .upload(filePath, compressedFile, { 
         upsert: true,
-        contentType: 'image/jpeg'
+        contentType: file.type
       });
 
     if (uploadError) {
@@ -119,10 +119,10 @@ export const uploadPostImage = async (file: File, userId: string): Promise<strin
       throw new Error('Image must be smaller than 10MB');
     }
     
-    // Compress image (larger size for posts)
-    const compressedFile = await compressImage(file, 1200, 0.85);
+    // Skip compression - use original file
+    const compressedFile = file;
     
-    const fileExt = 'jpg';
+    const fileExt = file.name.split('.').pop() || 'jpg';
     const fileName = `${Date.now()}.${fileExt}`;
     const filePath = `${userId}/${fileName}`; // Store in user's folder
 
@@ -130,7 +130,7 @@ export const uploadPostImage = async (file: File, userId: string): Promise<strin
       .from('post_pic')
       .upload(filePath, compressedFile, { 
         upsert: true,
-        contentType: 'image/jpeg'
+        contentType: file.type
       });
 
     if (uploadError) {
@@ -170,17 +170,12 @@ export const uploadChatAttachment = async (
     let fileToUpload = file;
     let contentType = file.type;
     
-    // Compress if it's an image
-    if (file.type.startsWith('image/')) {
-      onProgress?.(10); // Compression starting
-      fileToUpload = await compressImage(file, 1024, 0.8);
-      contentType = 'image/jpeg';
-      onProgress?.(30); // Compression complete
-    } else {
-      onProgress?.(20); // Skipping compression
-    }
+    // Skip compression - use original file for all types
+    onProgress?.(20); // Skipping compression
+    fileToUpload = file;
+    contentType = file.type;
     
-    const fileExt = file.type.startsWith('image/') ? 'jpg' : file.name.split('.').pop();
+    const fileExt = file.name.split('.').pop();
     const fileName = `${Date.now()}.${fileExt}`;
     const filePath = `${conversationId}/${fileName}`; // Store in conversation's folder
 

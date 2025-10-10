@@ -82,64 +82,19 @@ export const useMobileOptimization = () => {
   }, [isMobile, isLowEndDevice, queryClient]);
 
   // Mobile-specific file upload optimization
-  const optimizeFileUpload = useCallback((file: File) => {
-    if (!isMobile) return file;
-
-    return new Promise<File>((resolve) => {
-      // For mobile, compress images before upload
-      if (file.type.startsWith('image/')) {
-        const canvas = document.createElement('canvas');
-        const ctx = canvas.getContext('2d');
-        const img = new Image();
-
-        img.onload = () => {
-          // Calculate optimal size for mobile
-          const maxWidth = isLowEndDevice ? 800 : 1200;
-          const maxHeight = isLowEndDevice ? 600 : 900;
-          
-          let { width, height } = img;
-          
-          if (width > maxWidth || height > maxHeight) {
-            const ratio = Math.min(maxWidth / width, maxHeight / height);
-            width *= ratio;
-            height *= ratio;
-          }
-
-          canvas.width = width;
-          canvas.height = height;
-          
-          ctx?.drawImage(img, 0, 0, width, height);
-          
-          canvas.toBlob((blob) => {
-            if (blob) {
-              const compressedFile = new File([blob], file.name, {
-                type: file.type,
-                lastModified: Date.now()
-              });
-              console.log('📱 Image compressed:', {
-                original: `${(file.size / 1024 / 1024).toFixed(2)}MB`,
-                compressed: `${(compressedFile.size / 1024 / 1024).toFixed(2)}MB`,
-                reduction: `${(((file.size - compressedFile.size) / file.size) * 100).toFixed(1)}%`
-              });
-              resolve(compressedFile);
-            } else {
-              resolve(file);
-            }
-          }, file.type, isLowEndDevice ? 0.6 : 0.8);
-        };
-
-        img.src = URL.createObjectURL(file);
-      } else {
-        resolve(file);
-      }
+  const optimizeFileUpload = useCallback((file: File): Promise<File> => {
+    // Disable compression - return original file for all devices
+    console.log('📱 File upload optimization disabled - using original file:', {
+      name: file.name,
+      size: `${(file.size / 1024 / 1024).toFixed(2)}MB`,
+      type: file.type
     });
-  }, [isMobile, isLowEndDevice]);
+    return Promise.resolve(file);
+  }, []);
 
   // Network optimization for mobile
   const optimizeNetworkRequests = useCallback(() => {
     if (!isMobile) return;
-
-    // Check connection type
     const connection = (navigator as any).connection;
     if (connection) {
       const { effectiveType, downlink } = connection;

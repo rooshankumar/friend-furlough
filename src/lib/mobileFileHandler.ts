@@ -171,11 +171,12 @@ export class MobileFileHandler {
       throw new Error(validation.error);
     }
 
-    // Compress if it's an image
-    if (file.type.startsWith('image/')) {
-      return await this.compressImage(file);
-    }
-
+    // Skip compression - return original file
+    console.log('📱 Mobile file processing - using original file:', {
+      name: file.name,
+      size: `${(file.size / 1024 / 1024).toFixed(2)}MB`,
+      type: file.type
+    });
     return file;
   }
 

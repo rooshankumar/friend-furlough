@@ -1,10 +1,12 @@
 import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
-import { useConnectionStatus, usePerformanceMonitor } from '@/hooks/usePerformanceOptimization';
-import { useConversationsPreloader } from '@/hooks/useDataPreloader';
-import { SimpleMessage } from '@/components/chat/SimpleMessage';
-import { EnhancedMessage } from '@/components/chat/EnhancedMessage';
+import { usePerformanceMonitor } from '@/hooks/usePerformanceOptimization';
+import { useAuthStore } from '@/stores/authStore';
+import { useChatStore } from '@/stores/chatStore';
+import { useConnectionStatus } from '@/hooks/useConnectionStatus';
 import { OptimizedConversationList } from '@/components/chat/OptimizedConversationList';
+import { EnhancedMessage } from '@/components/chat/EnhancedMessage';
+import { EmptyState } from '@/components/chat/EmptyState';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -26,8 +28,6 @@ import {
   CheckCheck
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
-import { useChatStore } from '@/stores/chatStore';
-import { useAuthStore } from '@/stores/authStore';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -107,7 +107,7 @@ const ChatPage = () => {
   
   // Hooks
   const { toast } = useToast();
-  const { logEvent } = usePerformanceMonitor('ChatPage');
+  usePerformanceMonitor('ChatPage');
   const isOnline = useConnectionStatus();
   const { isMobile, isLowEndDevice, optimizeFileUpload } = useMobileOptimization();
   
@@ -154,17 +154,15 @@ const ChatPage = () => {
   // Load conversations on mount - memoized to prevent excessive calls
   useEffect(() => {
     if (user?.id && conversations.length === 0) {
-      logEvent('loading_conversations', { userId: user.id });
       loadConversations(user.id);
     }
-  }, [user?.id, conversations.length, loadConversations, logEvent]);
+  }, [user?.id, conversations.length, loadConversations]);
 
   // Load messages and subscribe to real-time updates - debounced
   useEffect(() => {
     if (!conversationId || !user) return;
 
     const timeoutId = setTimeout(() => {
-      logEvent('loading_messages', { conversationId });
       loadMessages(conversationId);
       markAsRead(conversationId, user.id);
       const channel = subscribeToMessages(conversationId);
@@ -178,7 +176,7 @@ const ChatPage = () => {
       clearTimeout(timeoutId);
       unsubscribeFromMessages();
     };
-  }, [conversationId, user?.id, loadMessages, markAsRead, subscribeToMessages, unsubscribeFromMessages, logEvent]);
+  }, [conversationId, user?.id, loadMessages, markAsRead, subscribeToMessages, unsubscribeFromMessages]);
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -247,7 +245,6 @@ const ChatPage = () => {
         timestamp: new Date().toISOString()
       });
       
-      logEvent('message_send_success');
     } catch (error: any) {
       console.error('❌ [ChatPage] Message send failed:', {
         error: error.message,
@@ -256,7 +253,6 @@ const ChatPage = () => {
         timestamp: new Date().toISOString()
       });
       
-      logEvent('message_send_error', { error: error.message });
       
       // Restore message to input on failure
       setNewMessage(msg);
@@ -267,7 +263,7 @@ const ChatPage = () => {
         variant: "destructive"
       });
     }
-  }, [newMessage, conversationId, user, sendMessage, toast, logEvent]);
+  }, [newMessage, conversationId, user, sendMessage, toast]);
 
   const handleRetryMessage = useCallback(async (message: any) => {
     if (!conversationId || !user) return;
@@ -370,7 +366,6 @@ const ChatPage = () => {
     }
 
     console.log('✅ Starting attachment upload:', { fileName: file.name, fileSize: file.size });
-    logEvent('attachment_upload_attempt', { fileName: file.name, fileSize: file.size });
     
     try {
       // Use mobile-optimized file upload
@@ -398,7 +393,6 @@ const ChatPage = () => {
       console.log('📤 Calling sendAttachment...');
       await sendAttachment(conversationId, user.id, processedFile);
       console.log('✅ Attachment upload complete');
-      logEvent('attachment_upload_success', { fileName: file.name });
       
       // Simple success indicator - just a brief green tick
       const successDiv = document.createElement('div');
@@ -422,7 +416,6 @@ const ChatPage = () => {
         name: error.name,
         cause: error.cause
       });
-      logEvent('attachment_upload_error', { error: error.message, fileName: file.name });
       
       let errorMessage = "Please try again";
       if (error.message?.includes('bucket')) {
@@ -755,9 +748,9 @@ const ChatPage = () => {
             isDesktop={true}
           />
         </div>
-        <div className="flex-1 bg-background flex flex-col h-full">
+        <div className="flex-1 bg-background flex flex-col h-full max-h-screen">
           {/* Chat Header - Fixed */}
-          <div className="flex-shrink-0 border-b border-border/50 py-3 px-4">
+          <div className="flex-shrink-0 border-b border-border/50 py-2 px-3 md:py-3 md:px-4 bg-background/95 backdrop-blur-sm">
             <div className="flex items-center justify-between">
               <div className="flex items-center space-x-3">
                 <Link to="/chat" className="lg:hidden">
@@ -810,10 +803,37 @@ const ChatPage = () => {
             </div>
           </div>
 
-          {/* Messages - Scrollable */}
-          <div className="flex-1 overflow-y-auto p-4 min-h-0">
-            <div className="space-y-1">
-              {conversationMessages.map((message, index) => {
+          {/* Fixed Wallpaper - Stays in place */}
+          <div className="flex-1 relative">
+            <div className="absolute inset-0 pointer-events-none z-0">
+              {/* Mobile Wallpaper - Full cover within chat area */}
+              <div 
+                className="absolute inset-0 bg-cover bg-center md:hidden"
+                style={{ backgroundImage: "url('/wallpapers/chat-wallpaper.png')" }}
+              />
+              
+              {/* Desktop Wallpaper - Centered within chat area */}
+              <div 
+                className="hidden md:block absolute inset-0 bg-no-repeat"
+                style={{ 
+                  backgroundImage: "url('/wallpapers/chat-wallpaper.png')",
+                  backgroundSize: 'contain',
+                  backgroundPosition: 'center center',
+                  backgroundColor: '#e8f5e8'
+                }}
+              />
+              
+              {/* Light overlay for better text readability */}
+              <div className="absolute inset-0 bg-white/5" />
+            </div>
+            
+            {/* Messages - Scrollable over fixed wallpaper */}
+            <div className="absolute inset-0 overflow-y-auto p-2 md:p-4 overscroll-contain">
+              <div className="space-y-1 relative z-10">
+              {conversationMessages.length === 0 ? (
+                <EmptyState otherParticipant={otherParticipant} />
+              ) : (
+                conversationMessages.map((message, index) => {
                 // Optimize date calculations
                 const showDateSeparator = index === 0 || 
                   new Date(message.created_at).toDateString() !== 
@@ -839,7 +859,7 @@ const ChatPage = () => {
                     />
                   </div>
                 );
-              })}
+              }))}
 
               {/* Typing Indicator - Just 3 dots */}
               {currentTypingUsers.length > 0 && (
@@ -855,24 +875,24 @@ const ChatPage = () => {
               )}
               
               <div ref={messagesEndRef} />
+              </div>
             </div>
           </div>
 
           {/* Message Input - Fixed at Bottom */}
-          <div className="flex-shrink-0 border-t border-border/50 bg-background">
-            {/* Recording Indicator */}
+          <div className="flex-shrink-0 border-t border-border/50 bg-background/95 backdrop-blur-sm">
+            {/* Voice Recording UI */}
             {isRecording && (
-              <div className="px-4 py-2 bg-destructive/10 border-b border-destructive/20">
-                <div className="flex items-center gap-3">
-                  <div className="flex items-center gap-1.5">
-                    <div className="w-3 h-3 bg-destructive rounded-full animate-pulse" />
-                    <span className="text-sm font-medium text-destructive">Recording</span>
-                  </div>
-                  <div className="flex-1 flex items-center gap-2">
-                    <div className="flex-1 h-8 bg-background/50 rounded-full overflow-hidden flex items-center px-2">
-                      {/* Animated waveform bars */}
-                      <div className="flex items-center justify-center gap-0.5 w-full">
-                        {[...Array(20)].map((_, i) => (
+              <div className="p-2 md:p-3 border-b border-border/50 bg-destructive/5">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center space-x-2 md:space-x-3">
+                    <div className="flex items-center space-x-2">
+                      <div className="w-3 h-3 bg-destructive rounded-full animate-pulse" />
+                      <span className="text-xs md:text-sm font-medium text-destructive">Recording...</span>
+                    </div>
+                    <div className="flex items-center space-x-1 h-6 md:h-8">
+                      <div className="flex items-end space-x-0.5 h-full">
+                        {[...Array(15)].map((_, i) => (
                           <div
                             key={i}
                             className="w-1 bg-destructive rounded-full transition-all duration-150"
@@ -885,7 +905,7 @@ const ChatPage = () => {
                         ))}
                       </div>
                     </div>
-                    <span className="text-sm font-mono font-medium text-destructive min-w-[3rem] text-right">
+                    <span className="text-xs md:text-sm font-mono font-medium text-destructive min-w-[3rem] text-right">
                       {formatDuration(recordingDuration)}
                     </span>
                   </div>
@@ -893,11 +913,11 @@ const ChatPage = () => {
               </div>
             )}
             
-            <div className="flex items-center space-x-2 p-3">
+            <div className="flex items-center space-x-2 p-2 md:p-3">
               <Button 
                 size="sm" 
                 variant="ghost" 
-                className="h-9 w-9 p-0 flex-shrink-0"
+                className="h-8 w-8 md:h-9 md:w-9 p-0 flex-shrink-0"
                 disabled={isRecording || !isOnline}
                 title={!isOnline ? 'Attachments require internet' : undefined}
                 onClick={(e) => {
@@ -931,7 +951,7 @@ const ChatPage = () => {
                   }}
                   onKeyPress={handleKeyPress}
                   placeholder="Type a message..."
-                  className="h-9 text-sm"
+                  className="h-8 md:h-9 text-sm"
                   autoComplete="off"
                   autoCorrect="off"
                   autoCapitalize="sentences"
@@ -941,7 +961,7 @@ const ChatPage = () => {
               <Button 
                 size="sm" 
                 variant={isRecording ? "destructive" : "ghost"} 
-                className={`h-9 w-9 p-0 flex-shrink-0 ${isRecording ? 'animate-pulse' : ''}`}
+                className={`h-8 w-8 md:h-9 md:w-9 p-0 flex-shrink-0 ${isRecording ? 'animate-pulse' : ''}`}
                 disabled={!isOnline}
                 title={!isOnline ? 'Voice requires internet' : undefined}
                 onClick={(e) => {
@@ -959,7 +979,7 @@ const ChatPage = () => {
                 }}
                 disabled={!newMessage.trim() || isRecording}
                 size="sm"
-                className="h-9 w-9 p-0 flex-shrink-0"
+                className="h-8 w-8 md:h-9 md:w-9 p-0 flex-shrink-0"
               >
                 <Send className="h-4 w-4" />
               </Button>

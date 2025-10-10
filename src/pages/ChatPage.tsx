@@ -37,7 +37,6 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { formatDistanceToNow } from 'date-fns';
 import { supabase } from '@/integrations/supabase/client';
-import { useMobileOptimization } from '@/hooks/useMobileOptimization';
 import { mobileFileHandler } from '@/lib/mobileFileHandler';
 // Helper function to format last seen time
 const getLastSeenText = (profile?: any): string => {
@@ -109,7 +108,6 @@ const ChatPage = () => {
   const { toast } = useToast();
   usePerformanceMonitor('ChatPage');
   const isOnline = useConnectionStatus();
-  const { isMobile, isLowEndDevice, optimizeFileUpload } = useMobileOptimization();
   
   // Store data (user already declared above)
   const { 
@@ -339,8 +337,7 @@ const ChatPage = () => {
       fileSize: file?.size,
       fileType: file?.type,
       conversationId,
-      userId: user?.id,
-      isMobile
+      userId: user?.id
     });
     
     if (!file || !conversationId || !user) {
@@ -368,30 +365,14 @@ const ChatPage = () => {
     console.log('✅ Starting attachment upload:', { fileName: file.name, fileSize: file.size });
     
     try {
-      // Use mobile-optimized file upload
-      let processedFile = file;
+      // Use original file without any processing
+      console.log('📤 Uploading attachment:', {
+        name: file.name,
+        size: `${(file.size / 1024 / 1024).toFixed(2)}MB`,
+        type: file.type
+      });
       
-      if (isMobile) {
-        console.log('📱 Mobile upload - optimizing file...');
-        toast({
-          title: "Processing file...",
-          description: "Optimizing for mobile upload",
-        });
-        
-        try {
-          processedFile = await optimizeFileUpload(file);
-          console.log('📱 File optimized:', {
-            original: `${(file.size / 1024 / 1024).toFixed(2)}MB`,
-            optimized: `${(processedFile.size / 1024 / 1024).toFixed(2)}MB`
-          });
-        } catch (optimizeError) {
-          console.warn('📱 File optimization failed, using original:', optimizeError);
-          processedFile = file;
-        }
-      }
-      
-      console.log('📤 Calling sendAttachment...');
-      await sendAttachment(conversationId, user.id, processedFile);
+      await sendAttachment(conversationId, user.id, file);
       console.log('✅ Attachment upload complete');
       
       // Simple success indicator - just a brief green tick
@@ -726,7 +707,7 @@ const ChatPage = () => {
   }
 
   return (
-    <div className="h-screen md:ml-16 bg-gradient-subtle">
+    <div className="h-screen bg-gradient-subtle md:ml-16">
       <div className="h-full flex">
         {/* Conversations List - Desktop Only */}
         <div className="hidden lg:flex lg:w-72 border-r border-border/50 bg-card/30 flex-col flex-shrink-0">
@@ -748,9 +729,9 @@ const ChatPage = () => {
             isDesktop={true}
           />
         </div>
-        <div className="flex-1 bg-background flex flex-col h-full max-h-screen">
-          {/* Chat Header - Fixed */}
-          <div className="flex-shrink-0 border-b border-border/50 py-2 px-3 md:py-3 md:px-4 bg-background/95 backdrop-blur-sm">
+        <div className="flex-1 bg-background flex flex-col h-full relative">
+          {/* Chat Header - Fixed on mobile, normal on desktop */}
+          <div className="fixed top-0 left-0 right-0 z-50 md:relative md:z-auto flex-shrink-0 border-b border-border/50 py-3 px-4 bg-background backdrop-blur-sm">
             <div className="flex items-center justify-between">
               <div className="flex items-center space-x-3">
                 <Link to="/chat" className="lg:hidden">
@@ -803,8 +784,8 @@ const ChatPage = () => {
             </div>
           </div>
 
-          {/* Fixed Wallpaper - Stays in place */}
-          <div className="flex-1 relative">
+          {/* Messages Area - Account for fixed header on mobile */}
+          <div className="flex-1 relative pt-16 md:pt-0">
             <div className="absolute inset-0 pointer-events-none z-0">
               {/* Mobile Wallpaper - Full cover within chat area */}
               <div 
@@ -828,7 +809,7 @@ const ChatPage = () => {
             </div>
             
             {/* Messages - Scrollable over fixed wallpaper */}
-            <div className="absolute inset-0 overflow-y-auto p-2 md:p-4 overscroll-contain">
+            <div className="absolute inset-0 overflow-y-auto p-2 md:p-4 overscroll-contain pb-20 md:pb-4">
               <div className="space-y-1 relative z-10">
               {conversationMessages.length === 0 ? (
                 <EmptyState otherParticipant={otherParticipant} />
@@ -879,8 +860,8 @@ const ChatPage = () => {
             </div>
           </div>
 
-          {/* Message Input - Fixed at Bottom */}
-          <div className="flex-shrink-0 border-t border-border/50 bg-background/95 backdrop-blur-sm">
+          {/* Message Input - Fixed at bottom on mobile, normal on desktop */}
+          <div className="fixed bottom-0 left-0 right-0 z-50 md:relative md:z-auto flex-shrink-0 border-t border-border/50 bg-background backdrop-blur-sm">
             {/* Voice Recording UI */}
             {isRecording && (
               <div className="p-2 md:p-3 border-b border-border/50 bg-destructive/5">

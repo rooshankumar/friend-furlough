@@ -1,8 +1,9 @@
 import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
-import { useParams, Link } from 'react-router-dom';
+import { useParams, Link, useNavigate } from 'react-router-dom';
 import { useConnectionStatus, usePerformanceMonitor } from '@/hooks/usePerformanceOptimization';
 import { useConversationsPreloader } from '@/hooks/useDataPreloader';
 import { SimpleMessage } from '@/components/chat/SimpleMessage';
+import { EnhancedMessage } from '@/components/chat/EnhancedMessage';
 import { OptimizedConversationList } from '@/components/chat/OptimizedConversationList';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -27,21 +28,74 @@ import {
 import { useToast } from '@/hooks/use-toast';
 import { useChatStore } from '@/stores/chatStore';
 import { useAuthStore } from '@/stores/authStore';
-import { CulturalBadge } from '@/components/CulturalBadge';
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu';
+} from "@/components/ui/dropdown-menu";
 import { formatDistanceToNow } from 'date-fns';
 import { supabase } from '@/integrations/supabase/client';
 import { useMobileOptimization } from '@/hooks/useMobileOptimization';
 import { mobileFileHandler } from '@/lib/mobileFileHandler';
+// Helper function to format last seen time
+const getLastSeenText = (profile?: any): string => {
+  // Check for real last seen data from database
+  let lastSeen = profile?.last_seen || profile?.updated_at || profile?.created_at;
+  
+  // If no real timestamp, show "recently" instead of fake data
+  if (!lastSeen) {
+    return 'Last seen recently';
+  }
+  
+  const now = new Date();
+  const lastSeenDate = new Date(lastSeen);
+  
+  // Validate the date
+  if (isNaN(lastSeenDate.getTime())) {
+    return 'Last seen recently';
+  }
+  
+  const diffInMs = now.getTime() - lastSeenDate.getTime();
+  const diffInMinutes = Math.floor(diffInMs / (1000 * 60));
+  const diffInHours = Math.floor(diffInMs / (1000 * 60 * 60));
+  const diffInDays = Math.floor(diffInMs / (1000 * 60 * 60 * 24));
+  
+  // Handle future dates (shouldn't happen but just in case)
+  if (diffInMs < 0) return 'Last seen just now';
+  if (diffInMinutes < 1) return 'Last seen just now';
+  if (diffInMinutes < 60) return `Last seen ${diffInMinutes}m ago`;
+  if (diffInHours < 24) return `Last seen ${diffInHours}h ago`;
+  if (diffInDays < 7) return `Last seen ${diffInDays}d ago`;
+  
+  return 'Last seen a while ago';
+};
 
 const ChatPage = () => {
-  const { conversationId } = useParams();
+  
+  // Store data - get user from here
+  const { user, profile } = useAuthStore();
+  const navigate = useNavigate();
+  const { conversationId } = useParams<{ conversationId: string }>();
+  
+  // Update user's last seen timestamp
+  const updateLastSeen = async () => {
+    if (!user?.id) return;
+    
+    try {
+      await supabase
+        .from('profiles')
+        .update({ 
+          last_seen: new Date().toISOString(),
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', user.id);
+    } catch (error) {
+      console.error('Failed to update last seen:', error);
+    }
+  };
+
   const [newMessage, setNewMessage] = useState('');
   const [messageReadStatus, setMessageReadStatus] = useState<{[messageId: string]: boolean}>({});
   const [isRecording, setIsRecording] = useState(false);
@@ -57,23 +111,23 @@ const ChatPage = () => {
   const isOnline = useConnectionStatus();
   const { isMobile, isLowEndDevice, optimizeFileUpload } = useMobileOptimization();
   
-  // Store data
-  const { user, profile } = useAuthStore();
+  // Store data (user already declared above)
   const { 
     conversations, 
-    messages, 
+    messages,
     loadConversations, 
     loadMessages, 
     sendMessage, 
     sendAttachment,
     sendVoiceMessage,
-    markAsRead,
     markMessageAsRead,
-    subscribeToMessages,
+    markAsRead,
+    subscribeToMessages, 
     unsubscribeFromMessages,
+    broadcastTyping,
     processOfflineQueue,
-    typingUsers,
-    broadcastTyping
+    updateMessageStatusById,
+    typingUsers
   } = useChatStore();
 
   const currentConversation = useMemo(() => 
@@ -229,6 +283,39 @@ const ChatPage = () => {
     }
   }, [newMessage, conversationId, user, sendMessage, toast, logEvent, loadMessages]);
 
+  const handleRetryMessage = useCallback(async (message: any) => {
+    if (!conversationId || !user) return;
+
+    try {
+      // Update message status to sending
+      updateMessageStatusById(message.id, conversationId, 'sending');
+      
+      // Retry sending the message
+      await sendMessage(conversationId, user.id, message.content, message.media_url);
+      
+      toast({
+        title: "Message sent",
+        description: "Your message has been delivered",
+      });
+      
+      // Force reload messages to ensure UI updates
+      setTimeout(() => {
+        loadMessages(conversationId);
+      }, 100);
+    } catch (error: any) {
+      console.error('❌ Message retry failed:', error);
+      
+      // Update message status back to failed
+      updateMessageStatusById(message.id, conversationId, 'failed');
+      
+      toast({
+        title: "Retry failed",
+        description: error.message || "Please try again later",
+        variant: "destructive"
+      });
+    }
+  }, [conversationId, user, sendMessage, updateMessageStatusById, toast, loadMessages]);
+
   const handleTyping = useCallback(() => {
     if (!conversationId || !user || !profile) return;
 
@@ -270,7 +357,8 @@ const ChatPage = () => {
       fileSize: file?.size,
       fileType: file?.type,
       conversationId,
-      userId: user?.id
+      userId: user?.id,
+      isMobile
     });
     
     if (!file || !conversationId || !user) {
@@ -278,17 +366,6 @@ const ChatPage = () => {
       toast({
         title: "Upload failed",
         description: "Missing file, conversation, or user information",
-        variant: "destructive"
-      });
-      e.target.value = '';
-      return;
-    }
-
-    // Check file size (20MB limit)
-    if (file.size > 20 * 1024 * 1024) {
-      toast({
-        title: "File too large",
-        description: "Please select a file smaller than 20MB",
         variant: "destructive"
       });
       e.target.value = '';
@@ -310,8 +387,30 @@ const ChatPage = () => {
     logEvent('attachment_upload_attempt', { fileName: file.name, fileSize: file.size });
     
     try {
+      // Use mobile-optimized file upload
+      let processedFile = file;
+      
+      if (isMobile) {
+        console.log('📱 Mobile upload - optimizing file...');
+        toast({
+          title: "Processing file...",
+          description: "Optimizing for mobile upload",
+        });
+        
+        try {
+          processedFile = await optimizeFileUpload(file);
+          console.log('📱 File optimized:', {
+            original: `${(file.size / 1024 / 1024).toFixed(2)}MB`,
+            optimized: `${(processedFile.size / 1024 / 1024).toFixed(2)}MB`
+          });
+        } catch (optimizeError) {
+          console.warn('📱 File optimization failed, using original:', optimizeError);
+          processedFile = file;
+        }
+      }
+      
       console.log('📤 Calling sendAttachment...');
-      await sendAttachment(conversationId, user.id, file);
+      await sendAttachment(conversationId, user.id, processedFile);
       console.log('✅ Attachment upload complete');
       logEvent('attachment_upload_success', { fileName: file.name });
       
@@ -694,7 +793,7 @@ const ChatPage = () => {
                 <div>
                   <h3 className="font-semibold text-sm md:text-base">{otherParticipant?.profiles?.name || 'Unknown User'}</h3>
                   <p className="text-xs text-muted-foreground">
-                    {otherParticipant?.profiles?.online ? 'Online' : 'Offline'}
+                    {otherParticipant?.profiles?.online ? 'Online' : getLastSeenText(otherParticipant?.profiles)}
                   </p>
                 </div>
               </div>
@@ -727,38 +826,38 @@ const ChatPage = () => {
 
           {/* Messages - Scrollable */}
           <div className="flex-1 overflow-y-auto p-4 min-h-0">
-            <div className="space-y-2">
+            <div className="space-y-1">
               {conversationMessages.map((message, index) => {
                 // Optimize date calculations
                 const showDateSeparator = index === 0 || 
                   new Date(message.created_at).toDateString() !== 
                   new Date(conversationMessages[index - 1].created_at).toDateString();
                 
-                const isLastMessage = index === conversationMessages.length - 1;
                 const isCurrentUser = message.sender_id === user?.id;
-                
-                // Simplified last user message check
-                const isLastUserMessage = isCurrentUser && (
-                  index === conversationMessages.length - 1 ||
-                  conversationMessages[index + 1]?.sender_id !== user?.id
-                );
 
                 return (
-                  <SimpleMessage
-                    key={message.id}
-                    message={message}
-                    isCurrentUser={isCurrentUser}
-                    showDateSeparator={showDateSeparator}
-                    isLastMessage={isLastMessage}
-                    isLastUserMessage={isLastUserMessage}
-                    messageReadStatus={messageReadStatus[message.id] || false}
-                  />
+                  <div key={message.id} className="m-0 p-0">
+                    {showDateSeparator && (
+                      <div className="flex justify-center my-4">
+                        <span className="bg-muted px-3 py-1 rounded-full text-xs text-muted-foreground">
+                          {new Date(message.created_at).toDateString()}
+                        </span>
+                      </div>
+                    )}
+                    <EnhancedMessage
+                      message={message}
+                      isOwnMessage={isCurrentUser}
+                      showAvatar={!isCurrentUser}
+                      otherUser={otherParticipant?.profiles}
+                      onRetry={handleRetryMessage}
+                    />
+                  </div>
                 );
               })}
-              
+
               {/* Typing Indicator */}
               {currentTypingUsers.length > 0 && (
-                <div className="flex items-start">
+                <div className="flex justify-start">
                   <div className="max-w-[75%] sm:max-w-[60%] bg-accent text-accent-foreground rounded-2xl px-4 py-3">
                     <div className="flex items-center gap-2">
                       <div className="flex gap-1">
@@ -840,6 +939,8 @@ const ChatPage = () => {
                 capture="environment"
                 className="hidden"
                 onChange={handleAttachmentUpload}
+                multiple={false}
+                style={{ display: 'none' }}
               />
               <div className="flex-1">
                 <Input

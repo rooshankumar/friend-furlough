@@ -1,0 +1,200 @@
+/* Responsive Design Utilities for Friend Furlough */
+
+/* Mobile-first responsive containers */
+.responsive-container {
+  @apply w-full max-w-full px-2 sm:px-4 md:px-6 lg:px-8;
+}
+
+.responsive-grid {
+  @apply grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-2 sm:gap-4 md:gap-6;
+}
+
+.responsive-card {
+  @apply w-full min-w-0 max-w-full overflow-hidden;
+}
+
+/* Chat specific responsive fixes */
+.chat-container {
+  @apply h-screen flex flex-col max-w-full overflow-hidden;
+}
+
+.chat-messages {
+  @apply flex-1 overflow-y-auto px-2 sm:px-4 min-h-0;
+}
+
+.chat-input {
+  @apply p-2 sm:p-4 border-t bg-background;
+}
+
+/* Profile page responsive */
+.profile-container {
+  @apply w-full max-w-4xl mx-auto px-2 sm:px-4 md:px-6;
+}
+
+.profile-grid {
+  @apply grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6;
+}
+
+/* Community page responsive */
+.community-container {
+  @apply w-full max-w-6xl mx-auto px-2 sm:px-4 md:px-6;
+}
+
+.community-posts {
+  @apply grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4 md:gap-6;
+}
+
+/* Explore page responsive */
+.explore-container {
+  @apply w-full max-w-5xl mx-auto px-2 sm:px-4 md:px-6;
+}
+
+.explore-grid {
+  @apply grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3 sm:gap-4;
+}
+
+/* Card responsive utilities */
+.card-responsive {
+  @apply w-full min-w-0 max-w-full p-3 sm:p-4 md:p-6;
+}
+
+.card-header-responsive {
+  @apply pb-2 sm:pb-3 md:pb-4;
+}
+
+.card-content-responsive {
+  @apply space-y-2 sm:space-y-3 md:space-y-4;
+}
+
+/* Text responsive utilities */
+.text-responsive-xs {
+  @apply text-xs sm:text-sm;
+}
+
+.text-responsive-sm {
+  @apply text-sm sm:text-base;
+}
+
+.text-responsive-base {
+  @apply text-base sm:text-lg;
+}
+
+.text-responsive-lg {
+  @apply text-lg sm:text-xl md:text-2xl;
+}
+
+.text-responsive-xl {
+  @apply text-xl sm:text-2xl md:text-3xl;
+}
+
+/* Button responsive utilities */
+.btn-responsive {
+  @apply px-3 py-2 sm:px-4 sm:py-2 text-sm sm:text-base;
+}
+
+.btn-responsive-sm {
+  @apply px-2 py-1 sm:px-3 sm:py-1.5 text-xs sm:text-sm;
+}
+
+/* Avatar responsive utilities */
+.avatar-responsive-sm {
+  @apply h-6 w-6 sm:h-8 sm:w-8;
+}
+
+.avatar-responsive {
+  @apply h-8 w-8 sm:h-10 sm:w-10 md:h-12 md:w-12;
+}
+
+.avatar-responsive-lg {
+  @apply h-12 w-12 sm:h-16 sm:w-16 md:h-20 md:w-20;
+}
+
+/* Mobile navigation spacing */
+.mobile-nav-compact {
+  @apply pb-12 sm:pb-0; /* Add bottom padding on mobile to account for nav */
+}
+
+/* Prevent horizontal scroll */
+.no-horizontal-scroll {
+  @apply overflow-x-hidden max-w-full;
+}
+
+/* Responsive image utilities */
+.img-responsive {
+  @apply w-full h-auto max-w-full object-cover;
+}
+
+.img-responsive-square {
+  @apply w-full aspect-square object-cover;
+}
+
+/* Responsive spacing utilities */
+.spacing-responsive-sm {
+  @apply space-y-2 sm:space-y-3 md:space-y-4;
+}
+
+.spacing-responsive {
+  @apply space-y-3 sm:space-y-4 md:space-y-6;
+}
+
+.spacing-responsive-lg {
+  @apply space-y-4 sm:space-y-6 md:space-y-8;
+}
+
+/* Form responsive utilities */
+.form-responsive {
+  @apply w-full space-y-3 sm:space-y-4;
+}
+
+.input-responsive {
+  @apply w-full px-3 py-2 sm:px-4 sm:py-2.5 text-sm sm:text-base;
+}
+
+/* Modal responsive utilities */
+.modal-responsive {
+  @apply w-full max-w-sm sm:max-w-md md:max-w-lg mx-4 sm:mx-auto;
+}
+
+/* Responsive flex utilities */
+.flex-responsive-col {
+  @apply flex flex-col sm:flex-row gap-2 sm:gap-4;
+}
+
+.flex-responsive-wrap {
+  @apply flex flex-wrap gap-2 sm:gap-3 md:gap-4;
+}
+
+/* Hide/show utilities for different screen sizes */
+.mobile-only {
+  @apply block sm:hidden;
+}
+
+.tablet-up {
+  @apply hidden sm:block;
+}
+
+.desktop-only {
+  @apply hidden md:block;
+}
+
+/* Responsive padding utilities */
+.p-responsive {
+  @apply p-2 sm:p-4 md:p-6;
+}
+
+.px-responsive {
+  @apply px-2 sm:px-4 md:px-6;
+}
+
+.py-responsive {
+  @apply py-2 sm:py-4 md:py-6;
+}
+
+/* Safe area utilities for mobile */
+.safe-area-bottom {
+  @apply pb-safe-bottom;
+}
+
+.safe-area-top {
+  @apply pt-safe-top;
+}

@@ -142,10 +142,12 @@ export default function SettingsPage() {
                 <input
                   id="avatar"
                   type="file"
-                  accept="image/*"
+                  accept="image/jpeg,image/jpg,image/png,image/gif,image/webp"
+                  capture="user"
                   onChange={handleAvatarUpload}
                   className="hidden"
                   disabled={isUploading}
+                  style={{ display: 'none' }}
                 />
                 <p className="text-xs text-muted-foreground">
                   JPG, PNG or GIF. Max size 5MB.

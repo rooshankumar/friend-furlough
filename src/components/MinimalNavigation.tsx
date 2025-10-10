@@ -1,3 +1,4 @@
+import React, { useEffect, useMemo } from "react";
 import { Button } from "@/components/ui/button";
 import { MessageCircle, Users, User, Search, Bell, Settings, LogOut } from "lucide-react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
@@ -13,13 +14,15 @@ import {
 import { useAuthStore } from "@/stores/authStore";
 import { useNotificationStore } from "@/stores/notificationStore";
 import { useChatStore } from "@/stores/chatStore";
-import { useEffect, useMemo } from "react";
 import roshLinguaLogo from "@/assets/roshlingua-logo.png";
 
 const MinimalNavigation = () => {
   const location = useLocation();
   const navigate = useNavigate();
   const { user, profile, isAuthenticated, signOut } = useAuthStore();
+  
+  // Check if user is in a chat conversation (hide mobile nav)
+  const isInChatConversation = location.pathname.startsWith('/chat/') && location.pathname !== '/chat';
   const { unreadCount, loadNotifications, subscribeToNotifications } = useNotificationStore();
   const { conversations, loadConversations } = useChatStore();
 
@@ -208,79 +211,80 @@ const MinimalNavigation = () => {
         </div>
       </nav>
 
-      {/* Mobile Bottom Navigation - Essential Only */}
-      <nav className="md:hidden fixed bottom-0 left-0 right-0 z-50 border-t border-border/50 bg-card/95 backdrop-blur-sm">
-        <div className="flex items-center justify-around py-2 px-2">
+      {/* Compact Mobile Bottom Navigation - Essential Only (Hidden in chat conversations) */}
+      {!isInChatConversation && (
+        <nav className="md:hidden fixed bottom-0 left-0 right-0 z-50 border-t border-border/50 bg-card/95 backdrop-blur-sm">
+        <div className="flex items-center justify-around py-1 px-1">
           {/* Explore */}
           <Link 
             to="/explore" 
-            className={`flex-1 mx-1 flex flex-col items-center space-y-1 py-2 px-2 rounded-md transition-colors touch-manipulation select-none ${
+            className={`flex-1 mx-0.5 flex flex-col items-center space-y-0.5 py-1.5 px-1 rounded-md transition-colors touch-manipulation select-none ${
               isActive("/explore") 
                 ? "bg-primary text-primary-foreground" 
                 : "text-muted-foreground hover:text-foreground hover:bg-accent/50 active:bg-accent/70"
             }`}
           >
-            <Search className="h-5 w-5" />
-            <span className="text-xs font-medium">Explore</span>
+            <Search className="h-4 w-4" />
+            <span className="text-[10px] font-medium">Explore</span>
           </Link>
 
           {/* Chat */}
           <Link 
             to="/chat" 
-            className={`flex-1 mx-1 flex flex-col items-center space-y-1 py-2 px-2 rounded-md transition-colors touch-manipulation select-none relative ${
+            className={`flex-1 mx-0.5 flex flex-col items-center space-y-0.5 py-1.5 px-1 rounded-md transition-colors touch-manipulation select-none relative ${
               isActive("/chat") 
                 ? "bg-primary text-primary-foreground" 
                 : "text-muted-foreground hover:text-foreground hover:bg-accent/50 active:bg-accent/70"
             }`}
           >
             <div className="relative inline-flex">
-              <MessageCircle className="h-5 w-5" />
+              <MessageCircle className="h-4 w-4" />
               {totalUnreadMessages > 0 && (
-                <Badge className="absolute -top-1 -right-1 h-4 w-4 flex items-center justify-center p-0 text-[9px] bg-red-500 text-white">
+                <Badge className="absolute -top-1 -right-1 h-3 w-3 flex items-center justify-center p-0 text-[8px] bg-red-500 text-white">
                   {totalUnreadMessages > 9 ? '9+' : totalUnreadMessages}
                 </Badge>
               )}
             </div>
-            <span className="text-xs font-medium">Chat</span>
+            <span className="text-[10px] font-medium">Chat</span>
           </Link>
 
           {/* Community */}
           <Link 
             to="/community" 
-            className={`flex-1 mx-1 flex flex-col items-center space-y-1 py-2 px-2 rounded-md transition-colors touch-manipulation select-none ${
+            className={`flex-1 mx-0.5 flex flex-col items-center space-y-0.5 py-1.5 px-1 rounded-md transition-colors touch-manipulation select-none ${
               isActive("/community") 
                 ? "bg-primary text-primary-foreground" 
                 : "text-muted-foreground hover:text-foreground hover:bg-accent/50 active:bg-accent/70"
             }`}
           >
-            <Users className="h-5 w-5" />
-            <span className="text-xs font-medium">Community</span>
+            <Users className="h-4 w-4" />
+            <span className="text-[10px] font-medium">Community</span>
           </Link>
 
           {/* Profile */}
           <Link 
             to="/profile" 
-            className={`flex-1 mx-1 flex flex-col items-center space-y-1 py-2 px-2 rounded-md transition-colors touch-manipulation select-none ${
+            className={`flex-1 mx-0.5 flex flex-col items-center space-y-0.5 py-1.5 px-1 rounded-md transition-colors touch-manipulation select-none ${
               isActive("/profile") 
                 ? "bg-primary text-primary-foreground" 
                 : "text-muted-foreground hover:text-foreground hover:bg-accent/50 active:bg-accent/70"
             }`}
           >
-            <User className="h-5 w-5" />
-            <span className="text-xs font-medium">Profile</span>
+            <User className="h-4 w-4" />
+            <span className="text-[10px] font-medium">Profile</span>
           </Link>
 
           {/* More Menu */}
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <button className="flex-1 mx-1 flex flex-col items-center space-y-1 py-2 px-2 rounded-md transition-colors touch-manipulation select-none text-muted-foreground hover:text-foreground hover:bg-accent/50 active:bg-accent/70 border-0 bg-transparent">
-                <Avatar className="h-5 w-5">
+              <button className="flex-1 mx-0.5 flex flex-col items-center space-y-0.5 py-1.5 px-1 rounded-md transition-colors touch-manipulation select-none text-muted-foreground hover:text-foreground hover:bg-accent/50 active:bg-accent/70 border-0 bg-transparent">
+                <Avatar className="h-4 w-4">
                   <AvatarImage src={profile?.avatar_url} />
-                  <AvatarFallback className="text-[10px]">
+                  <AvatarFallback className="text-[8px]">
                     {profile?.name?.[0] || user?.email?.[0] || 'U'}
                   </AvatarFallback>
                 </Avatar>
-                <span className="text-xs font-medium">More</span>
+                <span className="text-[10px] font-medium">More</span>
               </button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end" className="w-48 mb-2">
@@ -308,6 +312,7 @@ const MinimalNavigation = () => {
           </DropdownMenu>
         </div>
       </nav>
+      )}
     </>
   );
 };

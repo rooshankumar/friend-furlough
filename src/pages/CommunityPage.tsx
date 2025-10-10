@@ -395,10 +395,11 @@ const CommunityPage = () => {
                   <input
                     id="post-image"
                     type="file"
-                    accept="image/*,video/*"
-                    multiple
+                    accept="image/jpeg,image/jpg,image/png,image/gif,image/webp,video/mp4,video/webm"
+                    capture="environment"
                     className="hidden"
                     onChange={handleImageSelect}
+                    style={{ display: 'none' }}
                   />
                   <Input
                     placeholder="Share your thoughts..."

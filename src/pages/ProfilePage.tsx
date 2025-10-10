@@ -10,7 +10,6 @@ import { Separator } from '@/components/ui/separator';
 import { Progress } from '@/components/ui/progress';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { ProfileHeader } from '@/components/profile/ProfileHeader';
-import { QuickStats } from '@/components/profile/QuickStats';
 import { ProfileBio } from '@/components/profile/ProfileBio';
 import { ProfileLanguages } from '@/components/profile/ProfileLanguages';
 import { ProfilePosts } from '@/components/profile/ProfilePosts';
@@ -197,10 +196,6 @@ const ProfilePage = () => {
   };
 
   // Real-time data states
-  const [postsCount, setPostsCount] = useState(0);
-  const [friendsCount, setFriendsCount] = useState(0);
-  const [languagesCount, setLanguagesCount] = useState(0);
-  const [exchangesCount, setExchangesCount] = useState(0);
   const [nativeLanguages, setNativeLanguages] = useState<string[]>([]);
   const [learningLanguages, setLearningLanguages] = useState<string[]>([]);
   const [culturalInterests, setCulturalInterests] = useState<string[]>([]);
@@ -218,9 +213,9 @@ const ProfilePage = () => {
         const targetUserId = profileUser?.id || authUser.id;
         console.log('Fetching real-time data for user:', targetUserId);
         
-        // Fetch posts from community_posts
+        // Fetch posts data
         try {
-          const { data: postsData, count: postsCount, error: postsError } = await supabase
+          const { data: postsData, error: postsError } = await supabase
             .from('community_posts')
             .select(`
               *,
@@ -229,45 +224,24 @@ const ProfilePage = () => {
                 avatar_url,
                 country_flag
               )
-            `, { count: 'exact' })
+            `)
             .eq('user_id', targetUserId)
             .order('created_at', { ascending: false });
           
-          console.log('Posts data:', postsData, 'Count:', postsCount, 'Error:', postsError);
+          console.log('Posts data:', postsData, 'Error:', postsError);
           if (postsError) {
             console.error('Posts table error:', postsError);
-            setPostsCount(0);
             setUserPosts([]);
           } else {
-            setPostsCount(postsCount || 0);
             setUserPosts(postsData || []);
           }
         } catch (error) {
           console.error('Posts table may not exist:', error);
-          setPostsCount(0);
           setUserPosts([]);
         }
 
-        // Fetch actual friendships count
-        try {
-          const { count: friendsCount, error: friendsError } = await (supabase as any)
-            .from('friendships')
-            .select('*', { count: 'exact', head: true })
-            .or(`user1_id.eq.${targetUserId},user2_id.eq.${targetUserId}`);
-          
-          console.log('Friends count:', friendsCount, 'Error:', friendsError);
-          if (friendsError) {
-            console.error('Friendships table error:', friendsError);
-            setFriendsCount(0);
-          } else {
-            setFriendsCount(friendsCount || 0);
-          }
-        } catch (error) {
-          console.error('Friendships table may not exist:', error);
-          setFriendsCount(0);
-        }
 
-        // Fetch languages count
+        // Fetch languages data
         try {
           const { data: languages, error: languagesError } = await supabase
             .from('languages')
@@ -278,49 +252,24 @@ const ProfilePage = () => {
           
           if (languagesError) {
             console.error('Languages table error:', languagesError);
-            setLanguagesCount(0);
             setNativeLanguages([]);
             setLearningLanguages([]);
           } else if (languages) {
             const native = languages.filter(l => l.is_native).map(l => l.language_name);
             const learning = languages.filter(l => l.is_learning).map(l => l.language_name);
             
-            // Get unique languages
-            const uniqueLanguages = new Set([...native, ...learning]);
-            
             setNativeLanguages(native);
             setLearningLanguages(learning);
-            setLanguagesCount(uniqueLanguages.size);
           } else {
-            setLanguagesCount(0);
             setNativeLanguages([]);
             setLearningLanguages([]);
           }
         } catch (error) {
           console.error('Languages table may not exist:', error);
-          setLanguagesCount(0);
           setNativeLanguages([]);
           setLearningLanguages([]);
         }
 
-        // Fetch conversations/exchanges count
-        try {
-          const { count: conversationsCount, error: conversationsError } = await supabase
-            .from('conversation_participants')
-            .select('*', { count: 'exact', head: true })
-            .eq('user_id', targetUserId);
-          
-          console.log('Conversations count:', conversationsCount, 'Error:', conversationsError);
-          if (conversationsError) {
-            console.error('Conversations table error:', conversationsError);
-            setExchangesCount(0);
-          } else {
-            setExchangesCount(conversationsCount || 0);
-          }
-        } catch (error) {
-          console.error('Conversations table may not exist:', error);
-          setExchangesCount(0);
-        }
 
         // Fetch cultural interests and looking for from profile
         if (profileUser) {
@@ -537,14 +486,6 @@ const ProfilePage = () => {
     }
   };
 
-  // Real-time stats
-  const stats = {
-    friendsCount: friendsCount,
-    postsCount: postsCount,
-    languagesLearning: languagesCount,
-    culturalExchanges: exchangesCount,
-    heartsReceived: reactions[profileUser?.id || ''] || 0
-  };
   const languageProgress = [];
 
 
@@ -593,11 +534,6 @@ const ProfilePage = () => {
           onStartConversation={startConversation}
         />
 
-        {/* Quick Stats */}
-        <QuickStats
-          stats={stats}
-          isOwnProfile={isOwnProfile}
-        />
 
         {/* Bio Section */}
         <ProfileBio
@@ -620,7 +556,6 @@ const ProfilePage = () => {
           <ProfileFriends
             profileUser={profileUser}
             isOwnProfile={isOwnProfile}
-            friendsCount={friendsCount}
           />
         </div>
 

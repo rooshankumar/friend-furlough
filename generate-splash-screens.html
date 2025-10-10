@@ -1,0 +1,179 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Generate Splash Screens</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 20px;
+            font-family: Arial, sans-serif;
+            background: #f0f0f0;
+        }
+        .splash-generator {
+            max-width: 800px;
+            margin: 0 auto;
+        }
+        .splash-canvas {
+            border: 1px solid #ccc;
+            margin: 10px 0;
+            display: block;
+        }
+        .controls {
+            margin: 20px 0;
+        }
+        button {
+            padding: 10px 20px;
+            margin: 5px;
+            background: #007bff;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+        }
+        button:hover {
+            background: #0056b3;
+        }
+        .size-info {
+            font-size: 12px;
+            color: #666;
+            margin: 5px 0;
+        }
+    </style>
+</head>
+<body>
+    <div class="splash-generator">
+        <h1>roshLingua PWA Splash Screen Generator</h1>
+        <p>This tool generates splash screens with black background and the roshLingua logo for different device sizes.</p>
+        
+        <div class="controls">
+            <input type="file" id="logoInput" accept="image/*" />
+            <button onclick="generateAllSplashScreens()">Generate All Splash Screens</button>
+            <button onclick="downloadAll()">Download All</button>
+        </div>
+
+        <div id="canvasContainer"></div>
+    </div>
+
+    <script>
+        const splashSizes = [
+            { name: 'splash-2048x2732.png', width: 2048, height: 2732, device: 'iPad Pro 12.9"' },
+            { name: 'splash-1668x2388.png', width: 1668, height: 2388, device: 'iPad Pro 11"' },
+            { name: 'splash-1536x2048.png', width: 1536, height: 2048, device: 'iPad Pro 9.7"' },
+            { name: 'splash-1284x2778.png', width: 1284, height: 2778, device: 'iPhone 12 Pro Max' },
+            { name: 'splash-1170x2532.png', width: 1170, height: 2532, device: 'iPhone 12 Pro' },
+            { name: 'splash-1125x2436.png', width: 1125, height: 2436, device: 'iPhone X/XS' },
+            { name: 'splash-1242x2688.png', width: 1242, height: 2688, device: 'iPhone XS Max' },
+            { name: 'splash-828x1792.png', width: 828, height: 1792, device: 'iPhone XR' },
+            { name: 'splash-1080x1920.png', width: 1080, height: 1920, device: 'Android' }
+        ];
+
+        let logoImage = null;
+        const canvases = [];
+
+        // Load default logo from URL
+        window.onload = function() {
+            const img = new Image();
+            img.crossOrigin = 'anonymous';
+            img.onload = function() {
+                logoImage = img;
+                generateAllSplashScreens();
+            };
+            img.src = 'https://bblrxervgwkphkctdghe.supabase.co/storage/v1/object/public/rest_pic/roshlingua-bird.png';
+        };
+
+        document.getElementById('logoInput').addEventListener('change', function(e) {
+            const file = e.target.files[0];
+            if (file) {
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    const img = new Image();
+                    img.onload = function() {
+                        logoImage = img;
+                        generateAllSplashScreens();
+                    };
+                    img.src = e.target.result;
+                };
+                reader.readAsDataURL(file);
+            }
+        });
+
+        function generateAllSplashScreens() {
+            if (!logoImage) return;
+
+            const container = document.getElementById('canvasContainer');
+            container.innerHTML = '';
+            canvases.length = 0;
+
+            splashSizes.forEach((size, index) => {
+                const canvas = document.createElement('canvas');
+                canvas.width = size.width;
+                canvas.height = size.height;
+                canvas.className = 'splash-canvas';
+                canvas.style.width = '300px';
+                canvas.style.height = (300 * size.height / size.width) + 'px';
+
+                const ctx = canvas.getContext('2d');
+                
+                // Black background
+                ctx.fillStyle = '#000000';
+                ctx.fillRect(0, 0, size.width, size.height);
+
+                // Calculate logo size (30% of screen width, max 400px)
+                const logoMaxWidth = Math.min(size.width * 0.3, 400);
+                const logoMaxHeight = Math.min(size.height * 0.3, 400);
+                
+                let logoWidth = logoImage.width;
+                let logoHeight = logoImage.height;
+                
+                // Scale logo to fit
+                const scale = Math.min(logoMaxWidth / logoWidth, logoMaxHeight / logoHeight);
+                logoWidth *= scale;
+                logoHeight *= scale;
+
+                // Center the logo
+                const x = (size.width - logoWidth) / 2;
+                const y = (size.height - logoHeight) / 2;
+
+                // Draw logo
+                ctx.drawImage(logoImage, x, y, logoWidth, logoHeight);
+
+                // Add app name below logo
+                ctx.fillStyle = '#FFFFFF';
+                ctx.font = `${size.width * 0.03}px Arial, sans-serif`;
+                ctx.textAlign = 'center';
+                ctx.fillText('roshLingua', size.width / 2, y + logoHeight + size.width * 0.05);
+
+                // Create container div
+                const div = document.createElement('div');
+                div.innerHTML = `
+                    <div class="size-info">${size.name} - ${size.width}x${size.height} (${size.device})</div>
+                `;
+                div.appendChild(canvas);
+                
+                const downloadBtn = document.createElement('button');
+                downloadBtn.textContent = `Download ${size.name}`;
+                downloadBtn.onclick = () => downloadCanvas(canvas, size.name);
+                div.appendChild(downloadBtn);
+
+                container.appendChild(div);
+                canvases.push({ canvas, name: size.name });
+            });
+        }
+
+        function downloadCanvas(canvas, filename) {
+            const link = document.createElement('a');
+            link.download = filename;
+            link.href = canvas.toDataURL('image/png');
+            link.click();
+        }
+
+        function downloadAll() {
+            canvases.forEach(({ canvas, name }) => {
+                setTimeout(() => downloadCanvas(canvas, name), 100);
+            });
+        }
+    </script>
+</body>
+</html>

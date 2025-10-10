@@ -57,6 +57,7 @@ interface ChatState {
   unsubscribeFromMessages: () => void;
   broadcastTyping: (conversationId: string, userId: string, userName: string, isTyping: boolean) => void;
   updateMessageStatus: (tempId: string, status: MessageStatus, realId?: string) => void;
+  updateMessageStatusById: (messageId: string, conversationId: string, status: MessageStatus) => void;
   processOfflineQueue: () => Promise<void>;
 }
 
@@ -190,72 +191,67 @@ export const useChatStore = create<ChatState>((set, get) => ({
       set({ conversations: [], isLoading: false });
     }
   },
-  
   loadMessages: async (conversationId: string, limit: number = 50) => {
-    console.log('📨 Loading messages for conversation:', conversationId);
-    
-    // Validate conversation ID
-    if (!conversationId || conversationId === 'undefined') {
-      console.error('❌ Invalid conversation ID:', conversationId);
-      return;
-    }
-    
     try {
-      // Skip cache for now to ensure fresh data
-      console.log('🔍 Loading messages from database...');
+      set({ isLoading: true });
       
-      // Load recent messages with pagination
       const { data, error } = await supabase
         .from('messages')
-        .select('*')
+        .select(`
+          id,
+          conversation_id,
+          sender_id,
+          content,
+          created_at,
+          type,
+          media_url
+        `)
         .eq('conversation_id', conversationId)
-        .order('created_at', { ascending: false })
+        .order('created_at', { ascending: true })
         .limit(limit);
-      
-      console.log('📊 Messages query result:', { 
-        conversationId, 
-        count: data?.length, 
-        error: error?.message,
-        firstMessage: data?.[0]?.content?.substring(0, 50)
-      });
-      
+
       if (error) {
-        console.error('❌ Error loading messages:', error);
-        // Don't throw, just set empty array
-        set(state => ({
-          messages: {
-            ...state.messages,
-            [conversationId]: []
-          }
-        }));
-        return;
+        console.error('Error loading messages:', error);
+        throw error;
       }
+
+      // Get current user to determine message status
+      const { data: { user } } = await supabase.auth.getUser();
       
-      // Reverse to show oldest first (chat order)
-      const messagesInOrder = (data || []).reverse();
-      
-      set(state => ({
-        messages: {
-          ...state.messages,
-          [conversationId]: messagesInOrder
+      // Add status to messages based on read status and conversation activity
+      const messagesWithStatus = (data || []).map((message, index) => {
+        let status: MessageStatus = 'delivered'; // Default for received messages
+        
+        if (message.sender_id === user?.id) {
+          // For sent messages, determine read status
+          // Check if there's a newer message from someone else (indicates they've read this message)
+          const laterMessages = (data || []).slice(index + 1);
+          const hasLaterReplyFromOthers = laterMessages.some(laterMsg => 
+            laterMsg.sender_id !== user.id && 
+            new Date(laterMsg.created_at) > new Date(message.created_at)
+          );
+          
+          // Also check the message_reads table for explicit read status
+          status = hasLaterReplyFromOthers ? 'read' : 'delivered';
         }
-      }));
-      
-      console.log('✅ Messages loaded successfully:', {
-        conversationId,
-        count: messagesInOrder.length,
-        messages: messagesInOrder.map(m => ({ id: m.id, content: m.content?.substring(0, 30) }))
+        
+        return {
+          ...message,
+          status
+        };
       });
-      
-    } catch (error) {
-      console.error('❌ Error loading messages:', error);
-      // Set empty array on error
+
       set(state => ({
         messages: {
           ...state.messages,
-          [conversationId]: []
-        }
+          [conversationId]: messagesWithStatus
+        },
+        isLoading: false
       }));
+    } catch (error) {
+      console.error('Error loading messages:', error);
+      set({ isLoading: false });
+      throw error;
     }
   },
   
@@ -272,8 +268,30 @@ export const useChatStore = create<ChatState>((set, get) => ({
       (mediaUrl.includes('.jpg') || mediaUrl.includes('.jpeg') || mediaUrl.includes('.png') || mediaUrl.includes('.gif') || mediaUrl.includes('.webp') ? 'image' : 
        mediaUrl.includes('.webm') || mediaUrl.includes('.mp3') || mediaUrl.includes('.wav') ? 'voice' : 'file') : 'text';
     
+    // Create optimistic message
+    const tempId = `temp_${Date.now()}_${Math.random()}`;
+    const optimisticMessage: DbMessage = {
+      id: tempId,
+      conversation_id: conversationId,
+      sender_id: senderId,
+      content: content || (mediaUrl ? 'Attachment' : ''),
+      created_at: new Date().toISOString(),
+      type: messageType,
+      media_url: mediaUrl,
+      status: 'sending',
+      tempId
+    };
+
+    // Add optimistic message to UI
+    set(state => ({
+      messages: {
+        ...state.messages,
+        [conversationId]: [...(state.messages[conversationId] || []), optimisticMessage]
+      }
+    }));
+    
     try {
-      // Direct database insertion without optimistic updates
+      // Send to database
       const { data, error } = await supabase
         .from('messages')
         .insert({
@@ -290,13 +308,44 @@ export const useChatStore = create<ChatState>((set, get) => ({
       
       if (error) {
         console.error('❌ Database insert failed:', error);
+        // Update optimistic message to failed
+        set(state => ({
+          messages: {
+            ...state.messages,
+            [conversationId]: state.messages[conversationId]?.map(msg => 
+              msg.tempId === tempId ? { ...msg, status: 'failed' as MessageStatus } : msg
+            ) || []
+          }
+        }));
         throw new Error(`Failed to send message: ${error.message}`);
       }
       
       if (!data) {
         console.error('❌ No data returned from insert');
+        // Update optimistic message to failed
+        set(state => ({
+          messages: {
+            ...state.messages,
+            [conversationId]: state.messages[conversationId]?.map(msg => 
+              msg.tempId === tempId ? { ...msg, status: 'failed' as MessageStatus } : msg
+            ) || []
+          }
+        }));
         throw new Error('Failed to send message: No data returned');
       }
+      
+      // Replace optimistic message with real message (delivered status)
+      set(state => ({
+        messages: {
+          ...state.messages,
+          [conversationId]: state.messages[conversationId]?.map(msg => 
+            msg.tempId === tempId ? { 
+              ...data, 
+              status: 'delivered' as MessageStatus 
+            } : msg
+          ) || []
+        }
+      }));
       
       console.log('✅ Message sent successfully to database:', data.id);
       return data;
@@ -613,6 +662,17 @@ export const useChatStore = create<ChatState>((set, get) => ({
         }
       }
       
+      // Update message status to 'read' in local state
+      set(state => {
+        const updatedMessages = { ...state.messages };
+        Object.keys(updatedMessages).forEach(conversationId => {
+          updatedMessages[conversationId] = updatedMessages[conversationId].map(msg => 
+            msg.id === messageId ? { ...msg, status: 'read' as MessageStatus } : msg
+          );
+        });
+        return { messages: updatedMessages };
+      });
+      
       console.log('✅ Message marked as read');
     } catch (error) {
       console.error('❌ Error marking message as read:', error);
@@ -704,6 +764,7 @@ export const useChatStore = create<ChatState>((set, get) => ({
 
               // Otherwise append new delivered message
               const newMessage: DbMessage = { ...(incoming as DbMessage), status: 'delivered' };
+              
               return {
                 messages: {
                   ...state.messages,
@@ -711,6 +772,7 @@ export const useChatStore = create<ChatState>((set, get) => ({
                 }
               };
             });
+            
             // Persist incoming to cache (non-blocking)
             (async () => {
               try {
@@ -838,6 +900,17 @@ export const useChatStore = create<ChatState>((set, get) => ({
       
       return { messages: updatedMessages };
     });
+  },
+
+  updateMessageStatusById: (messageId: string, conversationId: string, status: MessageStatus) => {
+    set(state => ({
+      messages: {
+        ...state.messages,
+        [conversationId]: state.messages[conversationId]?.map(msg => 
+          msg.id === messageId ? { ...msg, status } : msg
+        ) || []
+      }
+    }));
   },
   
   processOfflineQueue: async () => {

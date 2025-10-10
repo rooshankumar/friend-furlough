@@ -230,58 +230,44 @@ const ChatPage = () => {
 
     const msg = newMessage.trim();
     setNewMessage('');
-    logEvent('message_send_attempt', { messageLength: msg.length });
+    
+    console.log('🚀 [ChatPage] Attempting to send message:', {
+      conversationId,
+      userId: user.id,
+      messagePreview: msg.substring(0, 30) + (msg.length > 30 ? '...' : ''),
+      timestamp: new Date().toISOString()
+    });
 
     try {
-      await sendMessage(conversationId, user.id, msg);
-      logEvent('message_send_success');
+      const result = await sendMessage(conversationId, user.id, msg);
       
-      // Force reload messages to ensure UI updates
-      setTimeout(() => {
-        loadMessages(conversationId);
-      }, 100);
+      console.log('✅ [ChatPage] Message sent successfully:', {
+        success: true,
+        resultId: result?.id,
+        timestamp: new Date().toISOString()
+      });
+      
+      logEvent('message_send_success');
     } catch (error: any) {
-      console.error('❌ Message send failed:', error);
+      console.error('❌ [ChatPage] Message send failed:', {
+        error: error.message,
+        conversationId,
+        userId: user.id,
+        timestamp: new Date().toISOString()
+      });
+      
       logEvent('message_send_error', { error: error.message });
       
-      // Check if it's a network error (offline)
-      const isNetworkError = !navigator.onLine || 
-        error.message?.includes('fetch') || 
-        error.message?.includes('network') ||
-        error.message?.includes('Failed to fetch');
+      // Restore message to input on failure
+      setNewMessage(msg);
       
-      if (isNetworkError) {
-        // Queue message for when connection returns
-        const queuedMessage = {
-          conversationId,
-          userId: user.id,
-          content: msg,
-          timestamp: Date.now()
-        };
-        
-        // Store in localStorage for persistence
-        const existingQueue = JSON.parse(localStorage.getItem('offline_messages') || '[]');
-        existingQueue.push(queuedMessage);
-        localStorage.setItem('offline_messages', JSON.stringify(existingQueue));
-        
-        toast({
-          title: "Message queued",
-          description: "Will send when connection is restored",
-        });
-        
-        console.log('📦 Message queued for offline sending:', queuedMessage);
-      } else {
-        // Restore message to input on failure
-        setNewMessage(msg);
-        
-        toast({
-          title: "Failed to send message",
-          description: error.message || "Please try again",
-          variant: "destructive"
-        });
-      }
+      toast({
+        title: "Failed to send message",
+        description: error.message || "Please try again",
+        variant: "destructive"
+      });
     }
-  }, [newMessage, conversationId, user, sendMessage, toast, logEvent, loadMessages]);
+  }, [newMessage, conversationId, user, sendMessage, toast, logEvent]);
 
   const handleRetryMessage = useCallback(async (message: any) => {
     if (!conversationId || !user) return;
@@ -855,21 +841,14 @@ const ChatPage = () => {
                 );
               })}
 
-              {/* Typing Indicator */}
+              {/* Typing Indicator - Just 3 dots */}
               {currentTypingUsers.length > 0 && (
                 <div className="flex justify-start">
-                  <div className="max-w-[75%] sm:max-w-[60%] bg-accent text-accent-foreground rounded-2xl px-4 py-3">
-                    <div className="flex items-center gap-2">
-                      <div className="flex gap-1">
-                        <span className="w-2 h-2 bg-current rounded-full animate-bounce" style={{ animationDelay: '0ms' }} />
-                        <span className="w-2 h-2 bg-current rounded-full animate-bounce" style={{ animationDelay: '150ms' }} />
-                        <span className="w-2 h-2 bg-current rounded-full animate-bounce" style={{ animationDelay: '300ms' }} />
-                      </div>
-                      <span className="text-xs opacity-70">
-                        {currentTypingUsers.length === 1 
-                          ? `${currentTypingUsers[0]} is typing...` 
-                          : `${currentTypingUsers.join(', ')} are typing...`}
-                      </span>
+                  <div className="bg-accent text-accent-foreground rounded-2xl px-4 py-3">
+                    <div className="flex gap-1">
+                      <span className="w-2 h-2 bg-current rounded-full animate-bounce" style={{ animationDelay: '0ms' }} />
+                      <span className="w-2 h-2 bg-current rounded-full animate-bounce" style={{ animationDelay: '150ms' }} />
+                      <span className="w-2 h-2 bg-current rounded-full animate-bounce" style={{ animationDelay: '300ms' }} />
                     </div>
                   </div>
                 </div>

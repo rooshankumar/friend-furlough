@@ -372,18 +372,30 @@ const ChatPage = () => {
     console.log('✅ Starting attachment upload:', { fileName: file.name, fileSize: file.size });
     
     try {
-      console.log('📤 Starting mobile-optimized attachment upload:', {
+      console.log('📤 Starting attachment upload:', {
         name: file.name,
         size: `${(file.size / 1024 / 1024).toFixed(2)}MB`,
         type: file.type,
-        isMobile: mobileUploadHelper.isMobile,
-        isLowEndDevice: mobileUploadHelper.isLowEndDevice
+        conversationId,
+        userId: user.id
       });
       
-      // Direct attachment sending - bypass mobile helper wrapper that might be causing issues
-      console.log('📤 Sending attachment directly...');
+      // Show uploading toast
+      toast({
+        title: "Uploading...",
+        description: `Sending ${file.name}`,
+      });
+      
+      // Send attachment
       await sendAttachment(conversationId, user.id, file);
+      
       console.log('✅ Attachment sent successfully');
+      
+      // Show success toast
+      toast({
+        title: "Sent!",
+        description: "Attachment uploaded successfully",
+      });
       
       // Simple success indicator - just a brief green tick
       const successDiv = document.createElement('div');
@@ -416,11 +428,16 @@ const ChatPage = () => {
         } : null
       });
       
-      const errorMessage = getMobileErrorMessage(error.message || 'Upload failed');
+      const errorMessage = error.message || 'Upload failed';
+      
+      console.error('📎 Attachment upload failed:', errorMessage);
       
       toast({
         title: "Upload failed",
-        description: errorMessage,
+        description: errorMessage.includes('size') ? 'File too large' : 
+                     errorMessage.includes('type') ? 'File type not supported' :
+                     errorMessage.includes('network') ? 'Network error - check connection' :
+                     'Failed to upload attachment. Please try again.',
         variant: "destructive"
       });
     } finally {
@@ -792,8 +809,8 @@ const ChatPage = () => {
           </div>
 
           {/* Messages Area - Account for fixed header on mobile */}
-          <div className="flex-1 flex flex-col pt-16 md:pt-0 mb-20 md:mb-0">
-            <div className="absolute inset-0 pointer-events-none z-0">
+          <div className="flex-1 flex flex-col pt-16 md:pt-0 relative">
+            <div className="absolute inset-0 pointer-events-none z-0" style={{ bottom: '80px' }}>
               {/* Mobile Wallpaper - Full cover within chat area */}
               <div 
                 className="absolute inset-0 bg-cover bg-center md:hidden"
@@ -816,8 +833,8 @@ const ChatPage = () => {
             </div>
             
             {/* Messages - Scrollable over fixed wallpaper with proper spacing */}
-            <div className="flex-1 overflow-y-auto p-2 md:p-4 overscroll-contain relative z-10">
-              <div className="space-y-1 min-h-full flex flex-col justify-end">
+            <div className="flex-1 overflow-y-auto p-2 md:p-4 pb-24 md:pb-4 overscroll-contain relative z-10">
+              <div className="space-y-1 min-h-full flex flex-col justify-end pb-4">
               {conversationMessages.length === 0 ? (
                 <EmptyState otherParticipant={otherParticipant} />
               ) : (

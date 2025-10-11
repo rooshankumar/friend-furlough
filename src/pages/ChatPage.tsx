@@ -380,21 +380,10 @@ const ChatPage = () => {
         isLowEndDevice: mobileUploadHelper.isLowEndDevice
       });
       
-      // Use mobile upload helper with retry logic
-      const result = await mobileUploadHelper.uploadWithRetry(
-        (f) => sendAttachment(conversationId, user.id, f),
-        file,
-        { enableRetry: true, showProgress: true }
-      );
-      
-      if (!result.success) {
-        throw new Error(result.error);
-      }
-      
-      console.log('✅ Mobile attachment upload complete:', {
-        retries: result.retryCount,
-        url: result.url
-      });
+      // Direct attachment sending - bypass mobile helper wrapper that might be causing issues
+      console.log('📤 Sending attachment directly...');
+      await sendAttachment(conversationId, user.id, file);
+      console.log('✅ Attachment sent successfully');
       
       // Simple success indicator - just a brief green tick
       const successDiv = document.createElement('div');
@@ -803,7 +792,7 @@ const ChatPage = () => {
           </div>
 
           {/* Messages Area - Account for fixed header on mobile */}
-          <div className="flex-1 relative pt-16 md:pt-0">
+          <div className="flex-1 flex flex-col pt-16 md:pt-0 mb-20 md:mb-0">
             <div className="absolute inset-0 pointer-events-none z-0">
               {/* Mobile Wallpaper - Full cover within chat area */}
               <div 
@@ -826,9 +815,9 @@ const ChatPage = () => {
               <div className="absolute inset-0 bg-white/5" />
             </div>
             
-            {/* Messages - Scrollable over fixed wallpaper */}
-            <div className="absolute inset-0 overflow-y-auto p-2 md:p-4 overscroll-contain pb-2 md:pb-4">
-              <div className="space-y-1 relative z-10">
+            {/* Messages - Scrollable over fixed wallpaper with proper spacing */}
+            <div className="flex-1 overflow-y-auto p-2 md:p-4 overscroll-contain relative z-10">
+              <div className="space-y-1 min-h-full flex flex-col justify-end">
               {conversationMessages.length === 0 ? (
                 <EmptyState otherParticipant={otherParticipant} />
               ) : (
@@ -873,7 +862,7 @@ const ChatPage = () => {
                 </div>
               )}
               
-              <div ref={messagesEndRef} />
+              <div ref={messagesEndRef} className="h-4" />
               </div>
             </div>
           </div>

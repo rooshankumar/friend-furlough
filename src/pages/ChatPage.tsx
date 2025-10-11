@@ -331,6 +331,16 @@ const ChatPage = () => {
   const handleAttachmentUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     
+    console.log('📎 Attachment button clicked, file selected:', {
+      hasFile: !!file,
+      fileName: file?.name,
+      fileSize: file?.size,
+      fileType: file?.type,
+      conversationId,
+      userId: user?.id,
+      isOnline
+    });
+    
     if (!file || !conversationId || !user) {
       console.error('❌ Missing requirements:', { file: !!file, conversationId, user: !!user });
       toast({
@@ -342,24 +352,22 @@ const ChatPage = () => {
       return;
     }
     
-    // Use mobile upload helper for validation
-    const validation = mobileUploadHelper.validateFile(file, {
-      maxSizeMB: mobileUploadHelper.getRecommendedLimits().attachment
-    });
-    
-    if (!validation.valid) {
-      console.error('❌ Mobile validation failed:', validation.error);
+    // Basic file size validation (20MB max)
+    const maxSize = 20 * 1024 * 1024; // 20MB
+    if (file.size > maxSize) {
+      console.error('❌ File too large:', file.size);
       toast({
-        title: "Upload failed",
-        description: getMobileErrorMessage(validation.error!),
+        title: "File too large",
+        description: `Maximum file size is 20MB. Your file is ${(file.size / 1024 / 1024).toFixed(2)}MB`,
         variant: "destructive"
       });
       e.target.value = '';
       return;
     }
 
-    // P0: attachments require connection (no resumable upload yet)
+    // Check connection
     if (!isOnline) {
+      console.error('❌ Offline - cannot upload');
       toast({
         title: "Offline",
         description: "Attachments require an internet connection.",
@@ -369,7 +377,7 @@ const ChatPage = () => {
       return;
     }
 
-    console.log('✅ Starting attachment upload:', { fileName: file.name, fileSize: file.size });
+    console.log('✅ All validations passed, starting upload...');
     
     try {
       console.log('📤 Starting attachment upload:', {
@@ -753,9 +761,25 @@ const ChatPage = () => {
             isDesktop={true}
           />
         </div>
-        <div className="flex-1 bg-background flex flex-col h-full relative">
-          {/* Chat Header - Fixed on mobile, normal on desktop */}
-          <div className="fixed top-0 left-0 right-0 z-50 md:relative md:z-auto flex-shrink-0 border-b border-border/50 py-3 px-4 bg-background backdrop-blur-sm">
+        {/* Chat Container with Wallpaper */}
+        <div className="flex-1 flex flex-col h-full relative overflow-hidden">
+          {/* Responsive Wallpaper Background - Fixed */}
+          <div className="absolute inset-0 z-0">
+            <div 
+              className="absolute inset-0 bg-cover bg-center"
+              style={{ 
+                backgroundImage: "url('/wallpapers/chat-wallpaper.png')",
+                backgroundSize: 'cover',
+                backgroundPosition: 'center',
+                backgroundRepeat: 'no-repeat'
+              }}
+            />
+            {/* Overlay for better readability */}
+            <div className="absolute inset-0 bg-black/5" />
+          </div>
+
+          {/* Chat Header - Fixed at top */}
+          <div className="fixed top-0 left-0 right-0 md:left-auto z-50 flex-shrink-0 border-b border-border/50 py-3 px-4 bg-background/95 backdrop-blur-md shadow-sm">
             <div className="flex items-center justify-between">
               <div className="flex items-center space-x-3">
                 <Link to="/chat" className="lg:hidden">
@@ -808,33 +832,11 @@ const ChatPage = () => {
             </div>
           </div>
 
-          {/* Messages Area - Account for fixed header on mobile */}
-          <div className="flex-1 flex flex-col pt-16 md:pt-0 relative">
-            <div className="absolute inset-0 pointer-events-none z-0" style={{ bottom: '80px' }}>
-              {/* Mobile Wallpaper - Full cover within chat area */}
-              <div 
-                className="absolute inset-0 bg-cover bg-center md:hidden"
-                style={{ backgroundImage: "url('/wallpapers/chat-wallpaper.png')" }}
-              />
-              
-              {/* Desktop Wallpaper - Centered within chat area */}
-              <div 
-                className="hidden md:block absolute inset-0 bg-no-repeat"
-                style={{ 
-                  backgroundImage: "url('/wallpapers/chat-wallpaper.png')",
-                  backgroundSize: 'contain',
-                  backgroundPosition: 'center center',
-                  backgroundColor: '#e8f5e8'
-                }}
-              />
-              
-              {/* Light overlay for better text readability */}
-              <div className="absolute inset-0 bg-white/5" />
-            </div>
-            
-            {/* Messages - Scrollable over fixed wallpaper with proper spacing */}
-            <div className="flex-1 overflow-y-auto p-2 md:p-4 pb-24 md:pb-4 overscroll-contain relative z-10">
-              <div className="space-y-1 min-h-full flex flex-col justify-end pb-4">
+          {/* Messages Area - Floating over wallpaper */}
+          <div className="flex-1 relative z-10 pt-16 md:pt-0">
+            {/* Messages Container - Scrollable */}
+            <div className="h-full overflow-y-auto p-3 md:p-4 pb-24 md:pb-4">
+              <div className="space-y-2 min-h-full flex flex-col justify-end">
               {conversationMessages.length === 0 ? (
                 <EmptyState otherParticipant={otherParticipant} />
               ) : (
@@ -884,8 +886,8 @@ const ChatPage = () => {
             </div>
           </div>
 
-          {/* Message Input - Fixed at bottom on mobile, normal on desktop */}
-          <div className="fixed bottom-0 left-0 right-0 z-50 md:relative md:z-auto flex-shrink-0 border-t border-border/50 bg-background backdrop-blur-sm">
+          {/* Message Input - Fixed at bottom */}
+          <div className="fixed bottom-0 left-0 right-0 md:left-auto z-50 flex-shrink-0 border-t border-border/50 bg-background/95 backdrop-blur-md shadow-lg">
             {/* Voice Recording UI */}
             {isRecording && (
               <div className="p-2 md:p-3 border-b border-border/50 bg-destructive/5">
@@ -923,14 +925,18 @@ const ChatPage = () => {
                 size="sm" 
                 variant="ghost" 
                 className="h-8 w-8 md:h-9 md:w-9 p-0 flex-shrink-0"
-                disabled={isRecording || !isOnline}
-                title={!isOnline ? 'Attachments require internet' : undefined}
+                disabled={isRecording}
+                title="Attach file"
                 onClick={(e) => {
                   e.preventDefault();
-                  console.log('📎 Attachment button clicked');
+                  e.stopPropagation();
+                  console.log('📎 Attachment button clicked - triggering file input');
                   const input = document.getElementById('attachment-upload') as HTMLInputElement;
+                  console.log('📎 Input element found:', !!input);
                   if (input) {
+                    input.value = ''; // Reset input
                     input.click();
+                    console.log('📎 File input clicked');
                   }
                 }}
               >
@@ -939,7 +945,9 @@ const ChatPage = () => {
               <input
                 id="attachment-upload"
                 type="file"
-                {...getMobileInputAttributes('attachment')}
+                accept="image/*,video/*,audio/*,.pdf,.doc,.docx,.txt"
+                className="hidden"
+                style={{ display: 'none' }}
                 onChange={handleAttachmentUpload}
               />
               <div className="flex-1">

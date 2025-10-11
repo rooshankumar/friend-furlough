@@ -37,7 +37,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { formatDistanceToNow } from 'date-fns';
 import { supabase } from '@/integrations/supabase/client';
-import { mobileFileHandler } from '@/lib/mobileFileHandler';
+import { mobileUploadHelper, getMobileInputAttributes, getMobileErrorMessage } from '@/lib/mobileUploadHelper';
 // Helper function to format last seen time
 const getLastSeenText = (profile?: any): string => {
   // Check for real last seen data from database
@@ -331,22 +331,27 @@ const ChatPage = () => {
   const handleAttachmentUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     
-    console.log('📎 Attachment selected:', {
-      hasFile: !!file,
-      fileName: file?.name,
-      fileSize: file?.size,
-      fileType: file?.type,
-      conversationId,
-      userId: user?.id,
-      isMobile: /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent),
-      isPWA: window.matchMedia('(display-mode: standalone)').matches
-    });
-    
     if (!file || !conversationId || !user) {
       console.error('❌ Missing requirements:', { file: !!file, conversationId, user: !!user });
       toast({
         title: "Upload failed",
         description: "Missing file, conversation, or user information",
+        variant: "destructive"
+      });
+      e.target.value = '';
+      return;
+    }
+    
+    // Use mobile upload helper for validation
+    const validation = mobileUploadHelper.validateFile(file, {
+      maxSizeMB: mobileUploadHelper.getRecommendedLimits().attachment
+    });
+    
+    if (!validation.valid) {
+      console.error('❌ Mobile validation failed:', validation.error);
+      toast({
+        title: "Upload failed",
+        description: getMobileErrorMessage(validation.error!),
         variant: "destructive"
       });
       e.target.value = '';
@@ -367,15 +372,29 @@ const ChatPage = () => {
     console.log('✅ Starting attachment upload:', { fileName: file.name, fileSize: file.size });
     
     try {
-      // Use original file without any processing
-      console.log('📤 Uploading attachment:', {
+      console.log('📤 Starting mobile-optimized attachment upload:', {
         name: file.name,
         size: `${(file.size / 1024 / 1024).toFixed(2)}MB`,
-        type: file.type
+        type: file.type,
+        isMobile: mobileUploadHelper.isMobile,
+        isLowEndDevice: mobileUploadHelper.isLowEndDevice
       });
       
-      await sendAttachment(conversationId, user.id, file);
-      console.log('✅ Attachment upload complete');
+      // Use mobile upload helper with retry logic
+      const result = await mobileUploadHelper.uploadWithRetry(
+        (f) => sendAttachment(conversationId, user.id, f),
+        file,
+        { enableRetry: true, showProgress: true }
+      );
+      
+      if (!result.success) {
+        throw new Error(result.error);
+      }
+      
+      console.log('✅ Mobile attachment upload complete:', {
+        retries: result.retryCount,
+        url: result.url
+      });
       
       // Simple success indicator - just a brief green tick
       const successDiv = document.createElement('div');
@@ -408,20 +427,7 @@ const ChatPage = () => {
         } : null
       });
       
-      let errorMessage = "Please try again";
-      if (error.message?.includes('bucket')) {
-        errorMessage = "Storage bucket not configured. Please contact support.";
-      } else if (error.message?.includes('policy')) {
-        errorMessage = "Permission denied. Please check your account permissions.";
-      } else if (error.message?.includes('size')) {
-        errorMessage = "File is too large. Please select a smaller file.";
-      } else if (error.message?.includes('type')) {
-        errorMessage = "File type not supported.";
-      } else if (error.message?.includes('network') || error.message?.includes('fetch')) {
-        errorMessage = "Network error. Check your connection and try again.";
-      } else {
-        errorMessage = `Upload failed: ${error.message}`;
-      }
+      const errorMessage = getMobileErrorMessage(error.message || 'Upload failed');
       
       toast({
         title: "Upload failed",
@@ -927,11 +933,8 @@ const ChatPage = () => {
               <input
                 id="attachment-upload"
                 type="file"
-                accept="image/*,video/*,audio/*,.pdf,.doc,.docx,.txt"
-                className="hidden"
+                {...getMobileInputAttributes('attachment')}
                 onChange={handleAttachmentUpload}
-                multiple={false}
-                style={{ display: 'none' }}
               />
               <div className="flex-1">
                 <Input

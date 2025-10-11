@@ -54,24 +54,46 @@ const compressImage = async (file: File, maxWidth: number = 800, quality: number
 };
 
 /**
- * Upload avatar image with compression
+ * Mobile-optimized file validation
+ */
+const validateMobileFile = (file: File, maxSizeMB: number, allowedTypes: string[]): void => {
+  const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+  const isLowEndDevice = (navigator as any).deviceMemory <= 2 || navigator.hardwareConcurrency <= 2;
+  
+  // Adjust limits for mobile devices
+  const actualMaxSize = isMobile && isLowEndDevice ? Math.min(maxSizeMB, 3) : maxSizeMB;
+  const maxBytes = actualMaxSize * 1024 * 1024;
+  
+  if (file.size > maxBytes) {
+    throw new Error(`File too large. Maximum size: ${actualMaxSize}MB`);
+  }
+  
+  if (!allowedTypes.some(type => file.type.startsWith(type))) {
+    throw new Error('File type not supported');
+  }
+  
+  console.log('📱 Mobile file validation passed:', {
+    name: file.name,
+    size: `${(file.size / 1024 / 1024).toFixed(2)}MB`,
+    type: file.type,
+    isMobile,
+    isLowEndDevice,
+    maxAllowed: `${actualMaxSize}MB`
+  });
+};
+
+/**
+ * Upload avatar image with mobile optimization
  * @param file - Image file to upload
  * @param userId - User ID for file naming
  * @returns Public URL of uploaded avatar
  */
 export const uploadAvatar = async (file: File, userId: string): Promise<string> => {
   try {
-    // Validate file type
-    if (!file.type.startsWith('image/')) {
-      throw new Error('File must be an image');
-    }
+    // Mobile-optimized validation
+    validateMobileFile(file, 5, ['image/']);
     
-    // Validate file size (max 5MB)
-    if (file.size > 5 * 1024 * 1024) {
-      throw new Error('Image must be smaller than 5MB');
-    }
-    
-    // Skip compression - use original file
+    // Use original file for all devices
     const compressedFile = file;
     
     const fileExt = file.name.split('.').pop() || 'jpg';
@@ -102,24 +124,17 @@ export const uploadAvatar = async (file: File, userId: string): Promise<string> 
 };
 
 /**
- * Upload post image with compression
+ * Upload post image with mobile optimization
  * @param file - Image file to upload
  * @param userId - User ID for file naming
  * @returns Public URL of uploaded image
  */
 export const uploadPostImage = async (file: File, userId: string): Promise<string> => {
   try {
-    // Validate file type
-    if (!file.type.startsWith('image/')) {
-      throw new Error('File must be an image');
-    }
+    // Mobile-optimized validation
+    validateMobileFile(file, 10, ['image/']);
     
-    // Validate file size (max 10MB for posts)
-    if (file.size > 10 * 1024 * 1024) {
-      throw new Error('Image must be smaller than 10MB');
-    }
-    
-    // Skip compression - use original file
+    // Use original file for all devices
     const compressedFile = file;
     
     const fileExt = file.name.split('.').pop() || 'jpg';
@@ -150,7 +165,7 @@ export const uploadPostImage = async (file: File, userId: string): Promise<strin
 };
 
 /**
- * Upload chat attachment (image or file)
+ * Upload chat attachment with mobile optimization
  * @param file - File to upload
  * @param conversationId - Conversation ID for organization
  * @param onProgress - Optional callback for upload progress (0-100)
@@ -162,10 +177,25 @@ export const uploadChatAttachment = async (
   onProgress?: (progress: number) => void
 ): Promise<string> => {
   try {
-    // Validate file size (max 20MB for attachments)
-    if (file.size > 20 * 1024 * 1024) {
-      throw new Error('File must be smaller than 20MB');
+    // Mobile-optimized validation for all file types
+    const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+    const isLowEndDevice = (navigator as any).deviceMemory <= 2 || navigator.hardwareConcurrency <= 2;
+    
+    const maxSizeMB = isMobile && isLowEndDevice ? 10 : 20; // Reduce for low-end mobile
+    const maxBytes = maxSizeMB * 1024 * 1024;
+    
+    if (file.size > maxBytes) {
+      throw new Error(`File too large. Maximum size: ${maxSizeMB}MB`);
     }
+    
+    console.log('📱 Mobile attachment validation:', {
+      name: file.name,
+      size: `${(file.size / 1024 / 1024).toFixed(2)}MB`,
+      type: file.type,
+      isMobile,
+      isLowEndDevice,
+      maxAllowed: `${maxSizeMB}MB`
+    });
     
     let fileToUpload = file;
     let contentType = file.type;

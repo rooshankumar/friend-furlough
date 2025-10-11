@@ -18,6 +18,7 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { useToast } from '@/hooks/use-toast';
 import { uploadPostImage } from '@/lib/storage';
+import { mobileUploadHelper, getMobileInputAttributes, getMobileErrorMessage } from '@/lib/mobileUploadHelper';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useNavigate } from 'react-router-dom';
 
@@ -127,12 +128,55 @@ const CommunityPage = () => {
 
   const handleImageSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = Array.from(e.target.files || []);
+    const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+    const isLowEndDevice = (navigator as any).deviceMemory <= 2 || navigator.hardwareConcurrency <= 2;
+    
+    console.log('📱 Mobile post image selection:', {
+      filesCount: files.length,
+      currentImages: selectedImages.length,
+      isMobile,
+      isLowEndDevice,
+      userAgent: navigator.userAgent
+    });
+    
     if (files.length === 0) return;
     
-    // Limit to 4 images
-    const filesToAdd = files.slice(0, 4 - selectedImages.length);
+    // Mobile-specific validation for each file
+    const maxSizeMB = isMobile && isLowEndDevice ? 5 : 10;
+    const maxBytes = maxSizeMB * 1024 * 1024;
     
-    if (selectedImages.length + files.length > 4) {
+    const validFiles: File[] = [];
+    const invalidFiles: string[] = [];
+    
+    for (const file of files) {
+      // Check file type
+      if (!file.type.startsWith('image/')) {
+        invalidFiles.push(`${file.name}: Not an image file`);
+        continue;
+      }
+      
+      // Check file size
+      if (file.size > maxBytes) {
+        invalidFiles.push(`${file.name}: Too large (max ${maxSizeMB}MB)`);
+        continue;
+      }
+      
+      validFiles.push(file);
+    }
+    
+    // Show errors for invalid files
+    if (invalidFiles.length > 0) {
+      toast({
+        title: "Some files couldn't be added",
+        description: invalidFiles.join(', '),
+        variant: "destructive",
+      });
+    }
+    
+    // Limit to 4 images total
+    const filesToAdd = validFiles.slice(0, 4 - selectedImages.length);
+    
+    if (selectedImages.length + validFiles.length > 4) {
       toast({
         title: "Image limit",
         description: "You can upload a maximum of 4 images per post",
@@ -140,6 +184,12 @@ const CommunityPage = () => {
       });
     }
     
+    if (filesToAdd.length === 0) {
+      console.log('❌ No valid files to add');
+      return;
+    }
+    
+    console.log('✅ Adding valid files:', filesToAdd.map(f => ({ name: f.name, size: `${(f.size / 1024 / 1024).toFixed(2)}MB` })));
     setSelectedImages([...selectedImages, ...filesToAdd]);
     
     // Generate previews
@@ -234,12 +284,24 @@ const CommunityPage = () => {
         });
         
         try {
-          imageUrl = await uploadPostImage(selectedImages[0], user.id);
+          // Use mobile upload helper with retry logic
+          const result = await mobileUploadHelper.uploadWithRetry(
+            (f) => uploadPostImage(f, user.id),
+            selectedImages[0],
+            { enableRetry: true, showProgress: true }
+          );
+          
+          if (!result.success) {
+            throw new Error(result.error);
+          }
+          
+          imageUrl = result.url!;
+          
         } catch (uploadError: any) {
-          console.error('Image upload error:', uploadError);
+          console.error('Mobile post image upload error:', uploadError);
           toast({
             title: "Image upload failed",
-            description: uploadError.message || "Failed to upload image. Try a smaller file.",
+            description: getMobileErrorMessage(uploadError.message || 'Failed to upload image'),
             variant: "destructive",
           });
           setIsPosting(false);
@@ -395,8 +457,9 @@ const CommunityPage = () => {
                   <input
                     id="post-image"
                     type="file"
-                    accept="image/jpeg,image/jpg,image/png,image/gif,image/webp,video/mp4,video/webm"
-                    capture="environment"
+                    accept="image/jpeg,image/jpg,image/png,image/gif,image/webp"
+                    capture="environment" // Mobile camera access
+                    multiple={true} // Allow multiple image selection
                     className="hidden"
                     onChange={handleImageSelect}
                     style={{ display: 'none' }}

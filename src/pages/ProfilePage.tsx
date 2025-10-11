@@ -47,6 +47,7 @@ import { CulturalBadge } from '@/components/CulturalBadge';
 import { EditProfileModal } from '@/components/EditProfileModal';
 import { ProfileLoadingSkeleton, ErrorState } from '@/components/LoadingStates';
 import { uploadAvatar } from '@/lib/storage';
+import { mobileUploadHelper, getMobileInputAttributes, getMobileErrorMessage } from '@/lib/mobileUploadHelper';
 import { supabase } from '@/integrations/supabase/client';
 
 const ProfilePage = () => {
@@ -169,15 +170,46 @@ const ProfilePage = () => {
 
   const handleAvatarUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
-    if (!file || !authUser?.id) return;
+    
+    if (!file || !authUser?.id) {
+      console.error('❌ Missing file or user ID');
+      return;
+    }
+    
+    // Use mobile upload helper for validation
+    const validation = mobileUploadHelper.validateFile(file, {
+      maxSizeMB: mobileUploadHelper.getRecommendedLimits().avatar,
+      allowedTypes: ['image/']
+    });
+    
+    if (!validation.valid) {
+      console.error('❌ Mobile avatar validation failed:', validation.error);
+      toast({
+        title: "Upload failed",
+        description: getMobileErrorMessage(validation.error!),
+        variant: "destructive"
+      });
+      return;
+    }
 
     try {
       setIsUploading(true);
-      const avatarUrl = await uploadAvatar(file, authUser.id);
-      await updateProfile({ avatar_url: avatarUrl });
+      
+      // Use mobile upload helper with retry logic
+      const result = await mobileUploadHelper.uploadWithRetry(
+        (f) => uploadAvatar(f, authUser.id),
+        file,
+        { enableRetry: true }
+      );
+      
+      if (!result.success) {
+        throw new Error(result.error);
+      }
+      
+      await updateProfile({ avatar_url: result.url! });
       
       if (profileUser) {
-        setProfileUser({ ...profileUser, avatar_url: avatarUrl, profilePhoto: avatarUrl });
+        setProfileUser({ ...profileUser, avatar_url: result.url!, profilePhoto: result.url! });
       }
       
       toast({
@@ -202,6 +234,7 @@ const ProfilePage = () => {
   const [lookingFor, setLookingFor] = useState<string[]>([]);
   const [friendStatus, setFriendStatus] = useState<string>('none');
   const [userPosts, setUserPosts] = useState<any[]>([]);
+  const [friendsCount, setFriendsCount] = useState<number>(0);
   
   // Fetch all real-time data
   useEffect(() => {
@@ -270,6 +303,10 @@ const ProfilePage = () => {
           setLearningLanguages([]);
         }
 
+
+        // Set default friends count - ProfileFriends component will handle actual fetching
+        // This is just to satisfy the prop requirement
+        setFriendsCount(0);
 
         // Fetch cultural interests and looking for from profile
         if (profileUser) {
@@ -556,6 +593,7 @@ const ProfilePage = () => {
           <ProfileFriends
             profileUser={profileUser}
             isOwnProfile={isOwnProfile}
+            friendsCount={friendsCount}
           />
         </div>
 

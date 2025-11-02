@@ -3,7 +3,7 @@ import { supabase } from '@/integrations/supabase/client';
 // VAPID public key (safe to be public). Private key must be used on the server only.
 const VAPID_PUBLIC_KEY = 'BPvIDTz3JEy0Ta_pNGTtXlczVKZRCLVxBuwWmC4OEd3TOi6FiBujyLpfaJ6yDpWidJNLLkaSkkkTrbo-2rMRJuU';
 
-function urlBase64ToUint8Array(base64String: string): Uint8Array {
+function urlBase64ToUint8Array(base64String: string): BufferSource {
   const padding = '='.repeat((4 - (base64String.length % 4)) % 4);
   const base64 = (base64String + padding).replace(/-/g, '+').replace(/_/g, '/');
   const rawData = window.atob(base64);
@@ -11,7 +11,7 @@ function urlBase64ToUint8Array(base64String: string): Uint8Array {
   for (let i = 0; i < rawData.length; ++i) {
     outputArray[i] = rawData.charCodeAt(i);
   }
-  return outputArray;
+  return outputArray.buffer;
 }
 
 async function ensureServiceWorker(): Promise<ServiceWorkerRegistration | null> {

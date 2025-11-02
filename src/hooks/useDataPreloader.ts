@@ -78,32 +78,18 @@ export const useProfilePreloader = (userId?: string) => {
 
         console.log(`🚀 Preloading profile for ${userId}...`);
         
-        // Preload profile data in parallel
-        const [profileResult, postsResult] = await Promise.allSettled([
-          supabaseWrapper.withRetry(async () => {
-            const { fetchProfileById } = await import('@/integrations/supabase/fetchProfileById');
-            return fetchProfileById(userId);
-          }, 'preload profile'),
-          
-          supabaseWrapper.withRetry(async () => {
-            const { supabase } = await import('@/integrations/supabase/client');
-            const { data, error } = await supabase
-              .from('posts')
-              .select('id, content, image_url')
-              .eq('user_id', userId)
-              .limit(5);
-            
-            if (error) throw error;
-            return { data, error };
-          }, 'preload posts')
-        ]);
+        // Preload profile data
+        const profileResult = await Promise.resolve().then(async () => {
+          const { fetchProfileById } = await import('@/integrations/supabase/fetchProfileById');
+          return fetchProfileById(userId);
+        }).catch((error) => {
+          console.error('Failed to preload profile:', error);
+          return null;
+        });
 
-        // Cache successful results
-        if (profileResult.status === 'fulfilled') {
-          setCachedData(`${cacheKey}_profile`, profileResult.value);
-        }
-        if (postsResult.status === 'fulfilled') {
-          setCachedData(`${cacheKey}_posts`, postsResult.value);
+        // Cache successful result
+        if (profileResult) {
+          setCachedData(`${cacheKey}_profile`, profileResult);
         }
 
         setCachedData(cacheKey, true);

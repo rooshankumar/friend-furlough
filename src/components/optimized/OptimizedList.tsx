@@ -1,5 +1,4 @@
 import React, { memo, useMemo, useCallback } from 'react';
-import { FixedSizeList as List } from 'react-window';
 
 interface OptimizedListProps<T> {
   items: T[];
@@ -86,16 +85,12 @@ export const OptimizedList = memo(<T,>({
   }
 
   return (
-    <div className={className}>
-      <List
-        height={height}
-        itemCount={items.length}
-        itemSize={itemHeight}
-        itemData={itemData}
-        itemKey={(index) => keyExtractor(items[index], index)}
-      >
-        {ListItem}
-      </List>
+    <div className={className} style={{ height }}>
+      {items.map((item, index) => (
+        <div key={keyExtractor(item, index)} onClick={() => onItemClick?.(item, index)}>
+          {renderItem(item, index)}
+        </div>
+      ))}
     </div>
   );
 });

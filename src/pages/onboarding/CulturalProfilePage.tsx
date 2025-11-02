@@ -22,9 +22,7 @@ const culturalProfileSchema = z.object({
   city: z.string().min(2, 'City must be at least 2 characters'),
   nativeLanguages: z.array(z.string()).min(1, 'Please select at least one native language'),
   age: z.number().min(16, 'You must be at least 16 years old').max(100, 'Please enter a valid age'),
-  gender: z.enum(['male', 'female', 'non-binary', 'prefer-not-to-say'], {
-    required_error: 'Please select your gender',
-  }),
+  gender: z.string().min(1, 'Please select your gender'),
 });
 
 type CulturalProfileFormData = z.infer<typeof culturalProfileSchema>;
@@ -49,7 +47,7 @@ const CulturalProfilePage = () => {
       city: (profile as any)?.city || '',
       nativeLanguages: [],
       age: profile?.age || 0,
-      gender: (profile?.gender as any) || 'prefer-not-to-say',
+      gender: (profile?.gender as string) || 'prefer-not-to-say',
     },
   });
   
@@ -113,7 +111,7 @@ const CulturalProfilePage = () => {
         country_flag: selectedCountry.flag,
         city: data.city,
         age: data.age,
-        gender: data.gender,
+        gender: data.gender as any,
       });
       
       // Save native languages to languages table

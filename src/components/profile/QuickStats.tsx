@@ -86,7 +86,7 @@ export const QuickStats: React.FC<QuickStatsProps> = ({
   ];
 
   return (
-    <div className="bg-white rounded-xl border border-border/50 shadow-sm p-4 mb-6">
+    <div className="bg-card rounded-xl border border-border/50 shadow-sm p-4 mb-6">
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
         {statItems.map((item) => {
           const IconComponent = item.icon;

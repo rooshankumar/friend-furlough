@@ -2,40 +2,18 @@ import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { User } from '@/types';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import UserAvatar from '@/components/UserAvatar';
-import { Badge } from '@/components/ui/badge';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Separator } from '@/components/ui/separator';
-import { Progress } from '@/components/ui/progress';
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { ProfileHeader } from '@/components/profile/ProfileHeader';
 import { ProfileBio } from '@/components/profile/ProfileBio';
 import { ProfileLanguages } from '@/components/profile/ProfileLanguages';
 import { ProfilePosts } from '@/components/profile/ProfilePosts';
 import { ProfileFriends } from '@/components/profile/ProfileFriends';
+import { QuickStats } from '@/components/profile/QuickStats';
 import { 
   MessageCircle, 
-  Globe, 
-  Calendar,
-  MapPin,
-  Languages,
-  Heart,
-  Users,
-  BookOpen,
-  Camera,
-  Settings,
-  Share,
-  MoreHorizontal,
-  Award,
-  Plane,
-  Music,
-  Utensils,
   Loader2,
-  Flag,
-  Ban,
-  UserX,
-  ArrowLeft
+  ArrowLeft,
+  RefreshCw
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { useAuthStore } from '@/stores/authStore';
@@ -43,7 +21,6 @@ import { useFriendRequestStore } from '@/stores/friendRequestStore';
 import { useProfileReactionStore } from '@/stores/profileReactionStore';
 import { usePostReactionStore } from '@/stores/postReactionStore';
 import { usePostCommentStore } from '@/stores/postCommentStore';
-import { CulturalBadge } from '@/components/CulturalBadge';
 import { EditProfileModal } from '@/components/EditProfileModal';
 import { ProfileLoadingSkeleton, ErrorState } from '@/components/LoadingStates';
 import { uploadAvatar } from '@/lib/storage';
@@ -55,11 +32,12 @@ const ProfilePage = () => {
   const navigate = useNavigate();
   const [isOwnProfile, setIsOwnProfile] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
+  const [isRefreshing, setIsRefreshing] = useState(false);
   const { toast } = useToast();
   
   const { user: authUser, profile: authProfile, updateProfile } = useAuthStore();
   
-  // Convert auth profile to User type for components
+  // Convert auth profile to User type
   const currentUser: User | null = authProfile ? {
     id: authProfile.id,
     name: authProfile.name,
@@ -82,9 +60,11 @@ const ProfilePage = () => {
     languageGoals: authProfile.language_goals || [],
     lookingFor: authProfile.looking_for || [],
     teachingExperience: authProfile.teaching_experience || false,
-    countriesVisited: authProfile.countries_visited || []
+    countriesVisited: authProfile.countries_visited || [],
+    posts: []
   } : null;
-  const { sendFriendRequest, unsendFriendRequest, checkFriendStatus, checkAreFriends, friendRequestStatus, areFriends } = useFriendRequestStore();
+
+  const { sendFriendRequest, unsendFriendRequest, checkFriendStatus, friendRequestStatus } = useFriendRequestStore();
   const { toggleReaction, loadReactionData, reactions, userReactions } = useProfileReactionStore();
   const { 
     toggleReaction: togglePostReaction, 
@@ -92,98 +72,129 @@ const ProfilePage = () => {
     userReactions: userPostReactions, 
     loadMultiplePostReactions 
   } = usePostReactionStore();
-  const { 
-    loadComments, 
-    commentCounts, 
-    loadMultiplePostComments 
-  } = usePostCommentStore();
-
-  useEffect(() => {
-    // Check if viewing own profile - either no userId or userId matches user ID
-    const isOwn = !userId || userId === authUser?.id;
-    console.log('Profile page - userId:', userId, 'authUser.id:', authUser?.id, 'isOwnProfile:', isOwn);
-    setIsOwnProfile(isOwn);
-  }, [userId, authUser]);
+  const { commentCounts, loadMultiplePostComments } = usePostCommentStore();
 
   const [profileUser, setProfileUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [nativeLanguages, setNativeLanguages] = useState<string[]>([]);
+  const [learningLanguages, setLearningLanguages] = useState<string[]>([]);
+  const [culturalInterests, setCulturalInterests] = useState<string[]>([]);
+  const [lookingFor, setLookingFor] = useState<string[]>([]);
+  const [friendStatus, setFriendStatus] = useState<string>('none');
+  const [userPosts, setUserPosts] = useState<any[]>([]);
+  const [friendsCount, setFriendsCount] = useState<number>(0);
 
   useEffect(() => {
+    const isOwn = !userId || userId === authUser?.id;
+    setIsOwnProfile(isOwn);
+  }, [userId, authUser]);
+
+  // Optimized data fetching - batch all requests
+  const fetchProfileData = async (force = false) => {
     if (!authUser?.id) {
-      console.log('No authenticated user found');
       setError('Please sign in to view profiles');
       setLoading(false);
       return;
     }
-    
-    async function fetchProfile() {
-      setLoading(true);
-      setError(null);
-      
-      try {
-        let targetUserId = authUser.id;
-        
-        // If viewing someone else's profile, use the userId as user ID
-        if (!isOwnProfile && userId) {
-          console.log('Fetching profile for user ID:', userId);
-          targetUserId = userId;
-        }
-        
-        console.log('Fetching profile for user:', targetUserId);
-        
-        // Always fetch fresh profile data to ensure avatar is up to date
-        const { fetchProfileById } = await import('@/integrations/supabase/fetchProfileById');
-        const profile = await fetchProfileById(targetUserId);
-        
-        if (!profile) {
-          console.error('No profile found for user:', targetUserId);
-          setError('Profile not found');
-          setProfileUser(null);
-          return;
-        }
 
-        // Merge profile data
-        const fullProfile: User = {
-          ...profile,
-          email: profile.email || '',  // Use profile's email, not current user's
-          avatar_url: profile.avatar_url || profile.profilePhoto,
-          profilePhoto: profile.profilePhoto || profile.avatar_url,
-        };
+    if (force) setIsRefreshing(true);
+    setLoading(true);
+    setError(null);
 
-        console.log('Setting profile data:', fullProfile);
-        console.log('Avatar URL:', fullProfile.avatar_url);
-        setProfileUser(fullProfile);
-        
-      } catch (error: any) {
-        console.error('Profile fetch error:', error);
-        setError(error.message || 'Failed to load profile');
-        setProfileUser(null);
-      } finally {
-        setLoading(false);
+    try {
+      const targetUserId = isOwnProfile ? authUser.id : userId!;
+
+      // Batch all data requests in parallel
+      const [profileData, languagesData, postsData] = await Promise.all([
+        // Profile data
+        (async () => {
+          const { fetchProfileById } = await import('@/integrations/supabase/fetchProfileById');
+          return fetchProfileById(targetUserId);
+        })(),
+        // Languages data
+        supabase
+          .from('languages')
+          .select('language_name, is_native, is_learning')
+          .eq('user_id', targetUserId),
+        // Posts data
+        supabase
+          .from('community_posts')
+          .select('*, profiles!community_posts_user_id_fkey(name, avatar_url, country_flag)')
+          .eq('user_id', targetUserId)
+          .order('created_at', { ascending: false })
+      ]);
+
+      if (!profileData) {
+        setError('Profile not found');
+        return;
       }
-    }
-    
-    fetchProfile();
-  }, [userId, authUser, isOwnProfile]);
 
+      // Set profile with synced avatar
+      const fullProfile: User = {
+        ...profileData,
+        email: profileData.email || '',
+        avatar_url: profileData.avatar_url || profileData.profilePhoto,
+        profilePhoto: profileData.profilePhoto || profileData.avatar_url,
+      };
+
+      setProfileUser(fullProfile);
+
+      // Set languages
+      if (languagesData.data) {
+        setNativeLanguages(languagesData.data.filter(l => l.is_native).map(l => l.language_name));
+        setLearningLanguages(languagesData.data.filter(l => l.is_learning).map(l => l.language_name));
+      }
+
+      // Set posts
+      setUserPosts(postsData.data || []);
+
+      // Set interests from profile
+      setCulturalInterests(profileData.culturalInterests || []);
+      setLookingFor(profileData.lookingFor || []);
+
+      // Load reactions and comments for posts
+      if (postsData.data && postsData.data.length > 0) {
+        const postIds = postsData.data.map((post: any) => post.id);
+        await Promise.all([
+          loadMultiplePostReactions(postIds, 'like'),
+          loadMultiplePostComments(postIds)
+        ]);
+      }
+
+      // Load profile reaction data
+      await loadReactionData(fullProfile.id);
+
+      // Check friend status
+      if (!isOwnProfile) {
+        const status = await checkFriendStatus(targetUserId);
+        setFriendStatus(status);
+      }
+
+    } catch (error: any) {
+      console.error('Profile fetch error:', error);
+      setError(error.message || 'Failed to load profile');
+    } finally {
+      setLoading(false);
+      setIsRefreshing(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchProfileData();
+  }, [userId, authUser, isOwnProfile]);
 
   const handleAvatarUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     
-    if (!file || !authUser?.id) {
-      console.error('❌ Missing file or user ID');
-      return;
-    }
+    if (!file || !authUser?.id) return;
     
-    // Use mobile upload helper for validation
     const validation = mobileUploadHelper.validateFile(file, {
       maxSizeMB: mobileUploadHelper.getRecommendedLimits().avatar,
       allowedTypes: ['image/']
     });
     
     if (!validation.valid) {
-      console.error('❌ Mobile avatar validation failed:', validation.error);
       toast({
         title: "Upload failed",
         description: getMobileErrorMessage(validation.error!),
@@ -195,16 +206,13 @@ const ProfilePage = () => {
     try {
       setIsUploading(true);
       
-      // Use mobile upload helper with retry logic
       const result = await mobileUploadHelper.uploadWithRetry(
         (f) => uploadAvatar(f, authUser.id),
         file,
         { enableRetry: true }
       );
       
-      if (!result.success) {
-        throw new Error(result.error);
-      }
+      if (!result.success) throw new Error(result.error);
       
       await updateProfile({ avatar_url: result.url! });
       
@@ -227,129 +235,10 @@ const ProfilePage = () => {
     }
   };
 
-  // Real-time data states
-  const [nativeLanguages, setNativeLanguages] = useState<string[]>([]);
-  const [learningLanguages, setLearningLanguages] = useState<string[]>([]);
-  const [culturalInterests, setCulturalInterests] = useState<string[]>([]);
-  const [lookingFor, setLookingFor] = useState<string[]>([]);
-  const [friendStatus, setFriendStatus] = useState<string>('none');
-  const [userPosts, setUserPosts] = useState<any[]>([]);
-  const [friendsCount, setFriendsCount] = useState<number>(0);
-  
-  // Fetch all real-time data
-  useEffect(() => {
-    if (!authUser?.id) return;
-    
-    const fetchAllData = async () => {
-      try {
-        // Determine which user's data to fetch
-        const targetUserId = profileUser?.id || authUser.id;
-        console.log('Fetching real-time data for user:', targetUserId);
-        
-        // Fetch posts data
-        try {
-          const { data: postsData, error: postsError } = await supabase
-            .from('community_posts')
-            .select(`
-              *,
-              profiles!community_posts_user_id_fkey (
-                name,
-                avatar_url,
-                country_flag
-              )
-            `)
-            .eq('user_id', targetUserId)
-            .order('created_at', { ascending: false });
-          
-          console.log('Posts data:', postsData, 'Error:', postsError);
-          if (postsError) {
-            console.error('Posts table error:', postsError);
-            setUserPosts([]);
-          } else {
-            setUserPosts(postsData || []);
-          }
-        } catch (error) {
-          console.error('Posts table may not exist:', error);
-          setUserPosts([]);
-        }
-
-
-        // Fetch languages data
-        try {
-          const { data: languages, error: languagesError } = await supabase
-            .from('languages')
-            .select('language_name, is_native, is_learning')
-            .eq('user_id', targetUserId);
-
-          console.log('Languages data:', languages, 'Error:', languagesError);
-          
-          if (languagesError) {
-            console.error('Languages table error:', languagesError);
-            setNativeLanguages([]);
-            setLearningLanguages([]);
-          } else if (languages) {
-            const native = languages.filter(l => l.is_native).map(l => l.language_name);
-            const learning = languages.filter(l => l.is_learning).map(l => l.language_name);
-            
-            setNativeLanguages(native);
-            setLearningLanguages(learning);
-          } else {
-            setNativeLanguages([]);
-            setLearningLanguages([]);
-          }
-        } catch (error) {
-          console.error('Languages table may not exist:', error);
-          setNativeLanguages([]);
-          setLearningLanguages([]);
-        }
-
-
-        // Set default friends count - ProfileFriends component will handle actual fetching
-        // This is just to satisfy the prop requirement
-        setFriendsCount(0);
-
-        // Fetch cultural interests and looking for from profile
-        if (profileUser) {
-          setCulturalInterests(profileUser.culturalInterests || []);
-          setLookingFor(profileUser.lookingFor || []);
-        }
-
-      } catch (error) {
-        console.error('Error fetching profile data:', error);
-      }
-    };
-    
-    fetchAllData();
-  }, [authUser?.id, profileUser]);
-
-  // Check friend status for other users
-  useEffect(() => {
-    if (!isOwnProfile && profileUser?.id && authUser?.id) {
-      checkFriendStatus(profileUser.id).then(setFriendStatus);
-    }
-  }, [isOwnProfile, profileUser?.id, authUser?.id, checkFriendStatus]);
-
-  // Load reaction data when profile loads
-  useEffect(() => {
-    if (profileUser?.id) {
-      loadReactionData(profileUser.id);
-    }
-  }, [profileUser?.id, loadReactionData]);
-
-  // Load post reactions and comments when posts are loaded
-  useEffect(() => {
-    if (userPosts.length > 0) {
-      const postIds = userPosts.map(post => post.id);
-      loadMultiplePostReactions(postIds, 'like');
-      loadMultiplePostComments(postIds);
-    }
-  }, [userPosts, loadMultiplePostReactions, loadMultiplePostComments]);
-
   const handleFriendRequest = async () => {
     if (!profileUser?.id) return;
     
     if (friendStatus === 'pending') {
-      // Unsend the request
       const success = await unsendFriendRequest(profileUser.id);
       if (success) {
         setFriendStatus('none');
@@ -357,22 +246,14 @@ const ProfilePage = () => {
           title: "Friend request cancelled",
           description: `Your friend request to ${profileUser.name} has been cancelled`,
         });
-      } else {
-        toast({
-          title: "Failed to cancel request",
-          description: "Please try again later",
-          variant: "destructive",
-        });
       }
     } else if (friendStatus === 'received') {
-      // This user sent you a request, redirect to friends page
       toast({
         title: "Check your friend requests",
-        description: `${profileUser.name} has sent you a friend request. Check your Friends page to accept it.`,
+        description: `${profileUser.name} has sent you a friend request.`,
       });
       navigate('/friends');
     } else {
-      // Send new request
       const success = await sendFriendRequest(profileUser.id);
       if (success) {
         setFriendStatus('pending');
@@ -380,53 +261,16 @@ const ProfilePage = () => {
           title: "Friend request sent!",
           description: `Your friend request has been sent to ${profileUser.name}`,
         });
-      } else {
-        // Check if request already exists
-        const currentStatus = await checkFriendStatus(profileUser.id);
-        setFriendStatus(currentStatus);
-        
-        if (currentStatus === 'pending') {
-          toast({
-            title: "Request already sent",
-            description: `You've already sent a friend request to ${profileUser.name}`,
-          });
-        } else if (currentStatus === 'accepted') {
-          toast({
-            title: "Already friends",
-            description: `You and ${profileUser.name} are already friends!`,
-          });
-        } else {
-          toast({
-            title: "Failed to send request",
-            description: "Please try again later",
-            variant: "destructive",
-          });
-        }
       }
     }
-  };
-
-  const handleReport = () => {
-    toast({
-      title: "Report submitted",
-      description: `Thank you for reporting. We'll review ${profileUser?.name}'s account.`,
-    });
-  };
-
-  const handleBlock = () => {
-    toast({
-      title: "User blocked",
-      description: `You have blocked ${profileUser?.name}. You won't see their content anymore.`,
-    });
   };
 
   const handleHeartReaction = async () => {
     if (!profileUser?.id) return;
     
-    // Get the current state BEFORE toggling
     const wasReacted = userReactions[profileUser.id] || false;
-    
     const success = await toggleReaction(profileUser.id);
+    
     if (success) {
       toast({
         title: !wasReacted ? "Added to favorites!" : "Removed from favorites",
@@ -434,29 +278,15 @@ const ProfilePage = () => {
           ? `You liked ${profileUser.name}'s profile` 
           : `You removed your like from ${profileUser.name}'s profile`,
       });
-    } else {
-      toast({
-        title: "Failed to update reaction",
-        description: "Please try again later",
-        variant: "destructive",
-      });
     }
   };
 
-  // Handle like/reaction toggle for posts
   const handleLikePost = async (postId: string) => {
-    const success = await togglePostReaction(postId, 'like');
-    if (!success) {
-      toast({
-        title: "Failed to update reaction",
-        description: "Please try again later",
-        variant: "destructive",
-      });
-    }
+    await togglePostReaction(postId, 'like');
   };
 
   const startConversation = async () => {
-    if (!profileUser?.id) return;
+    if (!profileUser?.id || profileUser.id === authUser?.id) return;
     
     try {
       const { data: { session } } = await supabase.auth.getSession();
@@ -470,8 +300,7 @@ const ProfilePage = () => {
         return;
       }
 
-      if (profileUser.id === authUser?.id) return;
-
+      // Check for existing conversation
       const { data: existingParticipants } = await supabase
         .from('conversation_participants')
         .select('conversation_id')
@@ -493,123 +322,136 @@ const ProfilePage = () => {
         }
       }
 
+      // Create new conversation
       const { data: conversation, error: convError } = await supabase
         .from('conversations')
         .insert({ is_language_exchange: true })
         .select()
         .single();
 
-      if (convError) {
-        toast({ title: 'Failed to start conversation', description: convError.message, variant: 'destructive' });
-        return;
-      }
+      if (convError) throw convError;
 
-      const { error: participantError } = await supabase
+      // Add participants
+      const { error: participantsError } = await supabase
         .from('conversation_participants')
         .insert([
-          { conversation_id: conversation.id, user_id: session.user.id },
+          { conversation_id: conversation.id, user_id: authUser!.id },
           { conversation_id: conversation.id, user_id: profileUser.id }
         ]);
 
-      if (participantError) {
-        toast({ title: 'Failed to add participants', description: 'Please try again.', variant: 'destructive' });
-        return;
-      }
+      if (participantsError) throw participantsError;
 
-      toast({ title: 'Conversation started!', description: `You can now chat with ${profileUser.name}` });
       navigate(`/chat/${conversation.id}`);
-    } catch (error) {
-      toast({ title: 'Something went wrong', description: 'Please try again.', variant: 'destructive' });
+    } catch (error: any) {
+      console.error('Error starting conversation:', error);
+      toast({
+        title: 'Failed to start conversation',
+        description: error.message,
+        variant: 'destructive',
+      });
     }
   };
 
-  const languageProgress = [];
-
-
-  if (!authUser) return null;
-  
-  if (loading) {
+  if (loading && !profileUser) {
     return <ProfileLoadingSkeleton />;
   }
-  
-  if (error) {
+
+  if (error || !profileUser) {
     return (
       <ErrorState 
-        title="Failed to load profile"
-        description={error}
-        onRetry={() => window.location.reload()}
-      />
-    );
-  }
-  
-  if (!profileUser) {
-    return (
-      <ErrorState 
-        title="Profile not found"
-        description="The profile you're looking for doesn't exist or has been removed."
-        onRetry={() => navigate('/explore')}
-        showRetry={true}
+        title={error || 'Profile not found'}
+        description="Failed to load profile data"
+        onRetry={() => fetchProfileData(true)}
       />
     );
   }
 
+  const stats = {
+    friendsCount,
+    postsCount: userPosts.length,
+    languagesLearning: learningLanguages.length,
+    culturalExchanges: 0,
+    heartsReceived: reactions[profileUser.id] || 0
+  };
+
   return (
-    <div className="min-h-screen md:ml-16 bg-gradient-subtle pb-16 md:pb-0">
-      <div className="p-3 sm:p-4 md:p-8 max-w-6xl mx-auto">
+    <div className="min-h-screen bg-gradient-to-br from-background via-card-cultural/30 to-background md:ml-16 pb-20 md:pb-0">
+      {/* Header with Back Button */}
+      <div className="sticky top-0 z-10 bg-card/80 backdrop-blur-lg border-b border-border/50 px-4 py-3">
+        <div className="max-w-5xl mx-auto flex items-center justify-between">
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => navigate(-1)}
+            className="gap-2"
+          >
+            <ArrowLeft className="h-4 w-4" />
+            Back
+          </Button>
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => fetchProfileData(true)}
+            disabled={isRefreshing}
+            className="gap-2"
+          >
+            <RefreshCw className={`h-4 w-4 ${isRefreshing ? 'animate-spin' : ''}`} />
+            Refresh
+          </Button>
+        </div>
+      </div>
+
+      <div className="max-w-5xl mx-auto p-4 md:p-6 space-y-6">
         {/* Profile Header */}
         <ProfileHeader
           profileUser={profileUser}
           isOwnProfile={isOwnProfile}
-          user={isOwnProfile ? currentUser : undefined}
+          user={currentUser}
           reactions={reactions}
           userReactions={userReactions}
           friendStatus={friendStatus}
           isUploading={isUploading}
           onAvatarUpload={handleAvatarUpload}
-          onHeartReaction={handleHeartReaction}
           onFriendRequest={handleFriendRequest}
           onStartConversation={startConversation}
+          onHeartReaction={handleHeartReaction}
         />
 
+        {/* Quick Stats */}
+        <QuickStats stats={stats} isOwnProfile={isOwnProfile} />
 
-        {/* Bio Section */}
+        {/* Bio & Interests */}
         <ProfileBio
           profileUser={profileUser}
           culturalInterests={culturalInterests}
           lookingFor={lookingFor}
         />
 
-        {/* Languages Section */}
-        <div id="languages-section">
-          <ProfileLanguages
-            profileUser={profileUser}
-            nativeLanguages={nativeLanguages}
-            learningLanguages={learningLanguages}
-          />
-        </div>
+        {/* Languages */}
+        <ProfileLanguages
+          profileUser={profileUser}
+          nativeLanguages={nativeLanguages}
+          learningLanguages={learningLanguages}
+        />
 
-        {/* Friends Section */}
-        <div id="friends-section">
-          <ProfileFriends
-            profileUser={profileUser}
-            isOwnProfile={isOwnProfile}
-            friendsCount={friendsCount}
-          />
-        </div>
+        {/* Posts */}
+        <ProfilePosts
+          userPosts={userPosts}
+          profileUser={profileUser}
+          isOwnProfile={isOwnProfile}
+          user={currentUser}
+          postReactions={postReactions}
+          userPostReactions={userPostReactions}
+          commentCounts={commentCounts}
+          onLikePost={handleLikePost}
+        />
 
-        {/* Posts Section */}
-        <div id="posts-section">
-          <ProfilePosts
-            userPosts={userPosts}
-            profileUser={profileUser}
-            isOwnProfile={isOwnProfile}
-            user={isOwnProfile ? currentUser : undefined}
-            postReactions={postReactions}
-            userPostReactions={userPostReactions}
-            commentCounts={commentCounts}
-            onLikePost={handleLikePost}
-          />
-        </div>
+        {/* Friends */}
+        <ProfileFriends 
+          profileUser={profileUser} 
+          isOwnProfile={isOwnProfile} 
+          friendsCount={friendsCount}
+        />
       </div>
     </div>
   );

@@ -38,17 +38,17 @@ export const ProfilePosts: React.FC<ProfilePostsProps> = ({
 
   if (userPosts.length === 0) {
     return (
-      <div className="bg-white rounded-xl border border-border/50 shadow-sm p-6 mb-6">
+      <div className="bg-card rounded-xl border border-border/50 shadow-sm p-6 mb-6">
         <div className="flex items-center gap-2 mb-6">
           <FileText className="h-5 w-5 text-primary" />
-          <h3 className="text-lg font-semibold text-foreground">Posts</h3>
+          <h3 className="text-lg font-semibold text-card-foreground">Posts</h3>
         </div>
         
         <div className="text-center py-12">
           <div className="bg-gradient-to-br from-blue-50 to-purple-50 rounded-full w-20 h-20 flex items-center justify-center mx-auto mb-4">
             <FileText className="h-10 w-10 text-muted-foreground" />
           </div>
-          <h3 className="text-xl font-semibold mb-2 text-foreground">No posts yet</h3>
+          <h3 className="text-xl font-semibold mb-2 text-card-foreground">No posts yet</h3>
           <p className="text-muted-foreground mb-6 max-w-md mx-auto">
             {isOwnProfile 
               ? "Share your thoughts, experiences, and cultural insights with the community!" 
@@ -73,7 +73,7 @@ export const ProfilePosts: React.FC<ProfilePostsProps> = ({
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
           <FileText className="h-5 w-5 text-primary" />
-          <h3 className="text-lg font-semibold text-foreground">Posts</h3>
+          <h3 className="text-lg font-semibold text-card-foreground">Posts</h3>
           <span className="text-sm text-muted-foreground">({userPosts.length})</span>
         </div>
         {isOwnProfile && (

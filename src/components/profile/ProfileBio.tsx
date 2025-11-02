@@ -22,15 +22,15 @@ export const ProfileBio: React.FC<ProfileBioProps> = ({
   lookingFor
 }) => {
   return (
-    <div className="bg-white rounded-xl border border-border/50 shadow-sm p-6 mb-6">
+    <div className="bg-card rounded-xl border border-border/50 shadow-sm p-6 mb-6">
       {/* About Section */}
       <div className="mb-6">
         <div className="flex items-center gap-2 mb-3">
           <MessageSquare className="h-5 w-5 text-primary" />
-          <h3 className="text-lg font-semibold text-foreground">About</h3>
+          <h3 className="text-lg font-semibold text-card-foreground">About</h3>
         </div>
         <div className="bg-gradient-to-r from-primary/5 to-secondary/5 rounded-lg p-4 border border-primary/10">
-          <p className="text-foreground leading-relaxed">
+          <p className="text-card-foreground leading-relaxed">
             {profileUser.bio || "This user hasn't written a bio yet."}
           </p>
         </div>
@@ -40,8 +40,8 @@ export const ProfileBio: React.FC<ProfileBioProps> = ({
       {lookingFor.length > 0 && (
         <div className="mb-6">
           <div className="flex items-center gap-2 mb-3">
-            <Target className="h-5 w-5 text-green-600" />
-            <h3 className="text-lg font-semibold text-foreground">Looking For</h3>
+            <Target className="h-5 w-5 text-success" />
+            <h3 className="text-lg font-semibold text-card-foreground">Looking For</h3>
           </div>
           <div className="flex flex-wrap gap-2">
             {lookingFor.map((item: string, index: number) => (
@@ -61,8 +61,8 @@ export const ProfileBio: React.FC<ProfileBioProps> = ({
       {culturalInterests.length > 0 && (
         <div>
           <div className="flex items-center gap-2 mb-3">
-            <Sparkles className="h-5 w-5 text-purple-600" />
-            <h3 className="text-lg font-semibold text-foreground">Interests</h3>
+            <Sparkles className="h-5 w-5 text-accent" />
+            <h3 className="text-lg font-semibold text-card-foreground">Interests</h3>
           </div>
           <div className="flex flex-wrap gap-2">
             {culturalInterests.map((interest: string, index: number) => (

@@ -7,7 +7,7 @@ import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import UserAvatar from '@/components/UserAvatar';
-import { Heart, MessageCircle, Upload, Globe, Trash2, MoreHorizontal, Loader2, RefreshCw } from 'lucide-react';
+import { Heart, MessageCircle, Upload, Globe, Trash2, MoreHorizontal, Loader2, RefreshCw, TrendingUp, Clock, Users, Send, ChevronDown, ChevronUp, Hash, Plus, X } from 'lucide-react';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -60,6 +60,16 @@ const CommunityPage = () => {
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [showComments, setShowComments] = useState<{[key: string]: boolean}>({});
   const [newComment, setNewComment] = useState<{[key: string]: string}>({});
+  const [replyingTo, setReplyingTo] = useState<{[key: string]: string | null}>({});
+  const [replyText, setReplyText] = useState<{[key: string]: string}>({});
+  const [activeFilter, setActiveFilter] = useState<'hot' | 'new' | 'friends'>('new');
+  const [suggestedUsers, setSuggestedUsers] = useState<any[]>([]);
+  const [activeFriends, setActiveFriends] = useState<any[]>([]);
+  const [communityStats, setCommunityStats] = useState({ totalPosts: 0, activeToday: 0, members: 0 });
+  const [trendingHashtags, setTrendingHashtags] = useState<{ tag: string; count: number }[]>([]);
+  const [allPosts, setAllPosts] = useState<Post[]>([]); // Store all posts
+  const [filteredPosts, setFilteredPosts] = useState<Post[]>([]); // Display filtered posts
+  const [showCreatePost, setShowCreatePost] = useState(false); // Mobile create post modal
 
   // Optimized load posts with caching
   const loadPosts = useCallback(async (force = false) => {
@@ -77,11 +87,12 @@ const CommunityPage = () => {
           )
         `)
         .order('created_at', { ascending: false })
-        .limit(50);
+        .limit(100);
 
       if (error) throw error;
       
       const postsData = (data as any) || [];
+      setAllPosts(postsData);
       setPosts(postsData);
 
       // Batch load reactions and comments
@@ -92,6 +103,9 @@ const CommunityPage = () => {
           loadMultiplePostComments(postIds)
         ]);
       }
+
+      // Apply current filter
+      applyFilter(activeFilter, postsData);
     } catch (error) {
       console.error('Error loading posts:', error);
       toast({
@@ -103,11 +117,225 @@ const CommunityPage = () => {
       setIsLoading(false);
       setIsRefreshing(false);
     }
-  }, [loadMultiplePostReactions, loadMultiplePostComments, toast]);
+  }, [loadMultiplePostReactions, loadMultiplePostComments, toast, activeFilter]);
 
   useEffect(() => {
     loadPosts();
+    loadSuggestedUsers();
+    loadActiveFriends();
+    loadCommunityStats();
+    loadTrendingHashtags();
   }, [loadPosts]);
+
+  // Apply filter when activeFilter changes
+  useEffect(() => {
+    applyFilter(activeFilter, allPosts);
+  }, [activeFilter]);
+
+  // Filter posts based on selected filter
+  const applyFilter = async (filter: 'hot' | 'new' | 'friends', postsToFilter: Post[] = allPosts) => {
+    try {
+      const { data: { user: currentUser } } = await supabase.auth.getUser();
+      if (!currentUser) return;
+
+      let filtered: Post[] = [];
+
+      switch (filter) {
+        case 'hot':
+          // Sort by engagement (likes + comments)
+          filtered = [...postsToFilter].sort((a, b) => {
+            const engagementA = (reactions[`${a.id}_like`] || 0) + (commentCounts[a.id] || 0);
+            const engagementB = (reactions[`${b.id}_like`] || 0) + (commentCounts[b.id] || 0);
+            return engagementB - engagementA;
+          });
+          break;
+
+        case 'new':
+          // Already sorted by created_at desc from query
+          filtered = [...postsToFilter];
+          break;
+
+        case 'friends':
+          // Get user's friends
+          const { data: friendships } = await supabase
+            .from('friendships')
+            .select('user1_id, user2_id')
+            .or(`user1_id.eq.${currentUser.id},user2_id.eq.${currentUser.id}`);
+
+          const friendIds = friendships?.map(f => 
+            f.user1_id === currentUser.id ? f.user2_id : f.user1_id
+          ) || [];
+
+          // Filter posts from friends only
+          filtered = postsToFilter.filter(post => friendIds.includes(post.user_id));
+          break;
+
+        default:
+          filtered = postsToFilter;
+      }
+
+      setPosts(filtered);
+    } catch (error) {
+      console.error('Error applying filter:', error);
+      setPosts(postsToFilter);
+    }
+  };
+
+  // Load suggested users (users not yet friends)
+  const loadSuggestedUsers = async () => {
+    try {
+      const { data: { user: currentUser } } = await supabase.auth.getUser();
+      if (!currentUser) return;
+
+      // Get current user's friends
+      const { data: friendships } = await supabase
+        .from('friendships')
+        .select('user1_id, user2_id')
+        .or(`user1_id.eq.${currentUser.id},user2_id.eq.${currentUser.id}`);
+
+      const friendIds = friendships?.map(f => 
+        f.user1_id === currentUser.id ? f.user2_id : f.user1_id
+      ) || [];
+
+      // Get users who are not friends and not current user
+      const { data: users } = await supabase
+        .from('profiles')
+        .select('id, name, avatar_url, country_flag, language_goals')
+        .not('id', 'in', `(${[currentUser.id, ...friendIds].join(',')})`)
+        .limit(4);
+
+      setSuggestedUsers(users || []);
+    } catch (error) {
+      console.error('Error loading suggested users:', error);
+    }
+  };
+
+  // Load active friends (online friends)
+  const loadActiveFriends = async () => {
+    try {
+      const { data: { user: currentUser } } = await supabase.auth.getUser();
+      if (!currentUser) return;
+
+      // Get current user's friends
+      const { data: friendships } = await supabase
+        .from('friendships')
+        .select('user1_id, user2_id')
+        .or(`user1_id.eq.${currentUser.id},user2_id.eq.${currentUser.id}`);
+
+      const friendIds = friendships?.map(f => 
+        f.user1_id === currentUser.id ? f.user2_id : f.user1_id
+      ) || [];
+
+      if (friendIds.length === 0) {
+        setActiveFriends([]);
+        return;
+      }
+
+      // Get online friends
+      const { data: onlineFriends } = await supabase
+        .from('profiles')
+        .select('id, name, avatar_url, online')
+        .in('id', friendIds)
+        .eq('online', true)
+        .limit(5);
+
+      setActiveFriends(onlineFriends || []);
+    } catch (error) {
+      console.error('Error loading active friends:', error);
+    }
+  };
+
+  // Load community stats
+  const loadCommunityStats = async () => {
+    try {
+      // Total posts count
+      const { count: totalPosts } = await supabase
+        .from('community_posts')
+        .select('*', { count: 'exact', head: true });
+
+      // Active today (posts in last 24 hours)
+      const yesterday = new Date();
+      yesterday.setDate(yesterday.getDate() - 1);
+      const { count: activeToday } = await supabase
+        .from('community_posts')
+        .select('*', { count: 'exact', head: true })
+        .gte('created_at', yesterday.toISOString());
+
+      // Total members
+      const { count: members } = await supabase
+        .from('profiles')
+        .select('*', { count: 'exact', head: true });
+
+      setCommunityStats({
+        totalPosts: totalPosts || 0,
+        activeToday: activeToday || 0,
+        members: members || 0
+      });
+    } catch (error) {
+      console.error('Error loading community stats:', error);
+    }
+  };
+
+  // Load trending hashtags from posts
+  const loadTrendingHashtags = async () => {
+    try {
+      const { data: posts } = await supabase
+        .from('community_posts')
+        .select('content')
+        .order('created_at', { ascending: false })
+        .limit(100);
+
+      if (!posts) return;
+
+      // Extract all hashtags
+      const hashtagCounts: { [key: string]: number } = {};
+      posts.forEach(post => {
+        const hashtags = extractHashtags(post.content);
+        hashtags.forEach(tag => {
+          const cleanTag = tag.substring(1); // Remove #
+          hashtagCounts[cleanTag] = (hashtagCounts[cleanTag] || 0) + 1;
+        });
+      });
+
+      // Sort by count and get top 5
+      const trending = Object.entries(hashtagCounts)
+        .map(([tag, count]) => ({ tag, count }))
+        .sort((a, b) => b.count - a.count)
+        .slice(0, 5);
+
+      setTrendingHashtags(trending);
+    } catch (error) {
+      console.error('Error loading trending hashtags:', error);
+    }
+  };
+
+  // Handle add friend
+  const handleAddFriend = async (userId: string) => {
+    try {
+      const { data: { user: currentUser } } = await supabase.auth.getUser();
+      if (!currentUser) return;
+
+      const { error } = await supabase
+        .from('friend_requests')
+        .insert({
+          sender_id: currentUser.id,
+          receiver_id: userId,
+          status: 'pending'
+        });
+
+      if (error) throw error;
+
+      toast({ title: "Friend request sent!" });
+      // Remove from suggested users
+      setSuggestedUsers(prev => prev.filter(u => u.id !== userId));
+    } catch (error: any) {
+      toast({ 
+        title: "Failed to send request", 
+        description: error.message,
+        variant: "destructive" 
+      });
+    }
+  };
 
   const handleImageSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = Array.from(e.target.files || []);
@@ -283,98 +511,756 @@ const CommunityPage = () => {
     }
   };
 
+  const handleAddReply = async (postId: string, parentCommentId: string) => {
+    const replyContent = replyText[`${postId}_${parentCommentId}`]?.trim();
+    if (!replyContent) return;
+
+    const success = await addComment(postId, replyContent, parentCommentId);
+    if (success) {
+      setReplyText(prev => ({ ...prev, [`${postId}_${parentCommentId}`]: '' }));
+      setReplyingTo(prev => ({ ...prev, [postId]: null }));
+      toast({ title: "Reply added!" });
+      // Reload comments to show nested structure
+      await loadComments(postId);
+    }
+  };
+
+  const handleReplyClick = (postId: string, commentId: string, userName: string) => {
+    setReplyingTo(prev => ({ ...prev, [postId]: commentId }));
+    setReplyText(prev => ({ ...prev, [`${postId}_${commentId}`]: `@${userName} ` }));
+  };
+
+  const handleCancelReply = (postId: string, commentId: string) => {
+    setReplyingTo(prev => ({ ...prev, [postId]: null }));
+    setReplyText(prev => ({ ...prev, [`${postId}_${commentId}`]: '' }));
+  };
+
+  // Extract hashtags from post content
+  const extractHashtags = (text: string): string[] => {
+    const hashtagRegex = /#[\w]+/g;
+    return text.match(hashtagRegex) || [];
+  };
+
+  // Render text with clickable hashtags
+  const renderTextWithHashtags = (text: string) => {
+    const parts = text.split(/(#[\w]+)/g);
+    return parts.map((part, index) => {
+      if (part.startsWith('#')) {
+        return (
+          <span key={index} className="text-primary font-medium cursor-pointer hover:underline">
+            {part}
+          </span>
+        );
+      }
+      return part;
+    });
+  };
+
+  // Organize comments into parent-child structure
+  const organizeComments = (comments: any[]) => {
+    const commentMap: { [key: string]: any } = {};
+    const rootComments: any[] = [];
+
+    // First pass: create a map of all comments
+    comments.forEach(comment => {
+      commentMap[comment.id] = { ...comment, replies: [] };
+    });
+
+    // Second pass: organize into tree structure
+    comments.forEach(comment => {
+      if (comment.parent_comment_id && commentMap[comment.parent_comment_id]) {
+        commentMap[comment.parent_comment_id].replies.push(commentMap[comment.id]);
+      } else {
+        rootComments.push(commentMap[comment.id]);
+      }
+    });
+
+    return rootComments;
+  };
+
+  // Render a single comment with its replies
+  const renderComment = (comment: any, postId: string, depth: number = 0) => {
+    const isReplying = replyingTo[postId] === comment.id;
+    const maxDepth = 3; // Limit nesting depth
+
+    return (
+      <div key={comment.id} className={depth > 0 ? 'ml-6 mt-2' : ''}>
+        <div className="flex gap-2">
+          <UserAvatar profile={comment.profiles} size="sm" className="shrink-0 w-7 h-7" />
+          <div className="flex-1">
+            <div className="bg-muted/50 rounded-lg p-2">
+              <p className="text-xs font-medium">{comment.profiles?.name}</p>
+              <p className="text-xs text-muted-foreground mt-0.5">{comment.content}</p>
+            </div>
+            <div className="flex items-center gap-3 mt-1 ml-1">
+              <button
+                onClick={() => handleReplyClick(postId, comment.id, comment.profiles?.name)}
+                className="text-xs text-muted-foreground hover:text-primary transition-colors"
+              >
+                Reply
+              </button>
+              <span className="text-xs text-muted-foreground">
+                {new Date(comment.created_at).toLocaleDateString('en-US', { 
+                  month: 'short', 
+                  day: 'numeric',
+                  hour: 'numeric'
+                })}
+              </span>
+              {comment.replies && comment.replies.length > 0 && (
+                <span className="text-xs text-muted-foreground">
+                  {comment.replies.length} {comment.replies.length === 1 ? 'reply' : 'replies'}
+                </span>
+              )}
+            </div>
+
+            {/* Reply Input */}
+            {isReplying && (
+              <div className="flex gap-2 mt-2">
+                <Input
+                  placeholder={`Reply to ${comment.profiles?.name}...`}
+                  value={replyText[`${postId}_${comment.id}`] || ''}
+                  onChange={(e) => setReplyText(prev => ({ ...prev, [`${postId}_${comment.id}`]: e.target.value }))}
+                  onKeyPress={(e) => e.key === 'Enter' && handleAddReply(postId, comment.id)}
+                  className="text-xs h-8 bg-background/60"
+                  style={{ fontSize: '14px' }}
+                  autoFocus
+                />
+                <Button size="sm" onClick={() => handleAddReply(postId, comment.id)} className="h-8 px-3">
+                  <Send className="h-3 w-3" />
+                </Button>
+                <Button 
+                  size="sm" 
+                  variant="ghost" 
+                  onClick={() => handleCancelReply(postId, comment.id)} 
+                  className="h-8 px-2"
+                >
+                  Cancel
+                </Button>
+              </div>
+            )}
+
+            {/* Nested Replies */}
+            {comment.replies && comment.replies.length > 0 && depth < maxDepth && (
+              <div className="mt-2">
+                {comment.replies.map((reply: any) => renderComment(reply, postId, depth + 1))}
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
+    );
+  };
+
   if (isLoading) {
     return (
-      <div className="min-h-screen md:ml-16 bg-gradient-to-br from-background via-card-cultural/30 to-background pb-16 md:pb-0">
-        <div className="h-full flex flex-col md:flex-row">
-          <div className="md:w-96 md:border-r md:border-border/50 bg-card/30 p-3 md:p-6">
-            <Skeleton className="h-32 w-full rounded-xl mb-4" />
-          </div>
-          <div className="flex-1 overflow-y-auto p-4 md:p-6">
-            {[1, 2, 3].map((i) => (
-              <Card key={i} className="p-6 mb-4 max-w-3xl">
-                <Skeleton className="h-48 w-full" />
-              </Card>
-            ))}
-          </div>
+      <div className="min-h-screen md:ml-16 bg-gradient-to-br from-background via-background/95 to-background pb-16 md:pb-0">
+        <div className="max-w-2xl mx-auto p-4">
+          <Skeleton className="h-12 w-full rounded-xl mb-4" />
+          {[1, 2, 3].map((i) => (
+            <Card key={i} className="p-4 mb-3">
+              <Skeleton className="h-32 w-full" />
+            </Card>
+          ))}
         </div>
       </div>
     );
   }
 
   return (
-    <div className="h-screen md:ml-16 bg-gradient-to-br from-background via-background/95 to-background pb-16 md:pb-0 overflow-hidden">
-      <div className="h-full flex flex-col md:flex-row">
-        {/* Create Post Sidebar */}
-        <div className="md:w-96 md:border-r md:border-border/50 bg-card/40 backdrop-blur-md overflow-y-auto md:h-full">
-          <div className="p-3 md:p-6 space-y-4">
-            {/* Header */}
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <Globe className="h-5 w-5 text-primary" />
-                <h2 className="text-lg md:text-xl font-bold text-card-foreground">
-                  Community
-                </h2>
+    <div className="min-h-screen md:ml-16 bg-gradient-to-br from-background via-background/95 to-background pb-16 md:pb-0">
+      {/* Desktop: 3-Column Layout | Mobile: Single Column */}
+      <div className="h-full flex">
+        {/* Left Sidebar - Desktop Only */}
+        <div className="hidden lg:block w-64 xl:w-80 border-r border-border/50 p-4 overflow-y-auto">
+          <div className="sticky top-4 space-y-4">
+            {/* Quick Stats - Real Data */}
+            <Card className="p-4">
+              <h3 className="font-semibold text-sm mb-3 flex items-center gap-2">
+                <TrendingUp className="h-4 w-4 text-primary" />
+                Community Stats
+              </h3>
+              <div className="space-y-2 text-sm">
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">Total Posts</span>
+                  <span className="font-semibold">{communityStats.totalPosts}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">Active Today</span>
+                  <span className="font-semibold">{communityStats.activeToday}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">Members</span>
+                  <span className="font-semibold">
+                    {communityStats.members >= 1000 
+                      ? `${(communityStats.members / 1000).toFixed(1)}K` 
+                      : communityStats.members}
+                  </span>
+                </div>
               </div>
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={() => loadPosts(true)}
-                disabled={isRefreshing}
-                className="hover:bg-primary/10"
-              >
-                <RefreshCw className={`h-4 w-4 ${isRefreshing ? 'animate-spin' : ''}`} />
-              </Button>
+            </Card>
+
+            {/* Trending Hashtags - Real Data */}
+            <Card className="p-4">
+              <h3 className="font-semibold text-sm mb-3 flex items-center gap-2">
+                <Hash className="h-4 w-4 text-primary" />
+                Trending Topics
+              </h3>
+              <div className="space-y-2">
+                {trendingHashtags.length > 0 ? (
+                  trendingHashtags.map((item) => (
+                    <button
+                      key={item.tag}
+                      className="w-full text-left px-2 py-1.5 rounded hover:bg-muted/50 transition-colors"
+                      onClick={() => {
+                        // TODO: Filter posts by hashtag
+                        toast({ title: `Filtering by #${item.tag}` });
+                      }}
+                    >
+                      <div className="flex items-center justify-between">
+                        <span className="text-sm text-primary">#{item.tag}</span>
+                        <span className="text-xs text-muted-foreground">{item.count}</span>
+                      </div>
+                    </button>
+                  ))
+                ) : (
+                  <p className="text-xs text-muted-foreground text-center py-2">
+                    No trending topics yet
+                  </p>
+                )}
+              </div>
+            </Card>
+          </div>
+        </div>
+
+        {/* Main Feed - Center */}
+        <div className="flex-1 max-w-2xl mx-auto w-full">
+          {/* Mobile: Ultra Compact Header | Desktop: Normal Header */}
+          <div className="sticky top-0 z-20 bg-card/95 backdrop-blur-xl border-b border-border/50 shadow-sm">
+            {/* Mobile Minimal Header - 3 Equal Filters with Glass Effect */}
+            <div className="lg:hidden">
+              <div className="grid grid-cols-3 gap-1 p-2">
+                {/* Filter Buttons - Equal Width with Glass Effect */}
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => setActiveFilter('hot')}
+                  className={`h-9 text-xs rounded-lg transition-all ${
+                    activeFilter === 'hot' 
+                      ? 'bg-primary/10 text-primary border border-primary/20 shadow-sm' 
+                      : 'hover:bg-muted/50'
+                  }`}
+                >
+                  <TrendingUp className="h-3.5 w-3.5 mr-1" />
+                  Hot
+                </Button>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => setActiveFilter('new')}
+                  className={`h-9 text-xs rounded-lg transition-all ${
+                    activeFilter === 'new' 
+                      ? 'bg-primary/10 text-primary border border-primary/20 shadow-sm' 
+                      : 'hover:bg-muted/50'
+                  }`}
+                >
+                  <Clock className="h-3.5 w-3.5 mr-1" />
+                  New
+                </Button>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => setActiveFilter('friends')}
+                  className={`h-9 text-xs rounded-lg transition-all ${
+                    activeFilter === 'friends' 
+                      ? 'bg-primary/10 text-primary border border-primary/20 shadow-sm' 
+                      : 'hover:bg-muted/50'
+                  }`}
+                >
+                  <Users className="h-3.5 w-3.5 mr-1" />
+                  Friends
+                </Button>
+              </div>
             </div>
-            
-            {/* Create Post Card */}
-            <Card className="p-3 md:p-4 bg-card border-border/50 shadow-sm hover:shadow-md transition-shadow">
-              <div className="flex items-start gap-2 md:gap-3">
-                <UserAvatar user={user} size="md" className="flex-shrink-0" />
-                <div className="flex-1 space-y-2 md:space-y-3">
-                  <Input
-                    placeholder="Share your thoughts..."
-                    value={newPost}
-                    onChange={(e) => setNewPost(e.target.value)}
-                    className="bg-background/60 border-border/50 text-base"
-                    style={{ fontSize: '16px' }}
-                  />
-                  
-                  {imagePreviews.length > 0 && (
-                    <div className="grid grid-cols-2 gap-2">
-                      {imagePreviews.map((preview, index) => (
-                        <div key={index} className="relative group aspect-square">
-                          <img
-                            src={preview}
-                            alt={`Preview ${index + 1}`}
-                            className="rounded-lg h-full w-full object-cover"
-                            loading="lazy"
-                          />
-                          <Button
-                            variant="destructive"
-                            size="sm"
-                            className="absolute top-1 right-1 h-6 w-6 p-0 opacity-0 group-hover:opacity-100 transition-opacity"
-                            onClick={() => removeImage(index)}
+
+            {/* Desktop Header */}
+            <div className="hidden lg:block">
+              <div className="flex items-center justify-between px-4 py-3">
+                <div className="flex items-center gap-2">
+                  <Globe className="h-5 w-5 text-primary" />
+                  <h2 className="text-lg font-bold">Community</h2>
+                </div>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => loadPosts(true)}
+                  disabled={isRefreshing}
+                  className="h-8 px-2"
+                >
+                  <RefreshCw className={`h-4 w-4 ${isRefreshing ? 'animate-spin' : ''}`} />
+                </Button>
+              </div>
+              
+              {/* Filter Chips - Desktop */}
+              <div className="flex items-center gap-2 px-4 pb-3 overflow-x-auto">
+                <Button
+                  variant={activeFilter === 'hot' ? 'default' : 'outline'}
+                  size="sm"
+                  onClick={() => setActiveFilter('hot')}
+                  className="h-7 text-xs flex-shrink-0"
+                >
+                  <TrendingUp className="h-3 w-3 mr-1" />
+                  Hot
+                </Button>
+                <Button
+                  variant={activeFilter === 'new' ? 'default' : 'outline'}
+                  size="sm"
+                  onClick={() => setActiveFilter('new')}
+                  className="h-7 text-xs flex-shrink-0"
+                >
+                  <Clock className="h-3 w-3 mr-1" />
+                  New
+                </Button>
+                <Button
+                  variant={activeFilter === 'friends' ? 'default' : 'outline'}
+                  size="sm"
+                  onClick={() => setActiveFilter('friends')}
+                  className="h-7 text-xs flex-shrink-0"
+                >
+                  <Users className="h-3 w-3 mr-1" />
+                  Friends
+                </Button>
+              </div>
+            </div>
+          </div>
+
+          {/* Post Creation - Hidden on Mobile, Visible on Desktop */}
+          <div className="hidden lg:block p-3">
+            <Card className="p-3 bg-card border-border/50 shadow-sm">
+              <div className="flex items-center gap-2">
+                <UserAvatar user={user} size="sm" className="flex-shrink-0" />
+                <Input
+                  placeholder="What's on your mind?"
+                  value={newPost}
+                  onChange={(e) => setNewPost(e.target.value)}
+                  className="bg-background/60 border-border/50 text-sm h-9"
+                  style={{ fontSize: '16px' }}
+                />
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => document.getElementById('post-image')?.click()}
+                  disabled={selectedImages.length >= 4}
+                  className="h-9 w-9 p-0 flex-shrink-0"
+                >
+                  <Upload className="h-4 w-4" />
+                </Button>
+                <input
+                  id="post-image"
+                  type="file"
+                  accept="image/*"
+                  capture="environment"
+                  multiple
+                  className="hidden"
+                  onChange={handleImageSelect}
+                />
+                <Button
+                  onClick={handleCreatePost}
+                  disabled={isPosting}
+                  size="sm"
+                  className="h-9 px-3 flex-shrink-0"
+                >
+                  {isPosting ? <Loader2 className="h-3 w-3 animate-spin" /> : 'Post'}
+                </Button>
+              </div>
+              
+              {imagePreviews.length > 0 && (
+                <div className="grid grid-cols-2 gap-2 mt-3">
+                  {imagePreviews.map((preview, index) => (
+                    <div key={index} className="relative group aspect-square">
+                      <img
+                        src={preview}
+                        alt={`Preview ${index + 1}`}
+                        className="rounded-lg h-full w-full object-cover"
+                        loading="lazy"
+                      />
+                      <Button
+                        variant="destructive"
+                        size="sm"
+                        className="absolute top-1 right-1 h-6 w-6 p-0 opacity-0 group-hover:opacity-100 transition-opacity"
+                        onClick={() => removeImage(index)}
+                      >
+                        ×
+                      </Button>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </Card>
+          </div>
+
+          {/* Compact Posts Feed - Mobile: No padding | Desktop: Normal padding */}
+          <div className="lg:px-3 pb-3 space-y-2 lg:space-y-3">
+          {posts.length === 0 ? (
+            <Card className="p-8 text-center bg-card border-border/50">
+              <Globe className="h-12 w-12 mx-auto mb-4 text-muted-foreground" />
+              <h3 className="text-lg font-semibold mb-2">No posts yet</h3>
+              <p className="text-sm text-muted-foreground">
+                Be the first to share something!
+              </p>
+            </Card>
+          ) : (
+            posts.map((post, index) => (
+              <Card 
+                key={post.id} 
+                className="overflow-hidden hover:shadow-md transition-all bg-card border-border/50 animate-fade-in"
+                style={{ animationDelay: `${index * 30}ms` }}
+              >
+                <div className="p-3">
+                  {/* Compact Post Header */}
+                  <div className="flex items-center gap-2 mb-2">
+                    <div 
+                      className="cursor-pointer shrink-0"
+                      onClick={() => {
+                        if (post.user_id) navigate(`/profile/${post.user_id}`);
+                      }}
+                    >
+                      <UserAvatar 
+                        profile={post.profiles}
+                        size="sm"
+                        className="w-9 h-9"
+                      />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-2">
+                          <h4 
+                            className="font-semibold text-sm cursor-pointer hover:text-primary transition-colors"
+                            onClick={() => {
+                              if (post.user_id) navigate(`/profile/${post.user_id}`);
+                            }}
                           >
-                            ×
-                          </Button>
+                            {post.profiles?.name || 'Anonymous'}
+                          </h4>
+                          {post.profiles?.country_flag && (
+                            <span className="text-sm">{post.profiles.country_flag}</span>
+                          )}
+                          <span className="text-xs text-muted-foreground">
+                            • {new Date(post.created_at).toLocaleDateString('en-US', { 
+                              month: 'short', 
+                              day: 'numeric',
+                              hour: 'numeric'
+                            }).replace(',', ' •')}
+                          </span>
                         </div>
-                      ))}
+                        {post.user_id === user?.id && (
+                          <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                              <Button variant="ghost" size="sm" className="h-7 w-7 p-0">
+                                <MoreHorizontal className="h-3.5 w-3.5" />
+                              </Button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent align="end">
+                              <DropdownMenuItem 
+                                onClick={() => handleDeletePost(post.id)}
+                                className="text-destructive focus:text-destructive text-xs"
+                              >
+                                <Trash2 className="h-3.5 w-3.5 mr-2" />
+                                Delete
+                              </DropdownMenuItem>
+                            </DropdownMenuContent>
+                          </DropdownMenu>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Post Content with Hashtags */}
+                  <p 
+                    className="text-sm leading-relaxed mb-2 cursor-pointer"
+                    onClick={() => navigate(`/post/${post.id}`)}
+                  >
+                    {renderTextWithHashtags(post.content)}
+                  </p>
+
+                  {/* Post Image - Fixed Height */}
+                  {post.image_url && (
+                    <div className="rounded-lg overflow-hidden mb-2 bg-muted">
+                      <img
+                        src={post.image_url}
+                        alt="Post"
+                        className="w-full object-cover h-[300px] cursor-pointer hover:opacity-95 transition-opacity"
+                        onClick={() => navigate(`/post/${post.id}`)}
+                        loading="lazy"
+                      />
+                    </div>
+                  )}
+
+                  {/* Compact Post Actions */}
+                  <div className="flex items-center gap-1 pt-2 border-t border-border/50">
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className={`h-8 px-3 ${userReactions[`${post.id}_like`] ? 'text-red-500 hover:text-red-600' : 'hover:bg-red-500/10'}`}
+                      onClick={() => handleLikePost(post.id)}
+                    >
+                      <Heart className={`h-3.5 w-3.5 mr-1 ${userReactions[`${post.id}_like`] ? 'fill-current' : ''}`} />
+                      <span className="text-xs font-medium">{reactions[`${post.id}_like`] || 0}</span>
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="h-8 px-3 hover:bg-primary/10"
+                      onClick={() => handleToggleComments(post.id)}
+                    >
+                      <MessageCircle className="h-3.5 w-3.5 mr-1" />
+                      <span className="text-xs font-medium">{commentCounts[post.id] || 0}</span>
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="h-8 px-3 ml-auto"
+                    >
+                      <Send className="h-3.5 w-3.5" />
+                    </Button>
+                  </div>
+
+                  {/* Collapsible Comments Section with Replies */}
+                  {showComments[post.id] && (
+                    <div className="mt-3 space-y-2 pt-3 border-t border-border/30">
+                      <div className="flex items-center justify-between mb-2">
+                        <span className="text-xs font-medium text-muted-foreground">
+                          {commentCounts[post.id] || 0} Comment{commentCounts[post.id] !== 1 ? 's' : ''}
+                        </span>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="h-6 px-2 text-xs"
+                          onClick={() => handleToggleComments(post.id)}
+                        >
+                          <ChevronUp className="h-3 w-3" />
+                        </Button>
+                      </div>
+                      
+                      {/* Render organized comments with nested replies */}
+                      <div className="space-y-3">
+                        {organizeComments(comments[post.id] || []).map((comment: any) => 
+                          renderComment(comment, post.id, 0)
+                        )}
+                      </div>
+
+                      {/* Add new comment */}
+                      <div className="flex gap-2 mt-3 pt-2 border-t border-border/30">
+                        <Input
+                          placeholder="Add a comment..."
+                          value={newComment[post.id] || ''}
+                          onChange={(e) => setNewComment(prev => ({ ...prev, [post.id]: e.target.value }))}
+                          onKeyPress={(e) => e.key === 'Enter' && handleAddComment(post.id)}
+                          className="text-xs h-8 bg-background/60"
+                          style={{ fontSize: '14px' }}
+                        />
+                        <Button size="sm" onClick={() => handleAddComment(post.id)} className="h-8 px-3">
+                          <Send className="h-3 w-3" />
+                        </Button>
+                      </div>
                     </div>
                   )}
                   
+                  {/* Show Comments Button when collapsed */}
+                  {!showComments[post.id] && commentCounts[post.id] > 0 && (
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="w-full h-7 mt-2 text-xs text-muted-foreground hover:text-primary"
+                      onClick={() => handleToggleComments(post.id)}
+                    >
+                      <ChevronDown className="h-3 w-3 mr-1" />
+                      View {commentCounts[post.id]} comment{commentCounts[post.id] !== 1 ? 's' : ''}
+                    </Button>
+                  )}
+                </div>
+              </Card>
+            ))
+          )}
+          </div>
+        </div>
+
+        {/* Right Sidebar - Desktop Only */}
+        <div className="hidden xl:block w-80 border-l border-border/50 p-4 overflow-y-auto">
+          <div className="sticky top-4 space-y-4">
+            {/* Suggested Users - Real Data from Explore */}
+            <Card className="p-4">
+              <h3 className="font-semibold text-sm mb-3 flex items-center gap-2">
+                <Users className="h-4 w-4 text-primary" />
+                Suggested Friends
+              </h3>
+              <div className="space-y-3">
+                {suggestedUsers.length > 0 ? (
+                  suggestedUsers.map((suggestedUser) => (
+                    <div key={suggestedUser.id} className="flex items-center gap-2">
+                      <div 
+                        className="cursor-pointer"
+                        onClick={() => navigate(`/profile/${suggestedUser.id}`)}
+                      >
+                        <UserAvatar 
+                          profile={suggestedUser}
+                          className="w-10 h-10"
+                        />
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p 
+                          className="text-sm font-medium truncate cursor-pointer hover:text-primary"
+                          onClick={() => navigate(`/profile/${suggestedUser.id}`)}
+                        >
+                          {suggestedUser.name}
+                        </p>
+                        <p className="text-xs text-muted-foreground truncate">
+                          {suggestedUser.language_goals?.[0] || 'Language learner'}
+                        </p>
+                      </div>
+                      <Button 
+                        size="sm" 
+                        variant="outline" 
+                        className="h-7 text-xs"
+                        onClick={() => handleAddFriend(suggestedUser.id)}
+                      >
+                        Add
+                      </Button>
+                    </div>
+                  ))
+                ) : (
+                  <p className="text-xs text-muted-foreground text-center py-2">
+                    No suggestions available
+                  </p>
+                )}
+              </div>
+            </Card>
+
+            {/* Active Now - Real Online Friends */}
+            <Card className="p-4">
+              <h3 className="font-semibold text-sm mb-3 flex items-center gap-2">
+                <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>
+                Active Now
+              </h3>
+              <div className="space-y-2">
+                {activeFriends.length > 0 ? (
+                  activeFriends.map((friend) => (
+                    <div 
+                      key={friend.id} 
+                      className="flex items-center gap-2 cursor-pointer hover:bg-muted/50 rounded p-1 transition-colors"
+                      onClick={() => navigate(`/profile/${friend.id}`)}
+                    >
+                      <div className="relative">
+                        <UserAvatar 
+                          profile={friend}
+                          className="w-8 h-8"
+                        />
+                        <div className="absolute -bottom-0.5 -right-0.5 w-3 h-3 bg-green-500 rounded-full border-2 border-card"></div>
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm font-medium truncate">{friend.name}</p>
+                      </div>
+                    </div>
+                  ))
+                ) : (
+                  <p className="text-xs text-muted-foreground text-center py-2">
+                    No friends online
+                  </p>
+                )}
+              </div>
+            </Card>
+          </div>
+        </div>
+
+        {/* Floating Action Button - Mobile Only */}
+        <div className="lg:hidden fixed bottom-20 right-4 z-30">
+          <Button
+            size="lg"
+            className="h-14 w-14 rounded-full shadow-lg bg-gradient-cultural text-white hover:shadow-xl transition-all"
+            onClick={() => setShowCreatePost(true)}
+          >
+            <Plus className="h-6 w-6" />
+          </Button>
+        </div>
+
+        {/* Mobile Create Post Modal */}
+        {showCreatePost && (
+          <div className="lg:hidden fixed inset-0 z-50 bg-black/50 backdrop-blur-sm" onClick={() => setShowCreatePost(false)}>
+            <div 
+              className="fixed bottom-0 left-0 right-0 bg-card rounded-t-2xl shadow-2xl max-h-[90vh] overflow-y-auto"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className="p-4">
+                {/* Header */}
+                <div className="flex items-center justify-between mb-4">
+                  <h3 className="text-lg font-semibold">Create Post</h3>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => setShowCreatePost(false)}
+                    className="h-8 w-8 p-0"
+                  >
+                    <X className="h-4 w-4" />
+                  </Button>
+                </div>
+
+                {/* User Info */}
+                <div className="flex items-center gap-2 mb-4">
+                  <UserAvatar user={user} size="sm" />
+                  <div>
+                    <p className="text-sm font-medium">{(user as any)?.name || 'User'}</p>
+                    <p className="text-xs text-muted-foreground">Public</p>
+                  </div>
+                </div>
+
+                {/* Post Input */}
+                <textarea
+                  placeholder="What's on your mind?"
+                  value={newPost}
+                  onChange={(e) => setNewPost(e.target.value)}
+                  className="w-full min-h-[120px] p-3 bg-background/60 border border-border/50 rounded-lg text-sm resize-none focus:outline-none focus:ring-2 focus:ring-primary/20"
+                  style={{ fontSize: '16px' }}
+                  autoFocus
+                />
+
+                {/* Image Previews */}
+                {imagePreviews.length > 0 && (
+                  <div className="grid grid-cols-2 gap-2 mt-3">
+                    {imagePreviews.map((preview, index) => (
+                      <div key={index} className="relative group aspect-square">
+                        <img
+                          src={preview}
+                          alt={`Preview ${index + 1}`}
+                          className="rounded-lg h-full w-full object-cover"
+                          loading="lazy"
+                        />
+                        <Button
+                          variant="destructive"
+                          size="sm"
+                          className="absolute top-1 right-1 h-6 w-6 p-0 opacity-0 group-hover:opacity-100 transition-opacity"
+                          onClick={() => removeImage(index)}
+                        >
+                          ×
+                        </Button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+
+                {/* Actions */}
+                <div className="flex items-center justify-between mt-4 pt-4 border-t border-border/50">
                   <div className="flex items-center gap-2">
                     <Button
                       variant="outline"
                       size="sm"
-                      onClick={() => document.getElementById('post-image')?.click()}
+                      onClick={() => document.getElementById('mobile-post-image')?.click()}
                       disabled={selectedImages.length >= 4}
-                      className="flex-shrink-0"
+                      className="h-9"
                     >
-                      <Upload className="h-4 w-4" />
+                      <Upload className="h-4 w-4 mr-1" />
+                      Photo
                     </Button>
                     <input
-                      id="post-image"
+                      id="mobile-post-image"
                       type="file"
                       accept="image/*"
                       capture="environment"
@@ -382,167 +1268,34 @@ const CommunityPage = () => {
                       className="hidden"
                       onChange={handleImageSelect}
                     />
-                    <Button
-                      onClick={handleCreatePost}
-                      disabled={isPosting}
-                      size="sm"
-                      className="flex-1"
-                    >
-                      {isPosting ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Post'}
-                    </Button>
+                    {selectedImages.length > 0 && (
+                      <span className="text-xs text-muted-foreground">
+                        {selectedImages.length}/4
+                      </span>
+                    )}
                   </div>
+                  <Button
+                    onClick={() => {
+                      handleCreatePost();
+                      setShowCreatePost(false);
+                    }}
+                    disabled={isPosting || (!newPost.trim() && selectedImages.length === 0)}
+                    className="bg-gradient-cultural text-white"
+                  >
+                    {isPosting ? (
+                      <>
+                        <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                        Posting...
+                      </>
+                    ) : (
+                      'Post'
+                    )}
+                  </Button>
                 </div>
               </div>
-            </Card>
+            </div>
           </div>
-        </div>
-
-        {/* Posts Feed */}
-        <div className="flex-1 overflow-y-auto p-3 md:p-6">
-          <div className="max-w-3xl mx-auto space-y-4">
-            {posts.length === 0 ? (
-              <Card className="p-8 md:p-12 text-center bg-card border-border/50">
-                <Globe className="h-12 md:h-16 w-12 md:w-16 mx-auto mb-4 text-muted-foreground" />
-                <h3 className="text-lg md:text-xl font-semibold mb-2 text-card-foreground">No posts yet</h3>
-                <p className="text-sm md:text-base text-muted-foreground">
-                  Be the first to share something!
-                </p>
-              </Card>
-            ) : (
-              posts.map((post, index) => (
-                <Card 
-                  key={post.id} 
-                  className="overflow-hidden hover:shadow-lg transition-all duration-300 bg-card border-border/50 animate-fade-in"
-                  style={{ animationDelay: `${index * 50}ms` }}
-                >
-                  <div className="p-4 md:p-6">
-                    {/* Post Header */}
-                    <div className="flex items-start gap-3 mb-4">
-                      <div 
-                        className="cursor-pointer shrink-0"
-                        onClick={() => navigate(`/profile/${post.user_id}`)}
-                      >
-                        <UserAvatar 
-                          profile={post.profiles}
-                          size="md"
-                        />
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-center justify-between">
-                          <div>
-                            <h4 
-                              className="font-semibold text-card-foreground cursor-pointer hover:text-primary transition-colors"
-                              onClick={() => navigate(`/profile/${post.user_id}`)}
-                            >
-                              {post.profiles?.name || 'Anonymous'}
-                            </h4>
-                            <p className="text-xs text-muted-foreground">
-                              {new Date(post.created_at).toLocaleDateString('en-US', { 
-                                month: 'short', 
-                                day: 'numeric',
-                                hour: '2-digit',
-                                minute: '2-digit'
-                              })}
-                            </p>
-                          </div>
-                          {post.user_id === user?.id && (
-                            <DropdownMenu>
-                              <DropdownMenuTrigger asChild>
-                                <Button variant="ghost" size="sm" className="h-8 w-8 p-0">
-                                  <MoreHorizontal className="h-4 w-4" />
-                                </Button>
-                              </DropdownMenuTrigger>
-                              <DropdownMenuContent align="end">
-                                <DropdownMenuItem 
-                                  onClick={() => handleDeletePost(post.id)}
-                                  className="text-destructive focus:text-destructive"
-                                >
-                                  <Trash2 className="h-4 w-4 mr-2" />
-                                  Delete
-                                </DropdownMenuItem>
-                              </DropdownMenuContent>
-                            </DropdownMenu>
-                          )}
-                        </div>
-                      </div>
-                    </div>
-
-                    {/* Post Content */}
-                    <p 
-                      className="text-card-foreground leading-relaxed mb-4 cursor-pointer text-sm md:text-base"
-                      onClick={() => navigate(`/post/${post.id}`)}
-                    >
-                      {post.content}
-                    </p>
-
-                    {/* Post Image */}
-                    {post.image_url && (
-                      <div className="rounded-lg overflow-hidden mb-4 bg-muted">
-                        <img
-                          src={post.image_url}
-                          alt="Post"
-                          className="w-full object-cover max-h-[500px] cursor-pointer hover:opacity-95 transition-opacity"
-                          onClick={() => navigate(`/post/${post.id}`)}
-                          loading="lazy"
-                        />
-                      </div>
-                    )}
-
-                    {/* Post Actions */}
-                    <div className="flex items-center gap-2 pt-3 border-t border-border/50">
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        className={`flex-1 ${userReactions[`${post.id}_like`] ? 'text-red-500 hover:text-red-600' : 'hover:bg-red-500/10'}`}
-                        onClick={() => handleLikePost(post.id)}
-                      >
-                        <Heart className={`h-4 w-4 mr-1 ${userReactions[`${post.id}_like`] ? 'fill-current' : ''}`} />
-                        <span className="text-xs font-medium">{reactions[`${post.id}_like`] || 0}</span>
-                      </Button>
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        className="flex-1 hover:bg-primary/10"
-                        onClick={() => handleToggleComments(post.id)}
-                      >
-                        <MessageCircle className="h-4 w-4 mr-1" />
-                        <span className="text-xs font-medium">{commentCounts[post.id] || 0}</span>
-                      </Button>
-                    </div>
-
-                    {/* Comments Section */}
-                    {showComments[post.id] && (
-                      <div className="mt-4 space-y-3 pt-4 border-t border-border/30">
-                        {comments[post.id]?.map((comment: any) => (
-                          <div key={comment.id} className="flex gap-2">
-                            <UserAvatar profile={comment.profiles} size="sm" className="shrink-0" />
-                            <div className="flex-1 bg-muted/50 rounded-lg p-2 md:p-3">
-                              <p className="text-xs md:text-sm font-medium text-card-foreground">{comment.profiles?.name}</p>
-                              <p className="text-xs md:text-sm text-muted-foreground mt-0.5">{comment.content}</p>
-                            </div>
-                          </div>
-                        ))}
-                        <div className="flex gap-2">
-                          <Input
-                            placeholder="Add a comment..."
-                            value={newComment[post.id] || ''}
-                            onChange={(e) => setNewComment(prev => ({ ...prev, [post.id]: e.target.value }))}
-                            onKeyPress={(e) => e.key === 'Enter' && handleAddComment(post.id)}
-                            className="text-sm bg-background/60"
-                            style={{ fontSize: '16px' }}
-                          />
-                          <Button size="sm" onClick={() => handleAddComment(post.id)}>
-                            Post
-                          </Button>
-                        </div>
-                      </div>
-                    )}
-                  </div>
-                </Card>
-              ))
-            )}
-          </div>
-        </div>
+        )}
       </div>
     </div>
   );

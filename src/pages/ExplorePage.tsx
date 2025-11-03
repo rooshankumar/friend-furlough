@@ -13,7 +13,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem } from '@/components/ui/command';
 import { Check } from 'lucide-react';
-import { MessageCircle, MapPin, Globe, Search, Filter, X, UserPlus, Heart } from 'lucide-react';
+import { MessageCircle, MapPin, Globe, Search, Filter, X, UserPlus, Heart, Users, Sparkles } from 'lucide-react';
 import { Skeleton } from '@/components/ui/skeleton';
 import { toast } from 'sonner';
 import { COUNTRIES, LANGUAGES, GENDER_OPTIONS } from '@/constants/filterOptions';
@@ -30,6 +30,7 @@ export default function ExplorePage() {
   const [openCountry, setOpenCountry] = useState(false);
   const [openNative, setOpenNative] = useState(false);
   const [openLearning, setOpenLearning] = useState(false);
+  const [activeView, setActiveView] = useState<'all' | 'new'>('all');
 
   useEffect(() => {
     loadUsers();
@@ -150,44 +151,126 @@ export default function ExplorePage() {
   }
 
   return (
-    <div className="min-h-screen md:ml-16 bg-gradient-subtle pb-16 md:pb-0 overflow-auto pt-4 md:pt-0">
-      <div className="p-4 md:p-8">
-        <div className="mb-8">
+    <div className="min-h-screen md:ml-16 bg-gradient-subtle pb-16 md:pb-0 overflow-auto pt-2 md:pt-0">
+      <div className="p-3 md:p-8">
+        {/* Header - Hidden on Mobile, Visible on Desktop */}
+        <div className="hidden md:block mb-8">
           <h1 className="text-3xl font-bold mb-2">Explore Language Partners</h1>
           <p className="text-muted-foreground">
             Connect with people from around the world
           </p>
         </div>
 
-        {/* Search and Filter Bar */}
-        <div className="mb-6 space-y-4">
+        {/* Mobile: Filter Chips + Search */}
+        <div className="lg:hidden mb-3">
+          {/* Filter Chips */}
+          <div className="grid grid-cols-2 gap-2 mb-3">
+            <Button
+              variant="ghost"
+              onClick={() => setActiveView('all')}
+              className={`h-9 text-xs rounded-lg transition-all ${
+                activeView === 'all' 
+                  ? 'bg-primary/10 text-primary border border-primary/20 shadow-sm' 
+                  : 'hover:bg-muted/50'
+              }`}
+            >
+              <Users className="h-3.5 w-3.5 mr-1" />
+              All Users
+            </Button>
+            <Button
+              variant="ghost"
+              onClick={() => setActiveView('new')}
+              className={`h-9 text-xs rounded-lg transition-all ${
+                activeView === 'new' 
+                  ? 'bg-primary/10 text-primary border border-primary/20 shadow-sm' 
+                  : 'hover:bg-muted/50'
+              }`}
+            >
+              <Sparkles className="h-3.5 w-3.5 mr-1" />
+              New
+            </Button>
+          </div>
+          
+          {/* Search + Filter */}
           <div className="flex gap-2">
             <div className="relative flex-1">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
               <Input
-                placeholder="Search by name, country, or interests..."
+                placeholder="Search..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
-                className="pl-10"
+                className="pl-10 h-9 text-sm"
+                style={{ fontSize: '16px' }}
               />
             </div>
             <Button
               variant={showFilters ? "default" : "outline"}
               onClick={() => setShowFilters(!showFilters)}
+              className="h-9 px-3"
+            >
+              <Filter className="h-4 w-4" />
+            </Button>
+          </div>
+        </div>
+
+        {/* Desktop: All in one row */}
+        <div className="hidden lg:block mb-6">
+          <div className="flex items-center gap-3">
+            {/* Filter Chips */}
+            <div className="flex gap-2">
+              <Button
+                variant={activeView === 'all' ? 'default' : 'outline'}
+                size="sm"
+                onClick={() => setActiveView('all')}
+                className="h-9"
+              >
+                <Users className="h-4 w-4 mr-2" />
+                All Users
+              </Button>
+              <Button
+                variant={activeView === 'new' ? 'default' : 'outline'}
+                size="sm"
+                onClick={() => setActiveView('new')}
+                className="h-9"
+              >
+                <Sparkles className="h-4 w-4 mr-2" />
+                New Members
+              </Button>
+            </div>
+
+            {/* Search */}
+            <div className="relative flex-1 max-w-md">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+              <Input
+                placeholder="Search by name, country, or interests..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="pl-10 h-10"
+              />
+            </div>
+
+            {/* Filter Button */}
+            <Button
+              variant={showFilters ? "default" : "outline"}
+              onClick={() => setShowFilters(!showFilters)}
+              className="h-10"
             >
               <Filter className="h-4 w-4 mr-2" />
               Filters
             </Button>
+
+            {/* Clear Button */}
             {(searchTerm || filters.onlineOnly || filters.nativeLanguages.length > 0 || filters.learningLanguages.length > 0 || filters.gender.length > 0 || filters.ageRange[0] !== 18 || filters.ageRange[1] !== 65) && (
-              <Button variant="ghost" onClick={clearFilters}>
+              <Button variant="ghost" onClick={clearFilters} className="h-10">
                 <X className="h-4 w-4 mr-2" />
                 Clear
               </Button>
             )}
           </div>
+        </div>
 
-          {/* Filter Panel */}
-          {showFilters && (
+        {/* Filter Panel */}
+        {showFilters && (
             <Card className="p-3">
               <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
                 {/* Gender Filter */}
@@ -408,7 +491,6 @@ export default function ExplorePage() {
               </div>
             </Card>
           )}
-        </div>
 
         {/* User Grid */}
         {profiles.length === 0 && !isLoading ? (
@@ -426,119 +508,119 @@ export default function ExplorePage() {
           </Card>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-        {profiles.map((profile) => (
-          <Card key={profile.id} className="p-4 hover:shadow-lg transition-shadow flex flex-col">
-            <div className="flex gap-3 mb-3">
-              <div 
-                className="relative cursor-pointer hover:scale-105 transition-transform flex-shrink-0"
-                onClick={() => viewProfile(profile)}
-                title={`View ${profile.name}'s profile`}
-              >
-                <Avatar className="h-16 w-16">
-                  <AvatarImage src={profile.avatar_url} />
-                  <AvatarFallback>{profile.name?.[0] || '?'}</AvatarFallback>
-                </Avatar>
-                {profile.online && (
-                  <span className="absolute bottom-0 right-0 h-3 w-3 bg-green-500 rounded-full border-2 border-background" />
-                )}
-              </div>
-
-              <div className="flex-1 min-w-0 flex flex-col">
-                <div className="flex items-center justify-between mb-1">
-                  <h3 
-                    className="text-sm font-semibold truncate cursor-pointer hover:text-primary"
+            {profiles.map((profile) => (
+              <Card key={profile.id} className="p-4 hover:shadow-lg transition-shadow flex flex-col">
+                <div className="flex gap-3 mb-3">
+                  <div 
+                    className="relative cursor-pointer hover:scale-105 transition-transform flex-shrink-0"
                     onClick={() => viewProfile(profile)}
+                    title={`View ${profile.name}'s profile`}
                   >
-                    {profile.name}
-                  </h3>
-                  {profile.gender && (
-                    <img 
-                      src={
-                        profile.gender === 'male' 
-                          ? 'https://bblrxervgwkphkctdghe.supabase.co/storage/v1/object/public/rest_pic/male.png'
-                          : profile.gender === 'female'
-                          ? 'https://bblrxervgwkphkctdghe.supabase.co/storage/v1/object/public/rest_pic/female.png'
-                          : 'https://bblrxervgwkphkctdghe.supabase.co/storage/v1/object/public/rest_pic/others.png'
-                      }
-                      alt={profile.gender}
-                      className="h-4 w-4 ml-2 flex-shrink-0"
-                    />
-                  )}
-                </div>
-                
-                <div className="flex items-center gap-1 text-muted-foreground text-xs mb-2">
-                  {profile.country && (
-                    <span className="truncate">{profile.countryFlag} {profile.country}</span>
-                  )}
-                  {profile.age && (
-                    <span>{profile.age}y</span>
-                  )}
-                </div>
+                    <Avatar className="h-16 w-16">
+                      <AvatarImage src={profile.avatar_url} />
+                      <AvatarFallback>{profile.name?.[0] || '?'}</AvatarFallback>
+                    </Avatar>
+                    {profile.online && (
+                      <span className="absolute bottom-0 right-0 h-3 w-3 bg-green-500 rounded-full border-2 border-background" />
+                    )}
+                  </div>
 
-                <div className="flex gap-2">
-                  {profile.nativeLanguages.length > 0 && (
-                    <div className="flex gap-1 flex-wrap">
-                      {profile.nativeLanguages.slice(0, 2).map((lang, idx) => (
-                        <Badge key={idx} variant="secondary" className="text-xs px-1.5 py-0 h-5">
-                          {lang}
-                        </Badge>
-                      ))}
+                  <div className="flex-1 min-w-0 flex flex-col">
+                    <div className="flex items-center justify-between mb-1">
+                      <h3 
+                        className="text-sm font-semibold truncate cursor-pointer hover:text-primary"
+                        onClick={() => viewProfile(profile)}
+                      >
+                        {profile.name}
+                      </h3>
+                      {profile.gender && (
+                        <img 
+                          src={
+                            profile.gender === 'male' 
+                              ? 'https://bblrxervgwkphkctdghe.supabase.co/storage/v1/object/public/rest_pic/male.png'
+                              : profile.gender === 'female'
+                              ? 'https://bblrxervgwkphkctdghe.supabase.co/storage/v1/object/public/rest_pic/female.png'
+                              : 'https://bblrxervgwkphkctdghe.supabase.co/storage/v1/object/public/rest_pic/others.png'
+                          }
+                          alt={profile.gender}
+                          className="h-4 w-4 ml-2 flex-shrink-0"
+                        />
+                      )}
                     </div>
-                  )}
-                  
-                  {profile.learningLanguages.length > 0 && (
-                    <div className="flex gap-1 flex-wrap">
-                      {profile.learningLanguages.slice(0, 2).map((lang, idx) => (
-                        <Badge key={idx} variant="outline" className="text-xs px-1.5 py-0 h-5">
-                          {lang}
-                        </Badge>
-                      ))}
+                    
+                    <div className="flex items-center gap-1 text-muted-foreground text-xs mb-2">
+                      {profile.country && (
+                        <span className="truncate">{profile.countryFlag} {profile.country}</span>
+                      )}
+                      {profile.age && (
+                        <span>{profile.age}y</span>
+                      )}
                     </div>
-                  )}
+
+                    <div className="flex gap-2">
+                      {profile.nativeLanguages.length > 0 && (
+                        <div className="flex gap-1 flex-wrap">
+                          {profile.nativeLanguages.slice(0, 2).map((lang, idx) => (
+                            <Badge key={idx} variant="secondary" className="text-xs px-1.5 py-0 h-5">
+                              {lang}
+                            </Badge>
+                          ))}
+                        </div>
+                      )}
+                      
+                      {profile.learningLanguages.length > 0 && (
+                        <div className="flex gap-1 flex-wrap">
+                          {profile.learningLanguages.slice(0, 2).map((lang, idx) => (
+                            <Badge key={idx} variant="outline" className="text-xs px-1.5 py-0 h-5">
+                              {lang}
+                            </Badge>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  </div>
                 </div>
-              </div>
-            </div>
 
-            {profile.bio && (
-              <p className="text-xs text-muted-foreground mb-3 line-clamp-2">
-                {profile.bio}
-              </p>
-            )}
-
-            <div className="flex gap-2 w-full mt-auto">
-              <Button
-                onClick={() => startConversation(profile.id)}
-                className="flex-1 h-8 text-xs"
-                size="sm"
-              >
-                <MessageCircle className="h-3 w-3 mr-1" />
-                Send
-              </Button>
-              <Button
-                variant="ghost"
-                className={`h-8 px-3 text-xs ${userReactions[profile.id] ? 'text-red-500' : ''}`}
-                size="sm"
-                onClick={async () => {
-                  const success = await toggleReaction(profile.id);
-                  if (success) {
-                    toast.success(
-                      userReactions[profile.id] 
-                        ? 'Removed from favorites' 
-                        : `Added ${profile.name} to favorites!`
-                    );
-                  } else {
-                    toast.error('Failed to update reaction');
-                  }
-                }}
-              >
-                <Heart className={`h-3 w-3 ${userReactions[profile.id] ? 'fill-current' : ''}`} />
-                {reactions[profile.id] > 0 && (
-                  <span className="ml-1 text-xs">{reactions[profile.id]}</span>
+                {profile.bio && (
+                  <p className="text-xs text-muted-foreground mb-3 line-clamp-2">
+                    {profile.bio}
+                  </p>
                 )}
-              </Button>
-            </div>
-          </Card>
-        ))}
+
+                <div className="flex gap-2 w-full mt-auto">
+                  <Button
+                    onClick={() => startConversation(profile.id)}
+                    className="flex-1 h-8 text-xs"
+                    size="sm"
+                  >
+                    <MessageCircle className="h-3 w-3 mr-1" />
+                    Send
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    className={`h-8 px-3 text-xs ${userReactions[profile.id] ? 'text-red-500' : ''}`}
+                    size="sm"
+                    onClick={async () => {
+                      const success = await toggleReaction(profile.id);
+                      if (success) {
+                        toast.success(
+                          userReactions[profile.id] 
+                            ? 'Removed from favorites' 
+                            : `Added ${profile.name} to favorites!`
+                        );
+                      } else {
+                        toast.error('Failed to update reaction');
+                      }
+                    }}
+                  >
+                    <Heart className={`h-3 w-3 ${userReactions[profile.id] ? 'fill-current' : ''}`} />
+                    {reactions[profile.id] > 0 && (
+                      <span className="ml-1 text-xs">{reactions[profile.id]}</span>
+                    )}
+                  </Button>
+                </div>
+              </Card>
+            ))}
           </div>
         )}
       </div>

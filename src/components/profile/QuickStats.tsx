@@ -86,62 +86,44 @@ export const QuickStats: React.FC<QuickStatsProps> = ({
   ];
 
   return (
-    <div className="bg-card rounded-xl border border-border/50 shadow-sm p-4 mb-6">
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-        {statItems.map((item) => {
+    <div className="bg-card rounded-lg border border-border/50 shadow-sm px-4 py-3">
+      {/* Compact Inline Stats */}
+      <div className="flex items-center justify-center md:justify-start gap-2 md:gap-3 flex-wrap text-sm">
+        {statItems.map((item, index) => {
           const IconComponent = item.icon;
           
-          if (item.clickable) {
-            return (
-              <Button
-                key={item.key}
-                variant="ghost"
-                className="h-auto p-4 flex flex-col items-center gap-2 bg-primary/5 hover:bg-primary/10 border border-primary/20 transition-all duration-200"
-                onClick={() => handleStatClick(item.key)}
-              >
-                <IconComponent className="h-5 w-5 text-primary" />
-                <div className="text-center">
-                  <div className="text-2xl font-bold text-primary">
-                    {item.value}
-                  </div>
-                  <div className="text-xs text-muted-foreground font-medium">
-                    {item.label}
-                  </div>
-                </div>
-              </Button>
-            );
-          }
-
           return (
-            <div
-              key={item.key}
-              className="p-4 flex flex-col items-center gap-2 bg-primary/5 border border-primary/20 rounded-lg"
-            >
-              <IconComponent className="h-5 w-5 text-primary" />
-              <div className="text-center">
-                <div className="text-2xl font-bold text-primary">
-                  {item.value}
-                </div>
-                <div className="text-xs text-muted-foreground font-medium">
-                  {item.label}
-                </div>
-              </div>
-            </div>
+            <React.Fragment key={item.key}>
+              {index > 0 && <span className="text-border hidden sm:inline">•</span>}
+              <button
+                onClick={() => item.clickable && handleStatClick(item.key)}
+                className={`flex items-center gap-1.5 ${
+                  item.clickable 
+                    ? 'hover:text-primary transition-colors cursor-pointer' 
+                    : 'cursor-default'
+                } text-foreground`}
+                disabled={!item.clickable}
+              >
+                <IconComponent className="h-4 w-4 text-primary" />
+                <span className="font-semibold">{item.value}</span>
+                <span className="text-muted-foreground">{item.label}</span>
+              </button>
+            </React.Fragment>
           );
         })}
+        
+        {/* Hearts stat inline */}
+        {stats.heartsReceived > 0 && (
+          <>
+            <span className="text-border hidden sm:inline">•</span>
+            <div className="flex items-center gap-1.5 text-red-500">
+              <TrendingUp className="h-4 w-4" />
+              <span className="font-semibold">{stats.heartsReceived}</span>
+              <span className="text-muted-foreground">Likes</span>
+            </div>
+          </>
+        )}
       </div>
-
-      {/* Additional Stats Row for Hearts */}
-      {stats.heartsReceived > 0 && (
-        <div className="mt-4 pt-4 border-t border-border/50">
-          <div className="flex items-center justify-center gap-2 text-red-500">
-            <TrendingUp className="h-4 w-4" />
-            <span className="text-sm font-medium">
-              {stats.heartsReceived} profile {stats.heartsReceived === 1 ? 'like' : 'likes'} received
-            </span>
-          </div>
-        </div>
-      )}
     </div>
   );
 };

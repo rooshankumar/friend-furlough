@@ -323,27 +323,127 @@ export const ProfileFriends: React.FC<ProfileFriendsProps> = ({
   }
 
   return (
-    <div className="bg-white rounded-xl border border-border/50 shadow-sm p-6 mb-6">
-      <div className="flex items-center justify-between mb-6">
+    <div className="bg-card rounded-xl border border-border/50 shadow-sm p-4 md:p-5">
+      <div className="flex items-center justify-between mb-4">
         <div className="flex items-center gap-2">
-          <Users className="h-5 w-5 text-primary" />
-          <h3 className="text-lg font-semibold text-foreground">Friends & Connections</h3>
+          <Users className="h-4 w-4 text-primary" />
+          <h3 className="text-sm font-semibold text-foreground">Friends</h3>
+          <span className="text-xs text-muted-foreground">({friendsCount})</span>
         </div>
         
-        {isOwnProfile && (
-          <Button 
-            variant="ghost" 
-            size="sm"
-            onClick={loadFriendsData}
-            disabled={loading}
-          >
-            <RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
-          </Button>
-        )}
+        <div className="flex items-center gap-2">
+          {isOwnProfile && (
+            <Button 
+              variant="ghost" 
+              size="sm"
+              className="h-7 px-2"
+              onClick={loadFriendsData}
+              disabled={loading}
+            >
+              <RefreshCw className={`h-3.5 w-3.5 ${loading ? 'animate-spin' : ''}`} />
+            </Button>
+          )}
+          {friends.length > 8 && (
+            <Button 
+              variant="ghost" 
+              size="sm"
+              className="h-7 text-xs"
+              onClick={() => navigate('/friends')}
+            >
+              View All →
+            </Button>
+          )}
+        </div>
       </div>
 
-      {isOwnProfile ? (
-        <Tabs defaultValue="friends" className="w-full">
+      {/* Compact Horizontal Friends Row */}
+      {friends.length === 0 ? (
+        <div className="text-center py-6">
+          <Users className="h-10 w-10 mx-auto mb-3 text-muted-foreground opacity-50" />
+          <p className="text-sm text-muted-foreground mb-3">
+            {isOwnProfile ? 'No friends yet' : `${profileUser.name} hasn't made any friends yet`}
+          </p>
+          {isOwnProfile && (
+            <Button onClick={() => navigate('/explore')} size="sm" className="h-7 text-xs">
+              <UserPlus className="h-3 w-3 mr-1" />
+              Find Friends
+            </Button>
+          )}
+        </div>
+      ) : (
+        <>
+          {/* Horizontal Scrolling Friends */}
+          <div className="overflow-x-auto -mx-4 px-4 md:-mx-5 md:px-5">
+            <div className="flex gap-3 pb-2">
+              {friends.slice(0, 12).map((friendship) => (
+                <div 
+                  key={friendship.id}
+                  className="flex-shrink-0 w-20 cursor-pointer group"
+                  onClick={() => {
+                    if (friendship.friend_profile?.id) {
+                      navigate(`/profile/${friendship.friend_profile.id}`);
+                    }
+                  }}
+                >
+                  <div className="relative mb-2">
+                    <UserAvatar 
+                      profile={friendship.friend_profile}
+                      className="w-16 h-16 mx-auto border-2 border-border group-hover:border-primary transition-colors"
+                    />
+                    {friendship.friend_profile?.online && (
+                      <div className="absolute bottom-0 right-2 w-3 h-3 bg-green-500 rounded-full border-2 border-white"></div>
+                    )}
+                  </div>
+                  <p className="text-xs text-center font-medium line-clamp-2 group-hover:text-primary transition-colors">
+                    {friendship.friend_profile?.name}
+                  </p>
+                </div>
+              ))}
+              {friends.length > 12 && (
+                <div 
+                  className="flex-shrink-0 w-20 cursor-pointer group"
+                  onClick={() => navigate('/friends')}
+                >
+                  <div className="w-16 h-16 mx-auto mb-2 rounded-full border-2 border-dashed border-border group-hover:border-primary transition-colors flex items-center justify-center bg-muted/50">
+                    <span className="text-xs font-semibold text-muted-foreground group-hover:text-primary">+{friends.length - 12}</span>
+                  </div>
+                  <p className="text-xs text-center font-medium text-muted-foreground group-hover:text-primary transition-colors">
+                    View All
+                  </p>
+                </div>
+              )}
+            </div>
+          </div>
+          
+          {/* Friend Requests Indicators (for own profile) */}
+          {isOwnProfile && (receivedRequests.length > 0 || sentRequests.length > 0) && (
+            <div className="mt-4 pt-4 border-t border-border/50 flex items-center justify-center gap-4 text-xs">
+              {receivedRequests.length > 0 && (
+                <button 
+                  onClick={() => navigate('/friends')}
+                  className="flex items-center gap-1.5 text-primary hover:underline"
+                >
+                  <Bell className="h-3.5 w-3.5" />
+                  <span>{receivedRequests.length} new request{receivedRequests.length !== 1 ? 's' : ''}</span>
+                </button>
+              )}
+              {sentRequests.length > 0 && (
+                <button 
+                  onClick={() => navigate('/friends')}
+                  className="flex items-center gap-1.5 text-muted-foreground hover:text-primary hover:underline"
+                >
+                  <Clock className="h-3.5 w-3.5" />
+                  <span>{sentRequests.length} pending</span>
+                </button>
+              )}
+            </div>
+          )}
+        </>
+      )}
+
+      {/* Keep the tabs for own profile but make them collapsible */}
+      {isOwnProfile && friends.length > 0 && (receivedRequests.length > 0 || sentRequests.length > 0) && (
+        <Tabs defaultValue="friends" className="w-full mt-4 hidden">
           <TabsList className="grid w-full grid-cols-3 mb-4">
             <TabsTrigger value="friends" className="text-xs">
               <Users className="h-3 w-3 mr-1" />
@@ -360,83 +460,10 @@ export const ProfileFriends: React.FC<ProfileFriendsProps> = ({
           </TabsList>
 
           <TabsContent value="friends" className="mt-0">
-            {friends.length === 0 ? (
-              <div className="text-center py-8">
-                <Users className="h-12 w-12 mx-auto mb-4 text-muted-foreground" />
-                <h4 className="font-medium mb-2">No friends yet</h4>
-                <p className="text-sm text-muted-foreground mb-4">
-                  Start connecting with people from around the world!
-                </p>
-                <Button onClick={() => navigate('/explore')} size="sm">
-                  <UserPlus className="h-4 w-4 mr-2" />
-                  Find Friends
-                </Button>
-              </div>
-            ) : (
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                {friends.slice(0, 6).map((friendship) => (
-                  <Card key={friendship.id} className="hover:shadow-md transition-shadow">
-                    <CardContent className="p-4">
-                      <div className="flex items-center gap-3">
-                        <div className="relative">
-                          <div 
-                            className="cursor-pointer"
-                            onClick={() => navigate(`/profile/${friendship.friend_profile?.id}`)}
-                          >
-                            <UserAvatar 
-                              profile={friendship.friend_profile}
-                              className="w-12 h-12"
-                            />
-                          </div>
-                          {friendship.friend_profile?.online && (
-                            <div className="absolute -bottom-1 -right-1 w-3 h-3 bg-green-500 rounded-full border-2 border-white"></div>
-                          )}
-                        </div>
-                        <div className="flex-1 min-w-0">
-                          <h4 
-                            className="font-medium text-sm cursor-pointer hover:text-primary line-clamp-1"
-                            onClick={() => {
-                              console.log('Navigating to friend profile:', friendship.friend_profile?.id, 'Friend name:', friendship.friend_profile?.name);
-                              navigate(`/profile/${friendship.friend_profile?.id}`);
-                            }}
-                          >
-                            {friendship.friend_profile?.name}
-                          </h4>
-                          {friendship.friend_profile?.country && (
-                            <div className="flex items-center gap-1 mt-1">
-                              <CulturalBadge type="country" flag={friendship.friend_profile.country_flag || ''} className="text-xs">
-                                {friendship.friend_profile.country}
-                              </CulturalBadge>
-                            </div>
-                          )}
-                          <p className="text-xs text-muted-foreground mt-1">
-                            Friends since {new Date(friendship.created_at).toLocaleDateString()}
-                          </p>
-                        </div>
-                        <Button 
-                          size="sm" 
-                          variant="ghost"
-                          onClick={() => startChat(friendship.friend_profile?.id || '')}
-                        >
-                          <MessageCircle className="h-4 w-4" />
-                        </Button>
-                      </div>
-                    </CardContent>
-                  </Card>
-                ))}
-              </div>
-            )}
-            
-            {friends.length > 6 && (
-              <div className="text-center mt-4">
-                <Button variant="outline" size="sm" onClick={() => navigate('/friends')}>
-                  View All {friendsCount} Friends
-                </Button>
-              </div>
-            )}
+            {/* Content moved to horizontal scroll above */}
           </TabsContent>
 
-          <TabsContent value="received" className="mt-0">
+          <TabsContent value="received" className="mt-0 hidden">
             {receivedRequests.length === 0 ? (
               <div className="text-center py-8">
                 <Bell className="h-12 w-12 mx-auto mb-4 text-muted-foreground" />
@@ -454,7 +481,11 @@ export const ProfileFriends: React.FC<ProfileFriendsProps> = ({
                         <div className="flex items-center gap-3">
                           <div 
                             className="cursor-pointer"
-                            onClick={() => navigate(`/profile/${request.sender_id}`)}
+                            onClick={() => {
+                              if (request.sender_id) {
+                                navigate(`/profile/${request.sender_id}`);
+                              }
+                            }}
                           >
                             <UserAvatar 
                               profile={request.sender_profile}
@@ -464,7 +495,11 @@ export const ProfileFriends: React.FC<ProfileFriendsProps> = ({
                           <div>
                             <h4 
                               className="font-medium text-sm cursor-pointer hover:text-primary"
-                              onClick={() => navigate(`/profile/${request.sender_id}`)}
+                              onClick={() => {
+                                if (request.sender_id) {
+                                  navigate(`/profile/${request.sender_id}`);
+                                }
+                              }}
                             >
                               {request.sender_profile?.name}
                             </h4>
@@ -497,7 +532,7 @@ export const ProfileFriends: React.FC<ProfileFriendsProps> = ({
             )}
           </TabsContent>
 
-          <TabsContent value="sent" className="mt-0">
+          <TabsContent value="sent" className="mt-0 hidden">
             {sentRequests.length === 0 ? (
               <div className="text-center py-8">
                 <Clock className="h-12 w-12 mx-auto mb-4 text-muted-foreground" />
@@ -515,7 +550,11 @@ export const ProfileFriends: React.FC<ProfileFriendsProps> = ({
                         <div className="flex items-center gap-3">
                           <div 
                             className="cursor-pointer"
-                            onClick={() => navigate(`/profile/${request.receiver_id}`)}
+                            onClick={() => {
+                              if (request.receiver_id) {
+                                navigate(`/profile/${request.receiver_id}`);
+                              }
+                            }}
                           >
                             <UserAvatar 
                               profile={request.receiver_profile}
@@ -525,7 +564,11 @@ export const ProfileFriends: React.FC<ProfileFriendsProps> = ({
                           <div>
                             <h4 
                               className="font-medium text-sm cursor-pointer hover:text-primary"
-                              onClick={() => navigate(`/profile/${request.receiver_id}`)}
+                              onClick={() => {
+                                if (request.receiver_id) {
+                                  navigate(`/profile/${request.receiver_id}`);
+                                }
+                              }}
                             >
                               {request.receiver_profile?.name}
                             </h4>
@@ -543,65 +586,6 @@ export const ProfileFriends: React.FC<ProfileFriendsProps> = ({
             )}
           </TabsContent>
         </Tabs>
-      ) : (
-        // For other users' profiles - show friends only
-        <div>
-          {friends.length === 0 ? (
-            <div className="text-center py-8">
-              <Users className="h-12 w-12 mx-auto mb-4 text-muted-foreground" />
-              <h4 className="font-medium mb-2">No friends yet</h4>
-              <p className="text-sm text-muted-foreground">
-                {profileUser.name} hasn't made any friends yet.
-              </p>
-            </div>
-          ) : (
-            <>
-              <div className="flex items-center justify-between mb-4">
-                <p className="text-sm text-muted-foreground">
-                  {profileUser.name} has {friendsCount} friend{friendsCount !== 1 ? 's' : ''}
-                </p>
-                {friends.length > 6 && (
-                  <Button variant="outline" size="sm" onClick={() => navigate('/friends')}>
-                    View All
-                  </Button>
-                )}
-              </div>
-              
-              <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
-                {friends.slice(0, 6).map((friendship) => (
-                  <Card key={friendship.id} className="hover:shadow-md transition-shadow">
-                    <CardContent className="p-3">
-                      <div className="flex flex-col items-center text-center gap-2">
-                        <div 
-                          className="cursor-pointer"
-                          onClick={() => navigate(`/profile/${friendship.friend_profile?.id}`)}
-                        >
-                          <UserAvatar 
-                            profile={friendship.friend_profile}
-                            className="w-12 h-12"
-                          />
-                        </div>
-                        <div>
-                          <h4 
-                            className="font-medium text-sm cursor-pointer hover:text-primary line-clamp-1"
-                            onClick={() => navigate(`/profile/${friendship.friend_profile?.id}`)}
-                          >
-                            {friendship.friend_profile?.name}
-                          </h4>
-                          {friendship.friend_profile?.country && (
-                            <p className="text-xs text-muted-foreground">
-                              {friendship.friend_profile.country_flag} {friendship.friend_profile.country}
-                            </p>
-                          )}
-                        </div>
-                      </div>
-                    </CardContent>
-                  </Card>
-                ))}
-              </div>
-            </>
-          )}
-        </div>
       )}
     </div>
   );

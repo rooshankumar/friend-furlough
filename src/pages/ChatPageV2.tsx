@@ -560,22 +560,22 @@ const ChatPageV2 = () => {
         <div className="h-full flex flex-col md:flex-row">
           {/* Conversations List */}
           <div className="md:w-96 border-r border-border/50 bg-card/30 h-full flex flex-col">
-            <div className="p-4 border-b border-border/50">
-              <div className="flex items-center justify-between mb-3">
+            {/* Compact Header - Mobile Optimized */}
+            <div className="p-2 md:p-4 border-b border-border/50">
+              {/* Mobile: Just search bar | Desktop: Title + search */}
+              <div className="md:flex md:items-center md:justify-between md:mb-3 hidden">
                 <h2 className="text-xl font-bold flex items-center gap-2">
                   <Globe className="h-6 w-6 text-primary" />
                   Chats
                 </h2>
-                <Button size="sm" variant="ghost" className="h-9 w-9 p-0">
-                  <Search className="h-4 w-4" />
-                </Button>
               </div>
               {/* Search Bar */}
               <div className="relative">
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                 <Input 
-                  placeholder="Search conversations..." 
-                  className="pl-9 bg-background/50"
+                  placeholder="Search chats..."
+                  className="pl-9 bg-background/50 h-9 md:h-10 text-sm"
+                  style={{ fontSize: '16px' }}
                 />
               </div>
             </div>
@@ -649,40 +649,40 @@ const ChatPageV2 = () => {
 
         {/* Main Chat Area */}
         <div className="flex-1 flex flex-col h-full relative overflow-hidden bg-background">
-          {/* Enhanced Header */}
-          <div className="flex-shrink-0 border-b border-border/50 p-4 bg-background/95 backdrop-blur-md shadow-sm">
+          {/* Enhanced Header - Compact on Mobile */}
+          <div className="flex-shrink-0 border-b border-border/50 p-2 md:p-4 bg-background/95 backdrop-blur-md shadow-sm">
             <div className="flex items-center justify-between">
-              <div className="flex items-center gap-3">
-                <Link to="/chat" className="lg:hidden">
-                  <Button size="sm" variant="ghost" className="h-9 w-9 p-0">
-                    <ArrowLeft className="h-5 w-5" />
+              <div className="flex items-center gap-2 md:gap-3 flex-1 min-w-0">
+                <Link to="/chat" className="lg:hidden flex-shrink-0">
+                  <Button size="sm" variant="ghost" className="h-8 w-8 p-0">
+                    <ArrowLeft className="h-4 w-4" />
                   </Button>
                 </Link>
                 <Link 
                   to={`/profile/${otherParticipant?.user_id}`}
-                  className="flex items-center gap-3 hover:opacity-80 transition-opacity cursor-pointer"
+                  className="flex items-center gap-2 md:gap-3 hover:opacity-80 transition-opacity cursor-pointer flex-1 min-w-0"
                 >
-                  <div className="relative">
-                    <Avatar className="h-12 w-12 ring-2 ring-primary/20">
+                  <div className="relative flex-shrink-0">
+                    <Avatar className="h-9 w-9 md:h-12 md:w-12 ring-2 ring-primary/20">
                       <AvatarImage src={otherParticipant?.profiles?.avatar_url} />
-                      <AvatarFallback className="bg-gradient-cultural text-white">
+                      <AvatarFallback className="bg-gradient-cultural text-white text-sm">
                         {otherParticipant?.profiles?.name?.[0] || '?'}
                       </AvatarFallback>
                     </Avatar>
                     {otherParticipant?.profiles?.online && (
-                      <span className="absolute bottom-0 right-0 h-3.5 w-3.5 bg-green-500 rounded-full border-2 border-background" />
+                      <span className="absolute bottom-0 right-0 h-2.5 w-2.5 md:h-3.5 md:w-3.5 bg-green-500 rounded-full border-2 border-background" />
                     )}
                   </div>
-                  <div>
-                    <div className="flex items-center gap-2">
-                      <h3 className="font-semibold text-base">
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-1.5 md:gap-2">
+                      <h3 className="font-semibold text-sm md:text-base truncate">
                         {otherParticipant?.profiles?.name || 'Unknown User'}
                       </h3>
                       {otherParticipant?.profiles?.country_flag && (
-                        <span className="text-lg">{otherParticipant.profiles.country_flag}</span>
+                        <span className="text-base md:text-lg flex-shrink-0">{otherParticipant.profiles.country_flag}</span>
                       )}
                     </div>
-                    <p className="text-xs text-muted-foreground">
+                    <p className="text-xs text-muted-foreground truncate">
                       {isTyping ? (
                         <span className="flex items-center gap-1">
                           <span className="animate-pulse">typing</span>
@@ -699,19 +699,19 @@ const ChatPageV2 = () => {
                   </div>
                 </Link>
               </div>
-              <div className="flex items-center gap-1">
+              <div className="flex items-center gap-0.5 md:gap-1 flex-shrink-0">
                 <Button 
                   size="sm" 
                   variant="ghost" 
-                  className="h-9 w-9 p-0"
+                  className="h-8 w-8 p-0 md:h-9 md:w-9"
                   onClick={() => setShowSearch(!showSearch)}
                 >
-                  <Search className="h-4 w-4" />
+                  <Search className="h-3.5 w-3.5 md:h-4 md:w-4" />
                 </Button>
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild>
-                    <Button size="sm" variant="ghost" className="h-9 w-9 p-0">
-                      <MoreVertical className="h-4 w-4" />
+                    <Button size="sm" variant="ghost" className="h-8 w-8 p-0 md:h-9 md:w-9">
+                      <MoreVertical className="h-3.5 w-3.5 md:h-4 md:w-4" />
                     </Button>
                   </DropdownMenuTrigger>
                   <DropdownMenuContent align="end" className="w-48">

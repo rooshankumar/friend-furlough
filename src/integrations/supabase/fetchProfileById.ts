@@ -3,6 +3,19 @@ import { User } from '@/types';
 
 export async function fetchProfileById(userId: string): Promise<User | null> {
   try {
+    // Validate userId is not undefined or invalid
+    if (!userId || userId === 'undefined' || userId === 'null') {
+      console.error('Invalid userId provided:', userId);
+      throw new Error('Invalid user ID');
+    }
+
+    // Validate UUID format
+    const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+    if (!uuidRegex.test(userId)) {
+      console.error('Invalid UUID format:', userId);
+      throw new Error('Invalid user ID format');
+    }
+
     const { data: profileData, error: profileError } = await supabase
       .from('profiles')
       .select(`

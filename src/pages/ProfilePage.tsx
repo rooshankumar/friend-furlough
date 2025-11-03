@@ -4,11 +4,9 @@ import { Button } from '@/components/ui/button';
 import { User } from '@/types';
 import UserAvatar from '@/components/UserAvatar';
 import { ProfileHeader } from '@/components/profile/ProfileHeader';
-import { ProfileBio } from '@/components/profile/ProfileBio';
-import { ProfileLanguages } from '@/components/profile/ProfileLanguages';
+import { ProfileInfoGrid } from '@/components/profile/ProfileInfoGrid';
 import { ProfilePosts } from '@/components/profile/ProfilePosts';
 import { ProfileFriends } from '@/components/profile/ProfileFriends';
-import { QuickStats } from '@/components/profile/QuickStats';
 import { 
   MessageCircle, 
   Loader2,
@@ -103,7 +101,15 @@ const ProfilePage = () => {
     setError(null);
 
     try {
-      const targetUserId = isOwnProfile ? authUser.id : userId!;
+      const targetUserId = isOwnProfile ? authUser.id : userId;
+      
+      // Validate targetUserId
+      if (!targetUserId || targetUserId === 'undefined') {
+        setError('Invalid profile ID');
+        setLoading(false);
+        setIsRefreshing(false);
+        return;
+      }
 
       // Batch all data requests in parallel
       const [profileData, languagesData, postsData] = await Promise.all([
@@ -164,6 +170,20 @@ const ProfilePage = () => {
 
       // Load profile reaction data
       await loadReactionData(fullProfile.id);
+
+      // Load friends count
+      try {
+        const { count, error: friendsError } = await supabase
+          .from('friendships')
+          .select('*', { count: 'exact', head: true })
+          .or(`user1_id.eq.${targetUserId},user2_id.eq.${targetUserId}`);
+        
+        if (!friendsError && count !== null) {
+          setFriendsCount(count);
+        }
+      } catch (error) {
+        console.error('Error loading friends count:', error);
+      }
 
       // Check friend status
       if (!isOwnProfile) {
@@ -358,51 +378,69 @@ const ProfilePage = () => {
 
   if (error || !profileUser) {
     return (
-      <ErrorState 
-        title={error || 'Profile not found'}
-        description="Failed to load profile data"
-        onRetry={() => fetchProfileData(true)}
-      />
+      <div className="min-h-screen bg-gradient-to-br from-background via-background/95 to-background md:ml-16 pb-20 md:pb-0 flex items-center justify-center p-4">
+        <div className="max-w-md w-full">
+          <ErrorState 
+            title={error || 'Profile not found'}
+            description={
+              error?.includes('Invalid') 
+                ? "The profile link appears to be invalid. Please check the URL or go to your profile."
+                : "Failed to load profile data. Please try again."
+            }
+            onRetry={() => {
+              if (error?.includes('Invalid')) {
+                navigate('/profile');
+              } else {
+                fetchProfileData(true);
+              }
+            }}
+          />
+          <div className="mt-4 text-center">
+            <Button 
+              variant="outline" 
+              onClick={() => navigate('/profile')}
+              className="gap-2"
+            >
+              Go to My Profile
+            </Button>
+          </div>
+        </div>
+      </div>
     );
   }
 
-  const stats = {
-    friendsCount,
-    postsCount: userPosts.length,
-    languagesLearning: learningLanguages.length,
-    culturalExchanges: 0,
-    heartsReceived: reactions[profileUser.id] || 0
-  };
-
   return (
     <div className="min-h-screen bg-gradient-to-br from-background via-background/95 to-background md:ml-16 pb-20 md:pb-0">
-      {/* Sticky Header */}
+      {/* Compact Sticky Header */}
       <div className="sticky top-0 z-20 bg-card/95 backdrop-blur-xl border-b border-border/50 shadow-sm">
-        <div className="max-w-5xl mx-auto flex items-center justify-between px-4 py-3">
+        <div className="max-w-4xl mx-auto flex items-center justify-between px-3 py-2">
           <Button
             variant="ghost"
             size="sm"
             onClick={() => navigate(-1)}
-            className="gap-2 hover:bg-primary/10"
+            className="gap-1.5 hover:bg-primary/10 h-8 text-xs"
           >
-            <ArrowLeft className="h-4 w-4" />
+            <ArrowLeft className="h-3.5 w-3.5" />
             <span className="hidden sm:inline">Back</span>
           </Button>
+          <h2 className="text-sm font-semibold truncate max-w-[200px]">
+            {isOwnProfile ? 'My Profile' : profileUser?.name}
+          </h2>
           <Button
             variant="ghost"
             size="sm"
             onClick={() => fetchProfileData(true)}
             disabled={isRefreshing}
-            className="gap-2 hover:bg-primary/10"
+            className="gap-1.5 hover:bg-primary/10 h-8 px-2"
           >
-            <RefreshCw className={`h-4 w-4 ${isRefreshing ? 'animate-spin' : ''}`} />
-            <span className="hidden sm:inline">Refresh</span>
+            <RefreshCw className={`h-3.5 w-3.5 ${isRefreshing ? 'animate-spin' : ''}`} />
           </Button>
         </div>
       </div>
 
-      <div className="max-w-5xl mx-auto p-3 sm:p-4 md:p-6 space-y-4 md:space-y-6">
-        {/* Profile Header with enhanced animation */}
+      {/* Compact Content Layout */}
+      <div className="max-w-4xl mx-auto p-3 sm:p-4 space-y-3 sm:space-y-4">
+        {/* Profile Header - Compact */}
         <div className="animate-fade-in">
           <ProfileHeader
             profileUser={profileUser}
@@ -419,31 +457,28 @@ const ProfilePage = () => {
           />
         </div>
 
-        {/* Quick Stats with stagger animation */}
+        {/* Bio & Languages - Two Column Grid */}
         <div className="animate-fade-in" style={{ animationDelay: '100ms' }}>
-          <QuickStats stats={stats} isOwnProfile={isOwnProfile} />
-        </div>
-
-        {/* Bio & Interests */}
-        <div className="animate-fade-in" style={{ animationDelay: '200ms' }}>
-          <ProfileBio
+          <ProfileInfoGrid
             profileUser={profileUser}
             culturalInterests={culturalInterests}
             lookingFor={lookingFor}
-          />
-        </div>
-
-        {/* Languages */}
-        <div className="animate-fade-in" style={{ animationDelay: '300ms' }}>
-          <ProfileLanguages
-            profileUser={profileUser}
             nativeLanguages={nativeLanguages}
             learningLanguages={learningLanguages}
           />
         </div>
 
-        {/* Posts */}
-        <div className="animate-fade-in" style={{ animationDelay: '400ms' }}>
+        {/* Friends - Horizontal Row */}
+        <div className="animate-fade-in" style={{ animationDelay: '150ms' }}>
+          <ProfileFriends 
+            profileUser={profileUser} 
+            isOwnProfile={isOwnProfile} 
+            friendsCount={friendsCount}
+          />
+        </div>
+
+        {/* Posts - Horizontal Carousel */}
+        <div className="animate-fade-in" style={{ animationDelay: '200ms' }}>
           <ProfilePosts
             userPosts={userPosts}
             profileUser={profileUser}
@@ -453,15 +488,6 @@ const ProfilePage = () => {
             userPostReactions={userPostReactions}
             commentCounts={commentCounts}
             onLikePost={handleLikePost}
-          />
-        </div>
-
-        {/* Friends */}
-        <div className="animate-fade-in" style={{ animationDelay: '500ms' }}>
-          <ProfileFriends 
-            profileUser={profileUser} 
-            isOwnProfile={isOwnProfile} 
-            friendsCount={friendsCount}
           />
         </div>
       </div>

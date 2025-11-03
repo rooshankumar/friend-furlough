@@ -5,7 +5,6 @@ import { Badge } from '@/components/ui/badge';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import UserAvatar from '@/components/UserAvatar';
 import { CulturalBadge } from '@/components/CulturalBadge';
-import { EditProfileModal } from '@/components/EditProfileModal';
 import { 
   ArrowLeft, 
   MoreHorizontal, 
@@ -87,86 +86,31 @@ export const ProfileHeader: React.FC<ProfileHeaderProps> = ({
 
   return (
     <div className="bg-gradient-to-br from-primary/5 via-background to-secondary/5 rounded-xl border border-border/50 overflow-hidden">
-      {/* Mobile Header */}
-      <div className="md:hidden bg-background/95 backdrop-blur-sm border-b border-border/50 sticky top-0 z-40">
-        <div className="flex items-center justify-between p-4">
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={() => navigate(-1)}
-            className="h-9 w-9 p-0"
-          >
-            <ArrowLeft className="h-5 w-5" />
-          </Button>
-          <h1 className="font-semibold text-lg">
-            {isOwnProfile ? 'My Profile' : profileUser?.name || 'Profile'}
-          </h1>
-          {isOwnProfile && (
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button variant="ghost" size="sm" className="h-9 w-9 p-0">
-                  <MoreHorizontal className="h-5 w-5" />
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end" className="w-48">
-                <EditProfileModal 
-                  trigger={
-                    <DropdownMenuItem className="cursor-pointer">
-                      <Settings className="mr-2 h-4 w-4" />
-                      Edit Profile
-                    </DropdownMenuItem>
-                  }
-                />
-                <DropdownMenuItem onClick={handleShare}>
-                  <Share className="mr-2 h-4 w-4" />
-                  Share Profile
-                </DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
-          )}
-        </div>
-      </div>
-
-      {/* Desktop Back Button */}
-      {!isOwnProfile && (
-        <div className="hidden md:block p-6 pb-0">
-          <Button 
-            variant="ghost" 
-            size="sm"
-            onClick={() => navigate(-1)}
-            className="flex items-center gap-2"
-          >
-            <ArrowLeft className="h-4 w-4" />
-            Back
-          </Button>
-        </div>
-      )}
-
-      {/* Main Header Content */}
-      <div className="p-6 pt-4 md:pt-6">
-        <div className="flex flex-col lg:flex-row lg:items-start gap-6">
-          {/* Avatar Section */}
-          <div className="flex flex-col items-center lg:items-start">
-            <div className="relative">
+      {/* Compact All-in-One Header */}
+      <div className="p-4 md:p-6">
+        <div className="flex flex-col md:flex-row gap-4 md:gap-6">
+          {/* Avatar Section - Compact */}
+          <div className="flex flex-col sm:flex-row md:flex-col items-center sm:items-start md:items-center gap-3 sm:gap-4 md:gap-3">
+            <div className="relative flex-shrink-0">
               <UserAvatar 
                 profile={profileUser}
                 user={isOwnProfile ? user : undefined}
-                className="h-28 w-28 sm:h-32 sm:w-32 border-4 border-white shadow-xl"
-                fallbackClassName="text-2xl sm:text-3xl"
+                className="h-20 w-20 md:h-24 md:w-24 border-4 border-white shadow-lg"
+                fallbackClassName="text-xl md:text-2xl"
               />
               {isOwnProfile && (
                 <label htmlFor="avatar-upload">
                   <Button 
                     size="sm" 
-                    className="absolute -bottom-2 -right-2 rounded-full h-10 w-10 p-0 shadow-lg"
+                    className="absolute -bottom-1 -right-1 rounded-full h-8 w-8 p-0 shadow-lg"
                     disabled={isUploading}
                     asChild
                   >
                     <span>
                       {isUploading ? (
-                        <Loader2 className="h-4 w-4 animate-spin" />
+                        <Loader2 className="h-3 w-3 animate-spin" />
                       ) : (
-                        <Camera className="h-4 w-4" />
+                        <Camera className="h-3 w-3" />
                       )}
                     </span>
                   </Button>
@@ -183,37 +127,50 @@ export const ProfileHeader: React.FC<ProfileHeaderProps> = ({
               )}
             </div>
             
-            {/* Status & Basic Info */}
-            <div className="text-center lg:text-left mt-4 space-y-2">
-              <div className="flex items-center justify-center lg:justify-start gap-2">
-                <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>
-                <span className="text-sm text-muted-foreground">Online</span>
-              </div>
-              <div className="flex items-center justify-center lg:justify-start gap-2 text-muted-foreground">
-                <MapPin className="h-4 w-4" />
-                <span className="text-sm">{profileUser.city || ''}, {profileUser.country || ''}</span>
-              </div>
-              <div className="flex items-center justify-center lg:justify-start gap-2 text-muted-foreground">
-                <Calendar className="h-4 w-4" />
-                <span className="text-sm">Joined {new Date(profileUser.joinedDate).toLocaleDateString()}</span>
-              </div>
+            {/* Online Status - Mobile/Tablet */}
+            <div className="flex sm:hidden md:flex items-center gap-2">
+              <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>
+              <span className="text-xs text-muted-foreground">Online</span>
             </div>
           </div>
 
-          {/* Profile Info */}
-          <div className="flex-1 lg:ml-8">
-            <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4 mb-6">
-              <div>
-                <h1 className="text-3xl sm:text-4xl font-bold text-foreground mb-3">
-                  {profileUser.name}
-                </h1>
-                <div className="flex items-center gap-3 flex-wrap">
-                  <CulturalBadge type="country" flag={profileUser.countryFlag || ''}>{profileUser.country || ''}</CulturalBadge>
-                  <Badge variant="outline" className="text-sm">
-                    Age {profileUser.age || ''}
+          {/* Profile Info - Compact Horizontal */}
+          <div className="flex-1 min-w-0">
+            <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3 mb-3">
+              <div className="min-w-0">
+                <div className="flex items-center gap-2 mb-1 flex-wrap">
+                  <h1 className="text-xl md:text-2xl font-bold text-foreground truncate">
+                    {profileUser.name}
+                  </h1>
+                  {/* Online Status - Desktop */}
+                  <div className="hidden sm:flex md:hidden items-center gap-1.5">
+                    <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>
+                    <span className="text-xs text-muted-foreground">Online</span>
+                  </div>
+                </div>
+                
+                {/* Compact Info Pills */}
+                <div className="flex items-center gap-2 flex-wrap text-xs md:text-sm text-muted-foreground mb-2">
+                  <div className="flex items-center gap-1">
+                    <MapPin className="h-3 w-3" />
+                    <span className="truncate">{profileUser.city || ''}, {profileUser.country || ''}</span>
+                  </div>
+                  <span className="text-border">•</span>
+                  <div className="flex items-center gap-1">
+                    <Calendar className="h-3 w-3" />
+                    <span>Age {profileUser.age || ''}</span>
+                  </div>
+                  <span className="text-border">•</span>
+                  <span>Joined {new Date(profileUser.joinedDate).toLocaleDateString('en-US', { month: 'short', year: 'numeric' })}</span>
+                </div>
+
+                {/* Compact Badges */}
+                <div className="flex items-center gap-2 flex-wrap">
+                  <Badge variant="outline" className="text-xs px-2 py-0.5">
+                    {profileUser.countryFlag} {profileUser.country || ''}
                   </Badge>
                   {profileUser.gender && (
-                    <Badge variant="outline" className="text-sm flex items-center gap-1">
+                    <Badge variant="outline" className="text-xs px-2 py-0.5 flex items-center gap-1">
                       <img 
                         src={
                           profileUser.gender === 'male' 
@@ -223,31 +180,36 @@ export const ProfileHeader: React.FC<ProfileHeaderProps> = ({
                             : 'https://bblrxervgwkphkctdghe.supabase.co/storage/v1/object/public/rest_pic/others.png'
                         }
                         alt={profileUser.gender}
-                        className="h-3 w-3"
+                        className="h-2.5 w-2.5"
                       />
                       {profileUser.gender === 'prefer-not-to-say' ? 'Other' : profileUser.gender.charAt(0).toUpperCase() + profileUser.gender.slice(1)}
                     </Badge>
                   )}
                   {profileUser.teachingExperience && (
-                    <Badge className="bg-gradient-cultural text-white text-sm">
-                      <Award className="h-3 w-3 mr-1" />
+                    <Badge className="bg-gradient-cultural text-white text-xs px-2 py-0.5">
+                      <Award className="h-2.5 w-2.5 mr-1" />
                       Teacher
                     </Badge>
                   )}
                 </div>
               </div>
               
-              {/* Action Buttons */}
-              <div className="flex items-center gap-2 flex-wrap">
+              {/* Action Buttons - Compact */}
+              <div className="flex items-center gap-1.5 flex-wrap sm:flex-nowrap">
                 {isOwnProfile ? (
                   <>
-                    <div className="flex items-center gap-2 px-4 py-2 bg-red-50 rounded-lg border border-red-200">
-                      <Heart className="h-4 w-4 text-red-500 fill-current" />
-                      <span className="text-sm font-medium text-red-700">
+                    <div className="flex items-center gap-1.5 px-3 py-1.5 bg-red-50 rounded-lg border border-red-200">
+                      <Heart className="h-3.5 w-3.5 text-red-500 fill-current" />
+                      <span className="text-xs font-medium text-red-700">
                         {reactions[profileUser.id] || 0}
                       </span>
                     </div>
-                    <EditProfileModal />
+                    <Button variant="ghost" size="sm" onClick={() => navigate('/settings')} className="h-8 px-2">
+                      <Settings className="h-3.5 w-3.5" />
+                    </Button>
+                    <Button variant="ghost" size="sm" onClick={handleShare} className="h-8 px-2">
+                      <Share className="h-3.5 w-3.5" />
+                    </Button>
                   </>
                 ) : (
                   <>
@@ -255,42 +217,44 @@ export const ProfileHeader: React.FC<ProfileHeaderProps> = ({
                       variant="ghost" 
                       size="sm"
                       onClick={onHeartReaction}
-                      className={`flex items-center gap-2 ${userReactions[profileUser.id] ? 'text-red-500' : 'text-muted-foreground'}`}
+                      className={`h-8 px-2 ${userReactions[profileUser.id] ? 'text-red-500' : 'text-muted-foreground'}`}
                     >
-                      <Heart className={`h-4 w-4 ${userReactions[profileUser.id] ? 'fill-current' : ''}`} />
-                      <span className="text-sm">{reactions[profileUser.id] || 0}</span>
+                      <Heart className={`h-3.5 w-3.5 ${userReactions[profileUser.id] ? 'fill-current' : ''}`} />
+                      <span className="text-xs ml-1">{reactions[profileUser.id] || 0}</span>
                     </Button>
-                    <Button className="bg-gradient-cultural text-white" onClick={onStartConversation}>
-                      <MessageCircle className="h-4 w-4 mr-2" />
+                    <Button size="sm" className="bg-gradient-cultural text-white h-8 text-xs" onClick={onStartConversation}>
+                      <MessageCircle className="h-3.5 w-3.5 mr-1" />
                       Message
                     </Button>
                     <Button 
                       variant="outline" 
+                      size="sm"
+                      className="h-8 text-xs"
                       onClick={onFriendRequest}
                       disabled={friendStatus === 'accepted'}
                     >
-                      <Users className="h-4 w-4 mr-2" />
-                      {friendStatus === 'pending' ? 'Cancel Request' : 
+                      <Users className="h-3.5 w-3.5 mr-1" />
+                      {friendStatus === 'pending' ? 'Pending' : 
                        friendStatus === 'accepted' ? 'Friends' : 
-                       friendStatus === 'received' ? 'Accept Request' :
-                       'Add Friend'}
+                       friendStatus === 'received' ? 'Accept' :
+                       'Add'}
                     </Button>
-                    <Button variant="ghost" size="sm" onClick={handleShare}>
-                      <Share className="h-4 w-4" />
+                    <Button variant="ghost" size="sm" onClick={handleShare} className="h-8 px-2">
+                      <Share className="h-3.5 w-3.5" />
                     </Button>
                     <DropdownMenu>
                       <DropdownMenuTrigger asChild>
-                        <Button variant="ghost" size="sm">
-                          <MoreHorizontal className="h-4 w-4" />
+                        <Button variant="ghost" size="sm" className="h-8 px-2">
+                          <MoreHorizontal className="h-3.5 w-3.5" />
                         </Button>
                       </DropdownMenuTrigger>
                       <DropdownMenuContent align="end">
-                        <DropdownMenuItem onClick={handleReport} className="text-orange-600">
-                          <Flag className="h-4 w-4 mr-2" />
+                        <DropdownMenuItem onClick={handleReport} className="text-orange-600 text-xs">
+                          <Flag className="h-3.5 w-3.5 mr-2" />
                           Report User
                         </DropdownMenuItem>
-                        <DropdownMenuItem onClick={handleBlock} className="text-red-600">
-                          <Ban className="h-4 w-4 mr-2" />
+                        <DropdownMenuItem onClick={handleBlock} className="text-red-600 text-xs">
+                          <Ban className="h-3.5 w-3.5 mr-2" />
                           Block User
                         </DropdownMenuItem>
                       </DropdownMenuContent>

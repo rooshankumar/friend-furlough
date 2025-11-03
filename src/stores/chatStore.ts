@@ -20,6 +20,14 @@ interface DbMessage {
   tempId?: string; // For optimistic updates
   uploadProgress?: number; // For attachment uploads
   client_id?: string; // For idempotency and reconciliation
+  reply_to_message_id?: string; // For reply functionality
+  reply_to?: {
+    content: string;
+    sender_name: string;
+    sender_id: string;
+    type?: string;
+    media_url?: string;
+  }; // Populated reply data
 }
 
 interface DbConversation {
@@ -48,7 +56,7 @@ interface ChatState {
   // Actions
   loadConversations: (userId: string) => Promise<void>;
   loadMessages: (conversationId: string, limit?: number) => Promise<void>;
-  sendMessage: (conversationId: string, senderId: string, content: string, mediaUrl?: string, clientIdOverride?: string) => Promise<any>;
+  sendMessage: (conversationId: string, senderId: string, content: string, mediaUrl?: string, clientIdOverride?: string, replyToMessageId?: string) => Promise<any>;
   sendAttachment: (conversationId: string, senderId: string, file: File) => Promise<void>;
   sendVoiceMessage: (conversationId: string, senderId: string, audioBlob: Blob) => Promise<void>;
   markMessageAsRead: (messageId: string, userId: string) => Promise<void>;
@@ -204,7 +212,8 @@ export const useChatStore = create<ChatState>((set, get) => ({
           content,
           created_at,
           type,
-          media_url
+          media_url,
+          reply_to_message_id
         `)
         .eq('conversation_id', conversationId)
         .order('created_at', { ascending: true })
@@ -218,7 +227,17 @@ export const useChatStore = create<ChatState>((set, get) => ({
       // Get current user to determine message status
       const { data: { user } } = await supabase.auth.getUser();
       
-      // Add status to messages based on read status and conversation activity
+      // Get all participants to map sender names
+      const { data: participants } = await supabase
+        .from('conversation_participants')
+        .select('user_id, profiles(name)')
+        .eq('conversation_id', conversationId);
+      
+      const userMap = new Map(
+        (participants || []).map(p => [p.user_id, p.profiles?.name || 'User'])
+      );
+      
+      // Add status and populate reply_to data
       const messagesWithStatus = (data || []).map((message, index) => {
         let status: MessageStatus = 'delivered'; // Default for received messages
         
@@ -235,9 +254,25 @@ export const useChatStore = create<ChatState>((set, get) => ({
           status = hasLaterReplyFromOthers ? 'read' : 'delivered';
         }
         
+        // Populate reply_to data if message is a reply
+        let reply_to = undefined;
+        if (message.reply_to_message_id) {
+          const repliedMessage = (data || []).find(m => m.id === message.reply_to_message_id);
+          if (repliedMessage) {
+            reply_to = {
+              content: repliedMessage.content,
+              sender_name: userMap.get(repliedMessage.sender_id) || 'User',
+              sender_id: repliedMessage.sender_id,
+              type: repliedMessage.type,
+              media_url: repliedMessage.media_url
+            };
+          }
+        }
+        
         return {
           ...message,
-          status
+          status,
+          reply_to
         };
       });
 
@@ -255,7 +290,7 @@ export const useChatStore = create<ChatState>((set, get) => ({
     }
   },
   
-  sendMessage: async (conversationId: string, senderId: string, content: string, mediaUrl?: string, clientIdOverride?: string) => {
+  sendMessage: async (conversationId: string, senderId: string, content: string, mediaUrl?: string, clientIdOverride?: string, replyToMessageId?: string) => {
     console.log('📤 ChatStore sendMessage called:', { conversationId, senderId, content: content.substring(0, 50), mediaUrl });
     
     // Validate inputs
@@ -268,8 +303,27 @@ export const useChatStore = create<ChatState>((set, get) => ({
       (mediaUrl.includes('.jpg') || mediaUrl.includes('.jpeg') || mediaUrl.includes('.png') || mediaUrl.includes('.gif') || mediaUrl.includes('.webp') ? 'image' : 
        mediaUrl.includes('.webm') || mediaUrl.includes('.mp3') || mediaUrl.includes('.wav') ? 'voice' : 'file') : 'text';
     
-    // Create optimistic message
+    // Generate client_id for idempotency and reconciliation
+    const clientId = clientIdOverride || generateClientId();
     const tempId = `temp_${Date.now()}_${Math.random()}`;
+    
+    // Get reply_to data if replying to a message
+    let reply_to = undefined;
+    if (replyToMessageId) {
+      const state = get();
+      const conversationMessages = state.messages[conversationId] || [];
+      const repliedMessage = conversationMessages.find(m => m.id === replyToMessageId);
+      if (repliedMessage) {
+        reply_to = {
+          content: repliedMessage.content,
+          sender_name: repliedMessage.sender_id === senderId ? 'You' : 'User',
+          sender_id: repliedMessage.sender_id,
+          type: repliedMessage.type,
+          media_url: repliedMessage.media_url
+        };
+      }
+    }
+    
     const optimisticMessage: DbMessage = {
       id: tempId,
       conversation_id: conversationId,
@@ -279,7 +333,10 @@ export const useChatStore = create<ChatState>((set, get) => ({
       type: messageType,
       media_url: mediaUrl,
       status: 'sending',
-      tempId
+      tempId,
+      client_id: clientId,
+      reply_to_message_id: replyToMessageId,
+      reply_to
     };
 
     // Add optimistic message to UI
@@ -291,7 +348,7 @@ export const useChatStore = create<ChatState>((set, get) => ({
     }));
     
     try {
-      // Send to database
+      // Send to database with client_id for reconciliation
       const { data, error } = await supabase
         .from('messages')
         .insert({
@@ -299,7 +356,9 @@ export const useChatStore = create<ChatState>((set, get) => ({
           sender_id: senderId,
           content: content || (mediaUrl ? 'Attachment' : ''),
           type: messageType,
-          media_url: mediaUrl
+          media_url: mediaUrl,
+          client_id: clientId,
+          reply_to_message_id: replyToMessageId
         })
         .select()
         .single();
@@ -733,27 +792,47 @@ export const useChatStore = create<ChatState>((set, get) => ({
               const existingMessages = state.messages[conversationId] || [];
               const incoming: any = payload.new;
 
-              // If already present by id, skip
+              // If already present by id, skip (prevents duplicates)
               const messageExistsById = existingMessages.some((m: any) => m.id === incoming.id);
               if (messageExistsById) {
-                console.log('Message already exists by id, skipping');
+                console.log('✅ Message already exists by id, skipping duplicate');
                 return state;
               }
 
-              // Try to reconcile with optimistic message (by client_id or heuristic)
+              // IMPROVED: Reconcile with optimistic message using client_id (primary) or tempId (fallback)
               let replaced = false;
               const reconciled = existingMessages.map((m: any) => {
-                const clientMatch = incoming.client_id && m.client_id && incoming.client_id === m.client_id;
-                const heuristicMatch = m.status === 'sending' && m.sender_id === incoming.sender_id && m.type === incoming.type && (m.media_url || '') === (incoming.media_url || '') && (m.content || '') === (incoming.content || '');
-                if (!replaced && (clientMatch || heuristicMatch)) {
+                // Skip if already replaced
+                if (replaced) return m;
+                
+                // Primary: Match by client_id (most reliable)
+                if (incoming.client_id && m.client_id && incoming.client_id === m.client_id) {
+                  console.log('✅ Reconciled message by client_id:', incoming.client_id);
                   replaced = true;
-                  const merged: DbMessage = { ...(incoming as DbMessage), status: 'delivered' };
-                  return merged;
+                  return { ...(incoming as DbMessage), status: 'delivered' };
                 }
+                
+                // Fallback: Match by tempId (for messages sent without client_id)
+                if (m.tempId && m.status === 'sending' && m.sender_id === incoming.sender_id) {
+                  // Additional validation: check if content and type match
+                  const contentMatch = m.content === incoming.content;
+                  const typeMatch = m.type === incoming.type;
+                  const mediaMatch = (m.media_url || '') === (incoming.media_url || '');
+                  
+                  // Only match if at least 2 of 3 criteria match (prevents false positives)
+                  const matchScore = [contentMatch, typeMatch, mediaMatch].filter(Boolean).length;
+                  if (matchScore >= 2) {
+                    console.log('⚠️ Reconciled message by heuristic (tempId):', m.tempId);
+                    replaced = true;
+                    return { ...(incoming as DbMessage), status: 'delivered' };
+                  }
+                }
+                
                 return m;
               });
 
               if (replaced) {
+                console.log('✅ Message reconciled successfully');
                 return {
                   messages: {
                     ...state.messages,
@@ -762,7 +841,8 @@ export const useChatStore = create<ChatState>((set, get) => ({
                 };
               }
 
-              // Otherwise append new delivered message
+              // No match found - this is a new message from another user
+              console.log('📨 New message from another user');
               const newMessage: DbMessage = { ...(incoming as DbMessage), status: 'delivered' };
               
               return {

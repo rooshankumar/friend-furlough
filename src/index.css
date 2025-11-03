@@ -266,3 +266,46 @@ All colors MUST be HSL. Cultural, warm, and inclusive design.
     transform: translateY(0);
   }
 }
+
+/* Voice Message Audio Player Styling - Compact */
+audio.voice-player-sent,
+audio.voice-player-received {
+  outline: none;
+  border-radius: 20px;
+  height: 28px;
+}
+
+audio.voice-player-sent::-webkit-media-controls-panel {
+  background-color: transparent;
+}
+
+audio.voice-player-received::-webkit-media-controls-panel {
+  background-color: transparent;
+}
+
+audio::-webkit-media-controls-play-button,
+audio::-webkit-media-controls-pause-button {
+  background-color: transparent;
+  border-radius: 50%;
+  width: 24px;
+  height: 24px;
+}
+
+audio::-webkit-media-controls-timeline {
+  border-radius: 4px;
+  height: 3px;
+}
+
+audio::-webkit-media-controls-current-time-display,
+audio::-webkit-media-controls-time-remaining-display {
+  font-size: 10px;
+  padding: 0 2px;
+}
+
+audio::-webkit-media-controls-mute-button {
+  display: none;
+}
+
+audio::-webkit-media-controls-volume-slider {
+  display: none;
+}

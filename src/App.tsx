@@ -18,7 +18,7 @@ import { globalDataManager } from "./lib/globalDataManager";
 // Lazy load pages for better performance
 const HomePage = React.lazy(() => import("./pages/HomePage"));
 const ExplorePage = React.lazy(() => import("./pages/ExplorePage"));
-const ChatPage = React.lazy(() => import("./pages/ImprovedChatPage"));
+const ChatPage = React.lazy(() => import("./pages/ChatPageV2"));
 const CommunityPage = React.lazy(() => import("./pages/CommunityPage"));
 const PostDetailPage = React.lazy(() => import("./pages/PostDetailPage"));
 const ProfilePage = React.lazy(() => import("./pages/ProfilePage"));

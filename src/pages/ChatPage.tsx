@@ -7,6 +7,7 @@ import { useConnectionStatus } from '@/hooks/useConnectionStatus';
 import { OptimizedConversationList } from '@/components/chat/OptimizedConversationList';
 import { EnhancedMessage } from '@/components/chat/EnhancedMessage';
 import { EmptyState } from '@/components/chat/EmptyState';
+import { ChatErrorBoundary } from '@/components/ErrorBoundary';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -710,11 +711,17 @@ const ChatPage = () => {
                 </Button>
               </div>
             </div>
-            <OptimizedConversationList
-              conversations={conversations}
-              currentUserId={user?.id}
-              isDesktop={false}
-            />
+            <ChatErrorBoundary
+              fallbackTitle="Conversations Error"
+              fallbackMessage="Unable to load conversations list"
+              onReset={() => user?.id && loadConversations(user.id)}
+            >
+              <OptimizedConversationList
+                conversations={conversations}
+                currentUserId={user?.id}
+                isDesktop={false}
+              />
+            </ChatErrorBoundary>
           </div>
 
           {/* Welcome Message - Only show on desktop or when no conversations */}
@@ -754,12 +761,18 @@ const ChatPage = () => {
               </Button>
             </div>
           </div>
-          <OptimizedConversationList
-            conversations={conversations}
-            currentUserId={user?.id}
-            activeConversationId={conversationId}
-            isDesktop={true}
-          />
+          <ChatErrorBoundary
+            fallbackTitle="Conversations Error"
+            fallbackMessage="Unable to load conversations list"
+            onReset={() => user?.id && loadConversations(user.id)}
+          >
+            <OptimizedConversationList
+              conversations={conversations}
+              currentUserId={user?.id}
+              activeConversationId={conversationId}
+              isDesktop={true}
+            />
+          </ChatErrorBoundary>
         </div>
         {/* Chat Container with Wallpaper */}
         <div className="flex-1 flex flex-col h-full relative overflow-hidden">
@@ -835,12 +848,17 @@ const ChatPage = () => {
           {/* Messages Area - Floating over wallpaper */}
           <div className="flex-1 relative z-10 pt-16 md:pt-0">
             {/* Messages Container - Scrollable */}
-            <div className="h-full overflow-y-auto p-3 md:p-4 pb-24 md:pb-4">
-              <div className="space-y-2 min-h-full flex flex-col justify-end">
-              {conversationMessages.length === 0 ? (
-                <EmptyState otherParticipant={otherParticipant} />
-              ) : (
-                conversationMessages.map((message, index) => {
+            <ChatErrorBoundary
+              fallbackTitle="Messages Error"
+              fallbackMessage="Unable to display messages. Your messages are safe."
+              onReset={() => conversationId && loadMessages(conversationId)}
+            >
+              <div className="h-full overflow-y-auto p-3 md:p-4 pb-24 md:pb-4">
+                <div className="space-y-2 min-h-full flex flex-col justify-end">
+                {conversationMessages.length === 0 ? (
+                  <EmptyState otherParticipant={otherParticipant} />
+                ) : (
+                  conversationMessages.map((message, index) => {
                 // Optimize date calculations
                 const showDateSeparator = index === 0 || 
                   new Date(message.created_at).toDateString() !== 
@@ -884,6 +902,7 @@ const ChatPage = () => {
               <div ref={messagesEndRef} className="h-4" />
               </div>
             </div>
+            </ChatErrorBoundary>
           </div>
 
           {/* Message Input - Fixed at bottom */}

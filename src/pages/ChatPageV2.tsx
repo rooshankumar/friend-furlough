@@ -60,6 +60,8 @@ interface EnhancedMessageV2Props {
   onRetry?: (message: any) => void;
   onReact?: (messageId: string, reaction: string) => void;
   onReply?: (message: any) => void;
+  onCopy?: (content: string) => void;
+  onDelete?: (messageId: string) => void;
 }
 
 const EnhancedMessageV2: React.FC<EnhancedMessageV2Props> = ({
@@ -68,7 +70,9 @@ const EnhancedMessageV2: React.FC<EnhancedMessageV2Props> = ({
   otherUser,
   onRetry,
   onReact,
-  onReply
+  onReply,
+  onCopy,
+  onDelete
 }) => {
   const [swipeX, setSwipeX] = useState(0);
   const touchStartX = useRef(0);
@@ -238,9 +242,13 @@ const ChatPageV2 = () => {
   const [isRecording, setIsRecording] = useState(false);
   const [mediaRecorder, setMediaRecorder] = useState<MediaRecorder | null>(null);
   const [recordingDuration, setRecordingDuration] = useState(0);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [showSearch, setShowSearch] = useState(false);
+  const [isTyping, setIsTyping] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const recordingTimerRef = useRef<NodeJS.Timeout | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const typingTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   
   const { 
     conversations, 
@@ -264,6 +272,14 @@ const ChatPageV2 = () => {
     conversationId ? messages[conversationId] || [] : [],
     [conversationId, messages]
   );
+
+  const filteredMessages = useMemo(() => {
+    if (!searchQuery.trim()) return conversationMessages;
+    const query = searchQuery.toLowerCase();
+    return conversationMessages.filter(msg => 
+      msg.content?.toLowerCase().includes(query)
+    );
+  }, [conversationMessages, searchQuery]);
 
   const otherParticipant = useMemo(() => 
     currentConversation?.participants.find(p => p.user_id !== user?.id),
@@ -321,6 +337,36 @@ const ChatPageV2 = () => {
   const handleReact = (messageId: string, reaction: string) => {
     // TODO: Implement reaction storage
     console.log('React:', messageId, reaction);
+  };
+
+  const handleCopyMessage = (content: string) => {
+    navigator.clipboard.writeText(content);
+    toast({
+      title: "Copied",
+      description: "Message copied to clipboard",
+    });
+  };
+
+  const handleDeleteMessage = async (messageId: string) => {
+    try {
+      const { error } = await supabase
+        .from('messages')
+        .delete()
+        .eq('id', messageId);
+      
+      if (error) throw error;
+      
+      toast({
+        title: "Deleted",
+        description: "Message deleted successfully",
+      });
+    } catch (error: any) {
+      toast({
+        title: "Error",
+        description: error.message || "Failed to delete message",
+        variant: "destructive"
+      });
+    }
   };
 
   const handleAttachmentUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -637,13 +683,29 @@ const ChatPageV2 = () => {
                       )}
                     </div>
                     <p className="text-xs text-muted-foreground">
-                      {otherParticipant?.profiles?.online ? 'Online' : 'Offline'}
+                      {isTyping ? (
+                        <span className="flex items-center gap-1">
+                          <span className="animate-pulse">typing</span>
+                          <span className="flex gap-0.5">
+                            <span className="w-1 h-1 bg-primary rounded-full animate-bounce" style={{ animationDelay: '0ms' }}></span>
+                            <span className="w-1 h-1 bg-primary rounded-full animate-bounce" style={{ animationDelay: '150ms' }}></span>
+                            <span className="w-1 h-1 bg-primary rounded-full animate-bounce" style={{ animationDelay: '300ms' }}></span>
+                          </span>
+                        </span>
+                      ) : (
+                        otherParticipant?.profiles?.online ? 'Online' : 'Offline'
+                      )}
                     </p>
                   </div>
                 </Link>
               </div>
               <div className="flex items-center gap-1">
-                <Button size="sm" variant="ghost" className="h-9 w-9 p-0">
+                <Button 
+                  size="sm" 
+                  variant="ghost" 
+                  className="h-9 w-9 p-0"
+                  onClick={() => setShowSearch(!showSearch)}
+                >
                   <Search className="h-4 w-4" />
                 </Button>
                 <DropdownMenu>
@@ -676,6 +738,36 @@ const ChatPageV2 = () => {
             </div>
           </div>
 
+          {/* Search Bar */}
+          {showSearch && (
+            <div className="px-4 py-2 border-b border-border/50 bg-background/95">
+              <div className="relative">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                <Input
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  placeholder="Search messages..."
+                  className="pl-9 bg-muted/50"
+                />
+                {searchQuery && (
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    className="absolute right-1 top-1/2 -translate-y-1/2 h-7 w-7 p-0"
+                    onClick={() => setSearchQuery('')}
+                  >
+                    <X className="h-3 w-3" />
+                  </Button>
+                )}
+              </div>
+              {searchQuery && (
+                <p className="text-xs text-muted-foreground mt-2">
+                  {filteredMessages.length} result{filteredMessages.length !== 1 ? 's' : ''} found
+                </p>
+              )}
+            </div>
+          )}
+
           {/* Messages Area */}
           <ChatErrorBoundary
             fallbackTitle="Messages Error"
@@ -683,7 +775,7 @@ const ChatPageV2 = () => {
             onReset={() => conversationId && loadMessages(conversationId)}
           >
             <div className="flex-1 overflow-y-auto p-4 space-y-3">
-              {conversationMessages.map((message) => (
+              {filteredMessages.map((message) => (
                 <EnhancedMessageV2
                   key={message.id}
                   message={message}
@@ -691,6 +783,8 @@ const ChatPageV2 = () => {
                   otherUser={otherParticipant?.profiles}
                   onReply={handleReply}
                   onReact={handleReact}
+                  onCopy={handleCopyMessage}
+                  onDelete={handleDeleteMessage}
                 />
               ))}
               <div ref={messagesEndRef} />
@@ -733,9 +827,34 @@ const ChatPageV2 = () => {
 
             {/* Input Row */}
             <div className="flex items-center gap-2">
-              <Button size="sm" variant="ghost" className="h-9 w-9 p-0 flex-shrink-0">
-                <Smile className="h-5 w-5" />
-              </Button>
+              <div className="relative">
+                <Button 
+                  size="sm" 
+                  variant="ghost" 
+                  className="h-9 w-9 p-0 flex-shrink-0"
+                  onClick={() => setShowEmojiPicker(!showEmojiPicker)}
+                >
+                  <Smile className="h-5 w-5" />
+                </Button>
+                {showEmojiPicker && (
+                  <div className="absolute bottom-12 left-0 bg-background border border-border rounded-lg shadow-lg p-3 z-50 w-64">
+                    <div className="flex flex-wrap gap-2">
+                      {['😊', '😂', '❤️', '👍', '🎉', '🔥', '😍', '🤔', '😎', '👏', '🙏', '💯', '✨', '🎵', '📷', '🎤', '🌟', '💪', '🚀', '🎯'].map(emoji => (
+                        <button
+                          key={emoji}
+                          className="text-2xl hover:scale-125 transition-transform"
+                          onClick={() => {
+                            setNewMessage(prev => prev + emoji);
+                            setShowEmojiPicker(false);
+                          }}
+                        >
+                          {emoji}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
               <Button 
                 size="sm" 
                 variant="ghost" 
@@ -753,7 +872,19 @@ const ChatPageV2 = () => {
               />
               <Input
                 value={newMessage}
-                onChange={(e) => setNewMessage(e.target.value)}
+                onChange={(e) => {
+                  setNewMessage(e.target.value);
+                  // Broadcast typing indicator
+                  if (conversationId && user) {
+                    setIsTyping(true);
+                    if (typingTimeoutRef.current) {
+                      clearTimeout(typingTimeoutRef.current);
+                    }
+                    typingTimeoutRef.current = setTimeout(() => {
+                      setIsTyping(false);
+                    }, 2000);
+                  }
+                }}
                 onKeyPress={(e) => e.key === 'Enter' && !e.shiftKey && handleSendMessage()}
                 placeholder="Type a message..."
                 className="flex-1 bg-muted/50"

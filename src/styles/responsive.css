@@ -192,9 +192,9 @@
 
 /* Safe area utilities for mobile */
 .safe-area-bottom {
-  @apply pb-safe-bottom;
+  @apply pb-20 sm:pb-0;
 }
 
 .safe-area-top {
-  @apply pt-safe-top;
+  @apply pt-4 sm:pt-0;
 }

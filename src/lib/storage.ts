@@ -1,10 +1,16 @@
 import { supabase } from '@/integrations/supabase/client';
 
 /**
- * Compress and resize image before upload
- * Returns a compressed File object
+ * Smart compression - only compress if file is too large
+ * Maintains quality while reducing size when needed
  */
-const compressImage = async (file: File, maxWidth: number = 800, quality: number = 0.8): Promise<File> => {
+const compressImage = async (file: File, maxWidth: number = 1200, quality: number = 0.85): Promise<File> => {
+  // Skip compression for small files (under 500KB)
+  if (file.size < 500 * 1024) {
+    console.log('📸 File small enough, skipping compression:', (file.size / 1024).toFixed(2) + 'KB');
+    return file;
+  }
+
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
     reader.readAsDataURL(file);
@@ -18,8 +24,9 @@ const compressImage = async (file: File, maxWidth: number = 800, quality: number
         let width = img.width;
         let height = img.height;
         
+        // Only resize if larger than maxWidth
         if (width > maxWidth) {
-          height = (height * maxWidth) / width;
+          height = Math.round((height * maxWidth) / width);
           width = maxWidth;
         }
         
@@ -27,7 +34,15 @@ const compressImage = async (file: File, maxWidth: number = 800, quality: number
         canvas.height = height;
         
         const ctx = canvas.getContext('2d');
-        ctx?.drawImage(img, 0, 0, width, height);
+        if (!ctx) {
+          reject(new Error('Canvas context failed'));
+          return;
+        }
+        
+        // High-quality rendering
+        ctx.imageSmoothingEnabled = true;
+        ctx.imageSmoothingQuality = 'high';
+        ctx.drawImage(img, 0, 0, width, height);
         
         canvas.toBlob(
           (blob) => {
@@ -35,6 +50,11 @@ const compressImage = async (file: File, maxWidth: number = 800, quality: number
               const compressedFile = new File([blob], file.name, {
                 type: 'image/jpeg',
                 lastModified: Date.now(),
+              });
+              console.log('📸 Image compressed:', {
+                before: (file.size / 1024).toFixed(2) + 'KB',
+                after: (compressedFile.size / 1024).toFixed(2) + 'KB',
+                saved: ((1 - compressedFile.size / file.size) * 100).toFixed(1) + '%'
               });
               resolve(compressedFile);
             } else {
@@ -93,18 +113,18 @@ export const uploadAvatar = async (file: File, userId: string): Promise<string> 
     // Mobile-optimized validation
     validateMobileFile(file, 5, ['image/']);
     
-    // Use original file for all devices
-    const compressedFile = file;
+    // Smart compression for avatars (maintain quality, 800x800 max)
+    const compressedFile = await compressImage(file, 800, 0.9);
     
-    const fileExt = file.name.split('.').pop() || 'jpg';
+    const fileExt = 'jpg'; // Always use jpg for consistency
     const fileName = `${Date.now()}.${fileExt}`;
-    const filePath = `${userId}/${fileName}`; // Store in user's folder
+    const filePath = `${userId}/${fileName}`;
 
     const { error: uploadError } = await supabase.storage
       .from('avatars')
       .upload(filePath, compressedFile, { 
         upsert: true,
-        contentType: file.type
+        contentType: 'image/jpeg'
       });
 
     if (uploadError) {
@@ -116,6 +136,7 @@ export const uploadAvatar = async (file: File, userId: string): Promise<string> 
       .from('avatars')
       .getPublicUrl(filePath);
 
+    console.log('✅ Avatar uploaded:', data.publicUrl);
     return data.publicUrl;
   } catch (error) {
     console.error('Avatar upload error:', error);
@@ -134,18 +155,18 @@ export const uploadPostImage = async (file: File, userId: string): Promise<strin
     // Mobile-optimized validation
     validateMobileFile(file, 10, ['image/']);
     
-    // Use original file for all devices
-    const compressedFile = file;
+    // Smart compression for posts (balance quality/size, 1200px max)
+    const compressedFile = await compressImage(file, 1200, 0.85);
     
-    const fileExt = file.name.split('.').pop() || 'jpg';
+    const fileExt = 'jpg';
     const fileName = `${Date.now()}.${fileExt}`;
-    const filePath = `${userId}/${fileName}`; // Store in user's folder
+    const filePath = `${userId}/${fileName}`;
 
     const { error: uploadError } = await supabase.storage
       .from('post_pic')
       .upload(filePath, compressedFile, { 
         upsert: true,
-        contentType: file.type
+        contentType: 'image/jpeg'
       });
 
     if (uploadError) {
@@ -157,6 +178,7 @@ export const uploadPostImage = async (file: File, userId: string): Promise<strin
       .from('post_pic')
       .getPublicUrl(filePath);
 
+    console.log('✅ Post image uploaded:', data.publicUrl);
     return data.publicUrl;
   } catch (error) {
     console.error('Post image upload error:', error);
@@ -177,44 +199,49 @@ export const uploadChatAttachment = async (
   onProgress?: (progress: number) => void
 ): Promise<string> => {
   try {
-    // Mobile-optimized validation for all file types
     const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
     const isLowEndDevice = (navigator as any).deviceMemory <= 2 || navigator.hardwareConcurrency <= 2;
     
-    const maxSizeMB = isMobile && isLowEndDevice ? 10 : 20; // Reduce for low-end mobile
+    const maxSizeMB = isMobile && isLowEndDevice ? 10 : 20;
     const maxBytes = maxSizeMB * 1024 * 1024;
     
     if (file.size > maxBytes) {
       throw new Error(`File too large. Maximum size: ${maxSizeMB}MB`);
     }
     
-    console.log('📱 Mobile attachment validation:', {
-      name: file.name,
-      size: `${(file.size / 1024 / 1024).toFixed(2)}MB`,
-      type: file.type,
-      isMobile,
-      isLowEndDevice,
-      maxAllowed: `${maxSizeMB}MB`
-    });
+    onProgress?.(10);
     
     let fileToUpload = file;
     let contentType = file.type;
+    let fileExt = file.name.split('.').pop() || 'file';
     
-    // Skip compression - use original file for all types
-    onProgress?.(20); // Skipping compression
-    fileToUpload = file;
-    contentType = file.type;
+    // Smart compression for images only
+    if (file.type.startsWith('image/')) {
+      try {
+        onProgress?.(20);
+        fileToUpload = await compressImage(file, 1200, 0.85);
+        contentType = 'image/jpeg';
+        fileExt = 'jpg';
+        onProgress?.(40);
+      } catch (err) {
+        console.warn('Compression failed, using original:', err);
+        fileToUpload = file;
+        onProgress?.(40);
+      }
+    } else {
+      onProgress?.(40);
+    }
     
-    const fileExt = file.name.split('.').pop();
     const fileName = `${Date.now()}.${fileExt}`;
-    const filePath = `${conversationId}/${fileName}`; // Store in conversation's folder
+    const filePath = `${conversationId}/${fileName}`;
 
-    onProgress?.(50); // Starting upload
+    onProgress?.(50);
     
     const { error: uploadError } = await supabase.storage
       .from('chat_attachments')
       .upload(filePath, fileToUpload, {
-        contentType
+        contentType,
+        cacheControl: '3600'
       });
 
     if (uploadError) {
@@ -222,14 +249,15 @@ export const uploadChatAttachment = async (
       throw new Error(`Upload failed: ${uploadError.message}`);
     }
 
-    onProgress?.(90); // Upload complete
+    onProgress?.(90);
 
     const { data } = supabase.storage
       .from('chat_attachments')
       .getPublicUrl(filePath);
 
-    onProgress?.(100); // Done
-
+    onProgress?.(100);
+    
+    console.log('✅ Chat attachment uploaded:', data.publicUrl);
     return data.publicUrl;
   } catch (error) {
     console.error('Chat attachment upload error:', error);

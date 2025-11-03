@@ -210,6 +210,11 @@ All colors MUST be HSL. Cultural, warm, and inclusive design.
     animation: cultural-pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
   }
 
+  .animate-fade-in {
+    animation: fade-in 0.5s ease-out forwards;
+    opacity: 0;
+  }
+
   /* Line Clamp Utilities */
   .line-clamp-1 {
     overflow: hidden;
@@ -248,5 +253,16 @@ All colors MUST be HSL. Cultural, warm, and inclusive design.
   }
   50% {
     opacity: 0.8;
+  }
+}
+
+@keyframes fade-in {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
   }
 }

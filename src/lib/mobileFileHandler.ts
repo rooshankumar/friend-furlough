@@ -171,12 +171,18 @@ export class MobileFileHandler {
       throw new Error(validation.error);
     }
 
-    // Skip compression - return original file
-    console.log('📱 Mobile file processing - using original file:', {
-      name: file.name,
-      size: `${(file.size / 1024 / 1024).toFixed(2)}MB`,
-      type: file.type
-    });
+    // Smart compression for images
+    if (file.type.startsWith('image/')) {
+      try {
+        const compressed = await this.compressImage(file, 2);
+        console.log('📱 Image compressed successfully');
+        return compressed;
+      } catch (error) {
+        console.warn('Compression failed, using original:', error);
+        return file;
+      }
+    }
+
     return file;
   }
 

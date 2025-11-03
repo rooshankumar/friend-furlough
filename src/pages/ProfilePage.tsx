@@ -375,83 +375,95 @@ const ProfilePage = () => {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-background via-card-cultural/30 to-background md:ml-16 pb-20 md:pb-0">
-      {/* Header with Back Button */}
-      <div className="sticky top-0 z-10 bg-card/80 backdrop-blur-lg border-b border-border/50 px-4 py-3">
-        <div className="max-w-5xl mx-auto flex items-center justify-between">
+    <div className="min-h-screen bg-gradient-to-br from-background via-background/95 to-background md:ml-16 pb-20 md:pb-0">
+      {/* Sticky Header */}
+      <div className="sticky top-0 z-20 bg-card/95 backdrop-blur-xl border-b border-border/50 shadow-sm">
+        <div className="max-w-5xl mx-auto flex items-center justify-between px-4 py-3">
           <Button
             variant="ghost"
             size="sm"
             onClick={() => navigate(-1)}
-            className="gap-2"
+            className="gap-2 hover:bg-primary/10"
           >
             <ArrowLeft className="h-4 w-4" />
-            Back
+            <span className="hidden sm:inline">Back</span>
           </Button>
           <Button
             variant="ghost"
             size="sm"
             onClick={() => fetchProfileData(true)}
             disabled={isRefreshing}
-            className="gap-2"
+            className="gap-2 hover:bg-primary/10"
           >
             <RefreshCw className={`h-4 w-4 ${isRefreshing ? 'animate-spin' : ''}`} />
-            Refresh
+            <span className="hidden sm:inline">Refresh</span>
           </Button>
         </div>
       </div>
 
-      <div className="max-w-5xl mx-auto p-4 md:p-6 space-y-6">
-        {/* Profile Header */}
-        <ProfileHeader
-          profileUser={profileUser}
-          isOwnProfile={isOwnProfile}
-          user={currentUser}
-          reactions={reactions}
-          userReactions={userReactions}
-          friendStatus={friendStatus}
-          isUploading={isUploading}
-          onAvatarUpload={handleAvatarUpload}
-          onFriendRequest={handleFriendRequest}
-          onStartConversation={startConversation}
-          onHeartReaction={handleHeartReaction}
-        />
+      <div className="max-w-5xl mx-auto p-3 sm:p-4 md:p-6 space-y-4 md:space-y-6">
+        {/* Profile Header with enhanced animation */}
+        <div className="animate-fade-in">
+          <ProfileHeader
+            profileUser={profileUser}
+            isOwnProfile={isOwnProfile}
+            user={currentUser}
+            reactions={reactions}
+            userReactions={userReactions}
+            friendStatus={friendStatus}
+            isUploading={isUploading}
+            onAvatarUpload={handleAvatarUpload}
+            onFriendRequest={handleFriendRequest}
+            onStartConversation={startConversation}
+            onHeartReaction={handleHeartReaction}
+          />
+        </div>
 
-        {/* Quick Stats */}
-        <QuickStats stats={stats} isOwnProfile={isOwnProfile} />
+        {/* Quick Stats with stagger animation */}
+        <div className="animate-fade-in" style={{ animationDelay: '100ms' }}>
+          <QuickStats stats={stats} isOwnProfile={isOwnProfile} />
+        </div>
 
         {/* Bio & Interests */}
-        <ProfileBio
-          profileUser={profileUser}
-          culturalInterests={culturalInterests}
-          lookingFor={lookingFor}
-        />
+        <div className="animate-fade-in" style={{ animationDelay: '200ms' }}>
+          <ProfileBio
+            profileUser={profileUser}
+            culturalInterests={culturalInterests}
+            lookingFor={lookingFor}
+          />
+        </div>
 
         {/* Languages */}
-        <ProfileLanguages
-          profileUser={profileUser}
-          nativeLanguages={nativeLanguages}
-          learningLanguages={learningLanguages}
-        />
+        <div className="animate-fade-in" style={{ animationDelay: '300ms' }}>
+          <ProfileLanguages
+            profileUser={profileUser}
+            nativeLanguages={nativeLanguages}
+            learningLanguages={learningLanguages}
+          />
+        </div>
 
         {/* Posts */}
-        <ProfilePosts
-          userPosts={userPosts}
-          profileUser={profileUser}
-          isOwnProfile={isOwnProfile}
-          user={currentUser}
-          postReactions={postReactions}
-          userPostReactions={userPostReactions}
-          commentCounts={commentCounts}
-          onLikePost={handleLikePost}
-        />
+        <div className="animate-fade-in" style={{ animationDelay: '400ms' }}>
+          <ProfilePosts
+            userPosts={userPosts}
+            profileUser={profileUser}
+            isOwnProfile={isOwnProfile}
+            user={currentUser}
+            postReactions={postReactions}
+            userPostReactions={userPostReactions}
+            commentCounts={commentCounts}
+            onLikePost={handleLikePost}
+          />
+        </div>
 
         {/* Friends */}
-        <ProfileFriends 
-          profileUser={profileUser} 
-          isOwnProfile={isOwnProfile} 
-          friendsCount={friendsCount}
-        />
+        <div className="animate-fade-in" style={{ animationDelay: '500ms' }}>
+          <ProfileFriends 
+            profileUser={profileUser} 
+            isOwnProfile={isOwnProfile} 
+            friendsCount={friendsCount}
+          />
+        </div>
       </div>
     </div>
   );

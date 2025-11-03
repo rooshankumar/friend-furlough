@@ -303,15 +303,16 @@ const CommunityPage = () => {
   }
 
   return (
-    <div className="h-screen md:ml-16 bg-gradient-to-br from-background via-card-cultural/30 to-background pb-16 md:pb-0 overflow-hidden">
+    <div className="h-screen md:ml-16 bg-gradient-to-br from-background via-background/95 to-background pb-16 md:pb-0 overflow-hidden">
       <div className="h-full flex flex-col md:flex-row">
         {/* Create Post Sidebar */}
-        <div className="md:w-96 md:border-r md:border-border/50 bg-card/30 backdrop-blur-sm overflow-y-auto md:h-full">
-          <div className="p-3 md:p-6">
-            <div className="flex items-center justify-between mb-4">
+        <div className="md:w-96 md:border-r md:border-border/50 bg-card/40 backdrop-blur-md overflow-y-auto md:h-full">
+          <div className="p-3 md:p-6 space-y-4">
+            {/* Header */}
+            <div className="flex items-center justify-between">
               <div className="flex items-center gap-2">
                 <Globe className="h-5 w-5 text-primary" />
-                <h2 className="text-lg md:text-xl font-bold bg-gradient-cultural bg-clip-text text-transparent">
+                <h2 className="text-lg md:text-xl font-bold text-card-foreground">
                   Community
                 </h2>
               </div>
@@ -320,30 +321,34 @@ const CommunityPage = () => {
                 size="sm"
                 onClick={() => loadPosts(true)}
                 disabled={isRefreshing}
+                className="hover:bg-primary/10"
               >
                 <RefreshCw className={`h-4 w-4 ${isRefreshing ? 'animate-spin' : ''}`} />
               </Button>
             </div>
             
-            <Card className="p-3 md:p-4 bg-gradient-to-br from-card to-card-cultural border-primary/20">
-              <div className="flex items-start gap-2">
+            {/* Create Post Card */}
+            <Card className="p-3 md:p-4 bg-card border-border/50 shadow-sm hover:shadow-md transition-shadow">
+              <div className="flex items-start gap-2 md:gap-3">
                 <UserAvatar user={user} size="md" className="flex-shrink-0" />
-                <div className="flex-1 space-y-2">
+                <div className="flex-1 space-y-2 md:space-y-3">
                   <Input
                     placeholder="Share your thoughts..."
                     value={newPost}
                     onChange={(e) => setNewPost(e.target.value)}
-                    className="bg-background/50"
+                    className="bg-background/60 border-border/50 text-base"
+                    style={{ fontSize: '16px' }}
                   />
                   
                   {imagePreviews.length > 0 && (
                     <div className="grid grid-cols-2 gap-2">
                       {imagePreviews.map((preview, index) => (
-                        <div key={index} className="relative group">
+                        <div key={index} className="relative group aspect-square">
                           <img
                             src={preview}
                             alt={`Preview ${index + 1}`}
-                            className="rounded-lg h-24 w-full object-cover"
+                            className="rounded-lg h-full w-full object-cover"
+                            loading="lazy"
                           />
                           <Button
                             variant="destructive"
@@ -381,7 +386,7 @@ const CommunityPage = () => {
                       onClick={handleCreatePost}
                       disabled={isPosting}
                       size="sm"
-                      className="flex-1 bg-gradient-cultural"
+                      className="flex-1"
                     >
                       {isPosting ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Post'}
                     </Button>
@@ -393,29 +398,33 @@ const CommunityPage = () => {
         </div>
 
         {/* Posts Feed */}
-        <div className="flex-1 overflow-y-auto p-4 md:p-6">
+        <div className="flex-1 overflow-y-auto p-3 md:p-6">
           <div className="max-w-3xl mx-auto space-y-4">
             {posts.length === 0 ? (
-              <Card className="p-12 text-center bg-gradient-to-br from-card to-card-cultural">
-                <Globe className="h-16 w-16 mx-auto mb-4 text-muted-foreground" />
-                <h3 className="text-xl font-semibold mb-2">No posts yet</h3>
-                <p className="text-muted-foreground">
+              <Card className="p-8 md:p-12 text-center bg-card border-border/50">
+                <Globe className="h-12 md:h-16 w-12 md:w-16 mx-auto mb-4 text-muted-foreground" />
+                <h3 className="text-lg md:text-xl font-semibold mb-2 text-card-foreground">No posts yet</h3>
+                <p className="text-sm md:text-base text-muted-foreground">
                   Be the first to share something!
                 </p>
               </Card>
             ) : (
-              posts.map((post) => (
-                <Card key={post.id} className="overflow-hidden hover:shadow-cultural transition-all duration-300 bg-card">
+              posts.map((post, index) => (
+                <Card 
+                  key={post.id} 
+                  className="overflow-hidden hover:shadow-lg transition-all duration-300 bg-card border-border/50 animate-fade-in"
+                  style={{ animationDelay: `${index * 50}ms` }}
+                >
                   <div className="p-4 md:p-6">
+                    {/* Post Header */}
                     <div className="flex items-start gap-3 mb-4">
                       <div 
-                        className="cursor-pointer"
+                        className="cursor-pointer shrink-0"
                         onClick={() => navigate(`/profile/${post.user_id}`)}
                       >
                         <UserAvatar 
                           profile={post.profiles}
                           size="md"
-                          className="flex-shrink-0"
                         />
                       </div>
                       <div className="flex-1 min-w-0">
@@ -428,18 +437,26 @@ const CommunityPage = () => {
                               {post.profiles?.name || 'Anonymous'}
                             </h4>
                             <p className="text-xs text-muted-foreground">
-                              {new Date(post.created_at).toLocaleDateString()}
+                              {new Date(post.created_at).toLocaleDateString('en-US', { 
+                                month: 'short', 
+                                day: 'numeric',
+                                hour: '2-digit',
+                                minute: '2-digit'
+                              })}
                             </p>
                           </div>
                           {post.user_id === user?.id && (
                             <DropdownMenu>
                               <DropdownMenuTrigger asChild>
-                                <Button variant="ghost" size="sm">
+                                <Button variant="ghost" size="sm" className="h-8 w-8 p-0">
                                   <MoreHorizontal className="h-4 w-4" />
                                 </Button>
                               </DropdownMenuTrigger>
-                              <DropdownMenuContent>
-                                <DropdownMenuItem onClick={() => handleDeletePost(post.id)}>
+                              <DropdownMenuContent align="end">
+                                <DropdownMenuItem 
+                                  onClick={() => handleDeletePost(post.id)}
+                                  className="text-destructive focus:text-destructive"
+                                >
                                   <Trash2 className="h-4 w-4 mr-2" />
                                   Delete
                                 </DropdownMenuItem>
@@ -450,51 +467,58 @@ const CommunityPage = () => {
                       </div>
                     </div>
 
+                    {/* Post Content */}
                     <p 
-                      className="text-card-foreground leading-relaxed mb-4 cursor-pointer"
+                      className="text-card-foreground leading-relaxed mb-4 cursor-pointer text-sm md:text-base"
                       onClick={() => navigate(`/post/${post.id}`)}
                     >
                       {post.content}
                     </p>
 
+                    {/* Post Image */}
                     {post.image_url && (
-                      <img
-                        src={post.image_url}
-                        alt="Post"
-                        className="rounded-lg w-full object-cover max-h-96 mb-4 cursor-pointer hover:opacity-95 transition-opacity"
-                        onClick={() => navigate(`/post/${post.id}`)}
-                      />
+                      <div className="rounded-lg overflow-hidden mb-4 bg-muted">
+                        <img
+                          src={post.image_url}
+                          alt="Post"
+                          className="w-full object-cover max-h-[500px] cursor-pointer hover:opacity-95 transition-opacity"
+                          onClick={() => navigate(`/post/${post.id}`)}
+                          loading="lazy"
+                        />
+                      </div>
                     )}
 
+                    {/* Post Actions */}
                     <div className="flex items-center gap-2 pt-3 border-t border-border/50">
                       <Button
                         variant="ghost"
                         size="sm"
-                        className={`flex-1 ${userReactions[`${post.id}_like`] ? 'text-red-500' : ''}`}
+                        className={`flex-1 ${userReactions[`${post.id}_like`] ? 'text-red-500 hover:text-red-600' : 'hover:bg-red-500/10'}`}
                         onClick={() => handleLikePost(post.id)}
                       >
                         <Heart className={`h-4 w-4 mr-1 ${userReactions[`${post.id}_like`] ? 'fill-current' : ''}`} />
-                        <span className="text-xs">{reactions[`${post.id}_like`] || 0}</span>
+                        <span className="text-xs font-medium">{reactions[`${post.id}_like`] || 0}</span>
                       </Button>
                       <Button
                         variant="ghost"
                         size="sm"
-                        className="flex-1"
+                        className="flex-1 hover:bg-primary/10"
                         onClick={() => handleToggleComments(post.id)}
                       >
                         <MessageCircle className="h-4 w-4 mr-1" />
-                        <span className="text-xs">{commentCounts[post.id] || 0}</span>
+                        <span className="text-xs font-medium">{commentCounts[post.id] || 0}</span>
                       </Button>
                     </div>
 
+                    {/* Comments Section */}
                     {showComments[post.id] && (
                       <div className="mt-4 space-y-3 pt-4 border-t border-border/30">
                         {comments[post.id]?.map((comment: any) => (
                           <div key={comment.id} className="flex gap-2">
-                            <UserAvatar profile={comment.profiles} size="sm" />
-                            <div className="flex-1 bg-muted rounded-lg p-2">
-                              <p className="text-sm font-medium">{comment.profiles?.name}</p>
-                              <p className="text-sm text-card-foreground">{comment.content}</p>
+                            <UserAvatar profile={comment.profiles} size="sm" className="shrink-0" />
+                            <div className="flex-1 bg-muted/50 rounded-lg p-2 md:p-3">
+                              <p className="text-xs md:text-sm font-medium text-card-foreground">{comment.profiles?.name}</p>
+                              <p className="text-xs md:text-sm text-muted-foreground mt-0.5">{comment.content}</p>
                             </div>
                           </div>
                         ))}
@@ -504,7 +528,8 @@ const CommunityPage = () => {
                             value={newComment[post.id] || ''}
                             onChange={(e) => setNewComment(prev => ({ ...prev, [post.id]: e.target.value }))}
                             onKeyPress={(e) => e.key === 'Enter' && handleAddComment(post.id)}
-                            className="text-sm"
+                            className="text-sm bg-background/60"
+                            style={{ fontSize: '16px' }}
                           />
                           <Button size="sm" onClick={() => handleAddComment(post.id)}>
                             Post

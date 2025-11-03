@@ -59,7 +59,7 @@ export const ChatHeader: React.FC<ChatHeaderProps> = ({
   const isOnline = profile?.online;
 
   return (
-    <div className="flex items-center gap-3 p-4 border-b border-border bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 sticky top-0 z-10">
+    <div className="flex items-center gap-3 p-3 sm:p-4 border-b border-border bg-card/95 backdrop-blur-md shadow-sm">{/* Rest of header content */}
       {/* Back Button */}
       <Button
         variant="ghost"

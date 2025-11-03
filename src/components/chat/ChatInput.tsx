@@ -54,8 +54,8 @@ export const ChatInput: React.FC<ChatInputProps> = ({
   };
 
   return (
-    <div className="border-t border-border bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
-      <div className="flex items-center gap-2 p-3 sm:p-4">
+    <div className="border-t border-border bg-card/95 backdrop-blur-md shadow-sm">
+      <div className="flex items-center gap-2 p-3 sm:p-4 max-w-full">{/* Rest of input content */}
         {/* Attachment Button */}
         {!isRecording && (
           <>

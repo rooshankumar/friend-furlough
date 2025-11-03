@@ -373,10 +373,10 @@ const ImprovedChatPage = () => {
   // No conversation selected view
   if (!conversationId) {
     return (
-      <div className="min-h-screen md:ml-16 bg-gradient-subtle pb-16 md:pb-0">
-        <div className="h-full flex flex-col md:flex-row">
-          <div className="md:w-96 border-r border-border/50 bg-card/30 h-full flex flex-col">
-            <div className="pb-4 p-4 border-b border-border/50">
+      <div className="fixed inset-0 md:ml-16 flex overflow-hidden bg-background">
+        <div className="flex-1 flex flex-col md:flex-row overflow-hidden">
+          <div className="md:w-96 border-r border-border/50 bg-card/30 flex flex-col flex-shrink-0 overflow-hidden">
+            <div className="p-4 border-b border-border/50 flex-shrink-0">
               <div className="flex items-center justify-between">
                 <h2 className="text-lg font-semibold flex items-center gap-2">
                   <Globe className="h-5 w-5 text-primary" />
@@ -395,7 +395,7 @@ const ImprovedChatPage = () => {
           </div>
 
           {(conversations.length === 0 || window.innerWidth >= 768) && (
-            <div className="flex-1 flex items-center justify-center bg-background">
+            <div className="flex-1 flex items-center justify-center bg-background overflow-hidden">
               <div className="text-center space-y-4 p-8">
                 <div className="w-24 h-24 mx-auto bg-gradient-cultural rounded-full flex items-center justify-center">
                   <Globe className="h-12 w-12 text-white" />
@@ -416,10 +416,10 @@ const ImprovedChatPage = () => {
 
   // Chat view
   return (
-    <div className="h-screen bg-gradient-subtle md:ml-16 flex flex-col">
+    <div className="fixed inset-0 md:ml-16 flex overflow-hidden bg-background">
       {/* Conversations List - Desktop Only */}
-      <div className="hidden lg:flex lg:w-72 border-r border-border/50 bg-card/30 flex-col flex-shrink-0 h-full overflow-hidden">
-        <div className="p-3 border-b border-border/50">
+      <div className="hidden lg:flex lg:w-72 border-r border-border/50 bg-card/30 flex-col flex-shrink-0 overflow-hidden">
+        <div className="p-3 border-b border-border/50 flex-shrink-0">
           <div className="flex items-center justify-between">
             <h2 className="text-base font-semibold flex items-center gap-2">
               <Globe className="h-4 w-4 text-primary" />
@@ -439,8 +439,8 @@ const ImprovedChatPage = () => {
       </div>
 
       {/* Chat Container */}
-      <div className="flex-1 flex flex-col h-full overflow-hidden">
-        {/* Wallpaper Background */}
+      <div className="flex-1 flex flex-col relative overflow-hidden">
+        {/* Wallpaper Background - Fixed */}
         <div className="absolute inset-0 z-0">
           <div 
             className="absolute inset-0 bg-cover bg-center"
@@ -450,72 +450,74 @@ const ImprovedChatPage = () => {
               backgroundPosition: 'center',
             }}
           />
-          <div className="absolute inset-0 bg-black/5" />
+          <div className="absolute inset-0 bg-background/40 backdrop-blur-[2px]" />
         </div>
 
-        {/* Header */}
-        <ChatHeader
-          otherParticipant={otherParticipant}
-          onBack={() => navigate('/chat')}
-          onBlock={() => toast({ title: "Block feature coming soon" })}
-          onReport={() => toast({ title: "Report feature coming soon" })}
-          onDelete={() => toast({ title: "Delete feature coming soon" })}
-        />
+        {/* Header - Fixed Top */}
+        <div className="relative z-20 flex-shrink-0">
+          <ChatHeader
+            otherParticipant={otherParticipant}
+            onBack={() => navigate('/chat')}
+            onBlock={() => toast({ title: "Block feature coming soon" })}
+            onReport={() => toast({ title: "Report feature coming soon" })}
+            onDelete={() => toast({ title: "Delete feature coming soon" })}
+          />
+        </div>
 
-        {/* Messages Area */}
-        <div className="flex-1 relative z-10 overflow-hidden">
-          <div className="h-full overflow-y-auto p-4 pb-24">
-            <div className="space-y-2 min-h-full flex flex-col justify-end">
-              {conversationMessages.length === 0 ? (
-                <EmptyState otherParticipant={otherParticipant} />
-              ) : (
-                conversationMessages.map((message, index) => {
-                  const showDateSeparator = index === 0 || 
-                    new Date(message.created_at).toDateString() !== 
-                    new Date(conversationMessages[index - 1].created_at).toDateString();
-                  
-                  const isCurrentUser = message.sender_id === user?.id;
+        {/* Messages Area - Scrollable */}
+        <div className="flex-1 relative z-10 overflow-y-auto overflow-x-hidden">
+          <div className="p-4 space-y-2">
+            {conversationMessages.length === 0 ? (
+              <EmptyState otherParticipant={otherParticipant} />
+            ) : (
+              conversationMessages.map((message, index) => {
+                const showDateSeparator = index === 0 || 
+                  new Date(message.created_at).toDateString() !== 
+                  new Date(conversationMessages[index - 1].created_at).toDateString();
+                
+                const isCurrentUser = message.sender_id === user?.id;
 
-                  return (
-                    <div key={message.id}>
-                      {showDateSeparator && (
-                        <div className="flex justify-center my-4">
-                          <span className="bg-muted px-3 py-1 rounded-full text-xs text-muted-foreground">
-                            {new Date(message.created_at).toLocaleDateString()}
-                          </span>
-                        </div>
-                      )}
-                      <EnhancedMessage
-                        message={message}
-                        isOwnMessage={isCurrentUser}
-                        showAvatar={!isCurrentUser}
-                        otherUser={otherParticipant?.profiles}
-                        onRetry={handleRetryMessage}
-                      />
-                    </div>
-                  );
-                })
-              )}
+                return (
+                  <div key={message.id}>
+                    {showDateSeparator && (
+                      <div className="flex justify-center my-4">
+                        <span className="bg-background/90 backdrop-blur-sm px-3 py-1 rounded-full text-xs text-muted-foreground shadow-sm">
+                          {new Date(message.created_at).toLocaleDateString()}
+                        </span>
+                      </div>
+                    )}
+                    <EnhancedMessage
+                      message={message}
+                      isOwnMessage={isCurrentUser}
+                      showAvatar={!isCurrentUser}
+                      otherUser={otherParticipant?.profiles}
+                      onRetry={handleRetryMessage}
+                    />
+                  </div>
+                );
+              })
+            )}
 
-              <TypingIndicator userNames={currentTypingUsers} />
-              
-              <div ref={messagesEndRef} className="h-4" />
-            </div>
+            <TypingIndicator userNames={currentTypingUsers} />
+            
+            <div ref={messagesEndRef} className="h-4" />
           </div>
         </div>
 
-        {/* Input */}
-        <ChatInput
-          value={newMessage}
-          onChange={setNewMessage}
-          onSend={handleSendMessage}
-          onAttachment={handleAttachment}
-          onVoiceRecord={handleVoiceRecord}
-          isRecording={isRecording}
-          recordingDuration={recordingDuration}
-          isOnline={isOnline}
-          onTyping={handleTyping}
-        />
+        {/* Input - Fixed Bottom */}
+        <div className="relative z-20 flex-shrink-0">
+          <ChatInput
+            value={newMessage}
+            onChange={setNewMessage}
+            onSend={handleSendMessage}
+            onAttachment={handleAttachment}
+            onVoiceRecord={handleVoiceRecord}
+            isRecording={isRecording}
+            recordingDuration={recordingDuration}
+            isOnline={isOnline}
+            onTyping={handleTyping}
+          />
+        </div>
       </div>
     </div>
   );

@@ -130,9 +130,10 @@ const EnhancedMessageV2: React.FC<EnhancedMessageV2Props> = ({
           <div className="relative group">
             <img 
               src={message.media_url} 
-              alt="Shared image" 
-              className="max-w-xs w-full h-auto max-h-64 object-cover rounded-2xl shadow-md"
+              alt="Shared image"
               loading="lazy"
+              decoding="async"
+              className="max-w-xs w-full h-auto max-h-64 object-cover rounded-2xl shadow-md"
             />
           </div>
         ) : message.type === 'voice' && message.media_url ? (

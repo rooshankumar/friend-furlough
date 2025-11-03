@@ -4,6 +4,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { useAuthStore } from '@/stores/authStore';
 import { useExploreStore } from '@/stores/exploreStore';
 import { useProfileReactionStore } from '@/stores/profileReactionStore';
+import { useDebounce } from '@/hooks/useDebounce';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -31,10 +32,21 @@ export default function ExplorePage() {
   const [openNative, setOpenNative] = useState(false);
   const [openLearning, setOpenLearning] = useState(false);
   const [activeView, setActiveView] = useState<'all' | 'new'>('all');
+  
+  // Local search state for immediate UI update
+  const [localSearchTerm, setLocalSearchTerm] = useState(searchTerm);
+  
+  // Debounce search to reduce API calls
+  const debouncedSearchTerm = useDebounce(localSearchTerm, 300);
 
   useEffect(() => {
     loadUsers();
   }, []);
+  
+  // Update store search term when debounced value changes
+  useEffect(() => {
+    setSearchTerm(debouncedSearchTerm);
+  }, [debouncedSearchTerm, setSearchTerm]);
 
   // Load reaction data for all visible profiles
   useEffect(() => {
@@ -197,8 +209,8 @@ export default function ExplorePage() {
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
               <Input
                 placeholder="Search..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
+                value={localSearchTerm}
+                onChange={(e) => setLocalSearchTerm(e.target.value)}
                 className="pl-10 h-9 text-sm"
                 style={{ fontSize: '16px' }}
               />
@@ -243,8 +255,8 @@ export default function ExplorePage() {
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
               <Input
                 placeholder="Search by name, country, or interests..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
+                value={localSearchTerm}
+                onChange={(e) => setLocalSearchTerm(e.target.value)}
                 className="pl-10 h-10"
               />
             </div>

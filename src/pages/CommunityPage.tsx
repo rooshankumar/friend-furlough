@@ -988,9 +988,10 @@ const CommunityPage = () => {
                       <img
                         src={post.image_url}
                         alt="Post"
+                        loading="lazy"
+                        decoding="async"
                         className="w-full object-cover h-[300px] cursor-pointer hover:opacity-95 transition-opacity"
                         onClick={() => navigate(`/post/${post.id}`)}
-                        loading="lazy"
                       />
                     </div>
                   )}

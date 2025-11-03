@@ -20,7 +20,7 @@ interface UserAvatarProps {
   fallbackClassName?: string;
 }
 
-const UserAvatar: React.FC<UserAvatarProps> = ({ 
+const UserAvatar: React.FC<UserAvatarProps> = React.memo(({ 
   user, 
   profile, 
   size = 'md', 
@@ -94,6 +94,8 @@ const UserAvatar: React.FC<UserAvatarProps> = ({
       </AvatarFallback>
     </Avatar>
   );
-};
+});
+
+UserAvatar.displayName = 'UserAvatar';
 
 export default UserAvatar;

@@ -23,7 +23,7 @@ import { COUNTRIES, LANGUAGES, GENDER_OPTIONS } from '@/constants/filterOptions'
 
 export default function ExplorePage() {
   const navigate = useNavigate();
-  const { user } = useAuthStore();
+  const { user, profile } = useAuthStore();
   const { filteredUsers, isLoading, searchTerm, filters, loadUsers, setSearchTerm, setFilters, clearFilters, users } = useExploreStore();
   const { toggleReaction, loadReactionData, reactions, userReactions } = useProfileReactionStore();
   const [showFilters, setShowFilters] = useState(false);
@@ -38,6 +38,15 @@ export default function ExplorePage() {
   
   // Debounce search to reduce API calls
   const debouncedSearchTerm = useDebounce(localSearchTerm, 300);
+
+  // Check if onboarding is complete
+  useEffect(() => {
+    if (profile && (!profile.country || !profile.age || !profile.city)) {
+      // Onboarding not complete - redirect
+      toast.error('Please complete your profile first');
+      navigate('/onboarding/welcome');
+    }
+  }, [profile, navigate]);
 
   useEffect(() => {
     loadUsers();

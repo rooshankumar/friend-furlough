@@ -104,7 +104,6 @@ const WelcomePage = () => {
                     id="welcome-avatar-upload"
                     type="file"
                     accept="image/jpeg,image/jpg,image/png,image/gif,image/webp"
-                    capture="user"
                     className="hidden"
                     onChange={handleAvatarUpload}
                     style={{ display: 'none' }}

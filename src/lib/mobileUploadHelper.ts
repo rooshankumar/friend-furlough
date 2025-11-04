@@ -114,10 +114,10 @@ class MobileUploadHelper {
   
   /**
    * Create mobile-optimized file input attributes
+   * Note: Removed 'capture' attribute to allow users to choose between camera and gallery
    */
   getMobileInputAttributes(type: 'avatar' | 'post' | 'attachment' = 'attachment') {
     const baseAttributes = {
-      capture: 'environment' as const, // Mobile camera access
       style: { display: 'none' },
       className: 'hidden'
     };

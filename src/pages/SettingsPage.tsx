@@ -188,13 +188,21 @@ export default function SettingsPage() {
         await supabase.from('languages').insert(languageInserts);
       }
 
+      // Fetch and update the complete profile data
+      const { data: updatedProfile, error: fetchError } = await supabase
+        .from('profiles')
+        .select('*')
+        .eq('id', user.id)
+        .single();
+
+      if (!fetchError && updatedProfile) {
+        await updateProfile(updatedProfile);
+      }
+
       toast({
         title: "Profile updated! ✨",
         description: "Your changes have been saved successfully."
       });
-
-      // Reload profile
-      await updateProfile({});
     } catch (error: any) {
       toast({
         title: "Update failed",
@@ -345,7 +353,6 @@ export default function SettingsPage() {
                   id="avatar"
                   type="file"
                   accept="image/jpeg,image/jpg,image/png,image/gif,image/webp"
-                  capture="user"
                   onChange={handleAvatarUpload}
                   className="hidden"
                   disabled={isUploading}

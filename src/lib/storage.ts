@@ -199,6 +199,12 @@ export const uploadChatAttachment = async (
   onProgress?: (progress: number) => void
 ): Promise<string> => {
   try {
+    console.log('📤 Starting chat attachment upload:', {
+      name: file.name,
+      size: `${(file.size / 1024 / 1024).toFixed(2)}MB`,
+      type: file.type
+    });
+
     const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
     const isLowEndDevice = (navigator as any).deviceMemory <= 2 || navigator.hardwareConcurrency <= 2;
     
@@ -212,19 +218,21 @@ export const uploadChatAttachment = async (
     onProgress?.(10);
     
     let fileToUpload = file;
-    let contentType = file.type;
+    let contentType = file.type || 'application/octet-stream';
     let fileExt = file.name.split('.').pop() || 'file';
     
     // Smart compression for images only
     if (file.type.startsWith('image/')) {
       try {
         onProgress?.(20);
+        console.log('🖼️ Compressing image...');
         fileToUpload = await compressImage(file, 1200, 0.85);
         contentType = 'image/jpeg';
         fileExt = 'jpg';
+        console.log('✅ Image compressed:', `${(fileToUpload.size / 1024 / 1024).toFixed(2)}MB`);
         onProgress?.(40);
       } catch (err) {
-        console.warn('Compression failed, using original:', err);
+        console.warn('⚠️ Compression failed, using original:', err);
         fileToUpload = file;
         onProgress?.(40);
       }
@@ -235,20 +243,23 @@ export const uploadChatAttachment = async (
     const fileName = `${Date.now()}.${fileExt}`;
     const filePath = `${conversationId}/${fileName}`;
 
+    console.log('📤 Uploading to storage:', filePath);
     onProgress?.(50);
     
-    const { error: uploadError } = await supabase.storage
+    const { data: uploadData, error: uploadError } = await supabase.storage
       .from('chat_attachments')
       .upload(filePath, fileToUpload, {
         contentType,
-        cacheControl: '3600'
+        cacheControl: '3600',
+        upsert: false
       });
 
     if (uploadError) {
-      console.error('Chat attachment upload error:', uploadError);
+      console.error('❌ Chat attachment upload error:', uploadError);
       throw new Error(`Upload failed: ${uploadError.message}`);
     }
 
+    console.log('✅ File uploaded to storage:', uploadData);
     onProgress?.(90);
 
     const { data } = supabase.storage
@@ -257,10 +268,10 @@ export const uploadChatAttachment = async (
 
     onProgress?.(100);
     
-    console.log('✅ Chat attachment uploaded:', data.publicUrl);
+    console.log('✅ Chat attachment URL:', data.publicUrl);
     return data.publicUrl;
   } catch (error) {
-    console.error('Chat attachment upload error:', error);
+    console.error('❌ Chat attachment upload error:', error);
     throw error;
   }
 };

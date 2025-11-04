@@ -66,6 +66,7 @@ export const ChatInput: React.FC<ChatInputProps> = ({
               accept="image/*,video/*,audio/*,.pdf,.doc,.docx,.txt"
               onChange={handleFileSelect}
               disabled={disabled || !isOnline}
+              style={{ display: 'none' }}
             />
             <Button
               variant="ghost"

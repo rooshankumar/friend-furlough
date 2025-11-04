@@ -243,21 +243,33 @@ const ImprovedChatPage = () => {
     }
 
     try {
-      toast({
+      console.log('📎 Starting attachment upload:', file.name, file.size);
+      
+      // Show immediate feedback
+      const toastId = toast({
         title: "Uploading...",
         description: `Sending ${file.name}`,
+        duration: 30000, // 30 seconds timeout
       });
       
-      await sendAttachment(conversationId, user.id, file);
+      // Send with timeout
+      const uploadPromise = sendAttachment(conversationId, user.id, file);
+      const timeoutPromise = new Promise((_, reject) => 
+        setTimeout(() => reject(new Error('Upload timeout')), 30000)
+      );
       
+      await Promise.race([uploadPromise, timeoutPromise]);
+      
+      console.log('✅ Attachment uploaded successfully');
       toast({
         title: "Sent!",
-        description: "Attachment uploaded successfully",
+        description: "Attachment sent successfully",
       });
     } catch (error: any) {
+      console.error('❌ Attachment upload failed:', error);
       toast({
         title: "Upload failed",
-        description: error.message || "Failed to upload attachment",
+        description: error.message || "Failed to upload attachment. Please try again.",
         variant: "destructive"
       });
     }

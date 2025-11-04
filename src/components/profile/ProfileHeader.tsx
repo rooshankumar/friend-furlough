@@ -118,7 +118,6 @@ export const ProfileHeader: React.FC<ProfileHeaderProps> = ({
                     id="avatar-upload"
                     type="file"
                     accept="image/jpeg,image/jpg,image/png,image/gif,image/webp"
-                    capture="user"
                     className="hidden"
                     onChange={onAvatarUpload}
                     style={{ display: 'none' }}

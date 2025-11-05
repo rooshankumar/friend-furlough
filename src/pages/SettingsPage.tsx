@@ -19,12 +19,14 @@ import { useNavigate } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { countries } from '@/data/countries';
 import { languages } from '@/data/languages';
+import { useQueryClient } from '@tanstack/react-query';
 
 export default function SettingsPage() {
   const { theme, setTheme } = useTheme();
   const { user, profile, updateProfile, signOut } = useAuthStore();
   const { toast } = useToast();
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
   
   const [isUploading, setIsUploading] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
@@ -172,12 +174,14 @@ export default function SettingsPage() {
       const languageInserts = [
         ...nativeLanguages.map(lang => ({
           user_id: user.id,
+          language_code: lang.toLowerCase().replace(/\s+/g, '-'),
           language_name: lang,
           is_native: true,
           is_learning: false
         })),
         ...learningLanguages.map(lang => ({
           user_id: user.id,
+          language_code: lang.toLowerCase().replace(/\s+/g, '-'),
           language_name: lang,
           is_native: false,
           is_learning: true
@@ -188,7 +192,7 @@ export default function SettingsPage() {
         await supabase.from('languages').insert(languageInserts);
       }
 
-      // Fetch and update the complete profile data
+      // Fetch and update profile
       const { data: updatedProfile, error: fetchError } = await supabase
         .from('profiles')
         .select('*')
@@ -196,7 +200,13 @@ export default function SettingsPage() {
         .single();
 
       if (!fetchError && updatedProfile) {
-        await updateProfile(updatedProfile);
+        // Type-safe profile update
+        const profileUpdate: any = { ...updatedProfile };
+        await updateProfile(profileUpdate);
+        
+        // Invalidate caches to force refresh
+        queryClient.invalidateQueries({ queryKey: ['profile', user.id] });
+        queryClient.invalidateQueries({ queryKey: ['languages', user.id] });
       }
 
       toast({

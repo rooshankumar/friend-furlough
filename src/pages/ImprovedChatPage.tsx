@@ -243,33 +243,37 @@ const ImprovedChatPage = () => {
     }
 
     try {
-      console.log('📎 Starting attachment upload:', file.name, file.size);
+      console.log('📎 Starting attachment upload:', file.name);
+
+      const { uploadChatAttachment } = await import('@/lib/uploadManager');
       
-      // Show immediate feedback
-      const toastId = toast({
-        title: "Uploading...",
-        description: `Sending ${file.name}`,
-        duration: 30000, // 30 seconds timeout
+      const mediaUrl = await uploadChatAttachment(conversationId, file, {
+        onProgress: (progress) => {
+          console.log(`Upload progress: ${progress}%`);
+        },
+        timeout: 45000,
       });
-      
-      // Send with timeout
-      const uploadPromise = sendAttachment(conversationId, user.id, file);
-      const timeoutPromise = new Promise((_, reject) => 
-        setTimeout(() => reject(new Error('Upload timeout')), 30000)
+
+      // Send message with attachment
+      await sendMessage(
+        conversationId,
+        user.id,
+        file.name,
+        file.type.startsWith('image/') ? 'image' : 'file',
+        undefined, // language
+        mediaUrl // media_url
       );
       
-      await Promise.race([uploadPromise, timeoutPromise]);
-      
-      console.log('✅ Attachment uploaded successfully');
+      console.log('✅ Attachment sent');
       toast({
         title: "Sent!",
-        description: "Attachment sent successfully",
+        description: "Attachment uploaded successfully",
       });
     } catch (error: any) {
-      console.error('❌ Attachment upload failed:', error);
+      console.error('❌ Attachment failed:', error);
       toast({
         title: "Upload failed",
-        description: error.message || "Failed to upload attachment. Please try again.",
+        description: error.message || "Please check your connection and try again",
         variant: "destructive"
       });
     }

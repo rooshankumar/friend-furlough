@@ -12,7 +12,7 @@ import MinimalNavigation from "./components/MinimalNavigation";
 import InstallPWA from "./components/InstallPWA";
 import PerformanceMonitor from "./components/PerformanceMonitor";
 import { useAppDataPreloader } from "./hooks/useDataPreloader";
-import { useGlobalSync } from "./hooks/useGlobalSync";
+import { useMasterOptimization } from "./hooks/useMasterOptimization";
 import { globalDataManager } from "./lib/globalDataManager";
 
 // Lazy load pages for better performance
@@ -84,8 +84,8 @@ const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
 const AppContent = () => {
   const { user } = useAuthStore();
   
-  // Initialize global sync system (needs QueryClient)
-  useGlobalSync();
+  // Master optimization hook (replaces useGlobalSync + useAppOptimization)
+  useMasterOptimization();
   
   // Setup global data manager when user is available
   React.useEffect(() => {

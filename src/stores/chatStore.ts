@@ -67,6 +67,7 @@ interface ChatState {
   updateMessageStatus: (tempId: string, status: MessageStatus, realId?: string) => void;
   updateMessageStatusById: (messageId: string, conversationId: string, status: MessageStatus) => void;
   processOfflineQueue: () => Promise<void>;
+  deleteConversation: (conversationId: string, userId: string) => Promise<void>;
 }
 
 // Generate idempotent client IDs (safe for reconciliation)
@@ -1044,6 +1045,33 @@ export const useChatStore = create<ChatState>((set, get) => ({
       }
     }
     set({ isProcessingOutbox: false });
+  },
+
+  deleteConversation: async (conversationId: string, userId: string) => {
+    try {
+      // Delete the conversation participant record (soft delete from user's perspective)
+      const { error } = await supabase
+        .from('conversation_participants')
+        .delete()
+        .eq('conversation_id', conversationId)
+        .eq('user_id', userId);
+
+      if (error) throw error;
+
+      // Remove from local state
+      set(state => ({
+        conversations: state.conversations.filter(c => c.id !== conversationId),
+        messages: {
+          ...state.messages,
+          [conversationId]: undefined
+        }
+      }));
+
+      console.log('✅ Conversation deleted:', conversationId);
+    } catch (error) {
+      console.error('❌ Failed to delete conversation:', error);
+      throw error;
+    }
   }
 }));
 

@@ -22,6 +22,7 @@ import { useVirtualScroll } from '@/hooks/useVirtualScroll';
 import { OptimizedConversationList } from '@/components/chat/OptimizedConversationList';
 import { ChatErrorBoundary } from '@/components/ErrorBoundary';
 import { VoiceMessagePlayer } from '@/components/chat/VoiceMessagePlayer';
+import { DeleteConversationDialog } from '@/components/chat/DeleteConversationDialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
@@ -45,6 +46,7 @@ import {
   Pause
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
+import { toastNotifications } from '@/lib/toastNotifications';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -251,6 +253,8 @@ const ChatPageV2 = () => {
   const [searchQuery, setSearchQuery] = useState('');
   const [showSearch, setShowSearch] = useState(false);
   const [isTyping, setIsTyping] = useState(false);
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const recordingTimerRef = useRef<NodeJS.Timeout | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -267,6 +271,7 @@ const ChatPageV2 = () => {
     markAsRead,
     subscribeToMessages, 
     unsubscribeFromMessages,
+    deleteConversation,
   } = useChatStore();
 
   const currentConversation = useMemo(() => 
@@ -570,6 +575,27 @@ const ChatPageV2 = () => {
     }
   };
 
+  const handleDeleteConversation = async (convId: string) => {
+    if (!user?.id) return;
+
+    setIsDeleting(true);
+    try {
+      await deleteConversation(convId, user.id);
+      
+      toastNotifications.success('Conversation deleted', 'The conversation has been removed from your chat list');
+      
+      setDeleteDialogOpen(false);
+      
+      // Navigate back to chat list
+      navigate('/chat');
+    } catch (error) {
+      console.error('Failed to delete conversation:', error);
+      toastNotifications.error('Failed to delete', 'Could not delete the conversation. Please try again.');
+    } finally {
+      setIsDeleting(false);
+    }
+  };
+
   const formatDuration = (seconds: number) => {
     const mins = Math.floor(seconds / 60);
     const secs = seconds % 60;
@@ -743,7 +769,10 @@ const ChatPageV2 = () => {
                       Contact Info
                     </DropdownMenuItem>
                     <DropdownMenuSeparator />
-                    <DropdownMenuItem className="text-destructive">
+                    <DropdownMenuItem 
+                      className="text-destructive"
+                      onClick={() => setDeleteDialogOpen(true)}
+                    >
                       <Trash2 className="mr-2 h-4 w-4" />
                       Delete Chat
                     </DropdownMenuItem>
@@ -941,6 +970,16 @@ const ChatPageV2 = () => {
             )}
           </div>
         </div>
+
+        {/* Delete Conversation Dialog */}
+        <DeleteConversationDialog
+          isOpen={deleteDialogOpen}
+          conversationId={conversationId || ''}
+          otherUserName={otherParticipant?.profiles?.name}
+          isLoading={isDeleting}
+          onConfirm={handleDeleteConversation}
+          onCancel={() => setDeleteDialogOpen(false)}
+        />
       </div>
     </div>
   );

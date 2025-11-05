@@ -83,23 +83,23 @@ class ConnectionManager {
   }
 
   private startPeriodicCheck() {
-    // Regular check every 15 seconds (reduced from 30)
+    // Regular check every 30 seconds (optimized from 15s)
     this.checkInterval = setInterval(() => {
       if (document.visibilityState === 'visible') {
         this.checkConnection();
       }
-    }, 15000);
+    }, 30000);
     
-    // Aggressive check every 5 seconds when connection is unstable
+    // Aggressive check every 60 seconds when connection is unstable (optimized from 5s)
     this.aggressiveCheckInterval = setInterval(() => {
       const timeSinceLastSuccess = Date.now() - this.lastSuccessfulCheck;
       
-      // If no successful check in last 30 seconds, check more frequently
-      if (timeSinceLastSuccess > 30000 && document.visibilityState === 'visible') {
+      // If no successful check in last 60 seconds, check more frequently
+      if (timeSinceLastSuccess > 60000 && document.visibilityState === 'visible') {
         console.log('🔄 Aggressive connection check (unstable connection detected)');
         this.checkConnection();
       }
-    }, 5000);
+    }, 60000);
   }
 
   private notifyListeners(isOnline: boolean) {

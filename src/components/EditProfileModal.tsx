@@ -6,12 +6,13 @@ import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Badge } from '@/components/ui/badge';
-import { X, Plus, Edit, Loader2 } from 'lucide-react';
+import { X, Plus, Edit, Loader2, AlertCircle } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { useAuthStore } from '@/stores/authStore';
 import { supabase } from '@/integrations/supabase/client';
 import { countries } from '@/data/countries';
 import { languages } from '@/data/languages';
+import { validateProfileForm, getFieldError } from '@/lib/validation';
 
 interface EditProfileModalProps {
   trigger?: React.ReactNode;
@@ -22,6 +23,7 @@ export const EditProfileModal: React.FC<EditProfileModalProps> = ({ trigger }) =
   const { toast } = useToast();
   const [isOpen, setIsOpen] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
+  const [validationErrors, setValidationErrors] = useState<Array<{ field: string; message: string }>>([]);
   
   // Form state
   const [formData, setFormData] = useState({
@@ -35,7 +37,6 @@ export const EditProfileModal: React.FC<EditProfileModalProps> = ({ trigger }) =
     language_goals: [] as string[],
     countries_visited: [] as string[],
     teaching_experience: false,
-    // cultural_interests: [] as string[] // Remove this as it's not in Profile interface
   });
 
   // Initialize form data when profile changes
@@ -86,6 +87,26 @@ export const EditProfileModal: React.FC<EditProfileModalProps> = ({ trigger }) =
     e.preventDefault();
     if (!user) return;
 
+    // Validate form
+    const validation = validateProfileForm({
+      name: formData.name,
+      bio: formData.bio,
+      age: formData.age,
+      city: formData.city,
+      country: formData.country,
+    });
+
+    if (!validation.valid) {
+      setValidationErrors(validation.errors);
+      toast({
+        title: "Validation failed",
+        description: "Please fix the errors below",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    setValidationErrors([]);
     setIsLoading(true);
     try {
       const updateData = {
@@ -141,6 +162,25 @@ export const EditProfileModal: React.FC<EditProfileModalProps> = ({ trigger }) =
         </DialogHeader>
         
         <form onSubmit={handleSubmit} className="space-y-6">
+          {/* Validation Errors Summary */}
+          {validationErrors.length > 0 && (
+            <div className="bg-destructive/10 border border-destructive/30 rounded-lg p-4">
+              <div className="flex gap-2 items-start">
+                <AlertCircle className="h-5 w-5 text-destructive flex-shrink-0 mt-0.5" />
+                <div className="flex-1">
+                  <p className="font-medium text-destructive mb-2">Please fix the following errors:</p>
+                  <ul className="list-disc list-inside space-y-1">
+                    {validationErrors.map((error, idx) => (
+                      <li key={idx} className="text-sm text-destructive">
+                        {error.message}
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              </div>
+            </div>
+          )}
+
           {/* Basic Information */}
           <div className="space-y-4">
             <h3 className="text-lg font-semibold">Basic Information</h3>
@@ -152,8 +192,12 @@ export const EditProfileModal: React.FC<EditProfileModalProps> = ({ trigger }) =
                   id="name"
                   value={formData.name}
                   onChange={(e) => handleInputChange('name', e.target.value)}
+                  className={getFieldError(validationErrors, 'name') ? 'border-destructive' : ''}
                   required
                 />
+                {getFieldError(validationErrors, 'name') && (
+                  <p className="text-xs text-destructive mt-1">{getFieldError(validationErrors, 'name')}</p>
+                )}
               </div>
               
               <div>

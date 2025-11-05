@@ -17,6 +17,8 @@ import { usePerformanceMonitor } from '@/hooks/usePerformanceOptimization';
 import { useAuthStore } from '@/stores/authStore';
 import { useChatStore } from '@/stores/chatStore';
 import { useConnectionStatus } from '@/hooks/useConnectionStatus';
+import { useMessageDeduplication } from '@/hooks/useMessageDeduplication';
+import { useVirtualScroll } from '@/hooks/useVirtualScroll';
 import { OptimizedConversationList } from '@/components/chat/OptimizedConversationList';
 import { ChatErrorBoundary } from '@/components/ErrorBoundary';
 import { VoiceMessagePlayer } from '@/components/chat/VoiceMessagePlayer';
@@ -237,6 +239,9 @@ const ChatPageV2 = () => {
   const { toast } = useToast();
   const isOnline = useConnectionStatus();
   
+  // Message deduplication
+  const { generateClientId, isDuplicate, markAsSent, clearMessage } = useMessageDeduplication();
+  
   const [newMessage, setNewMessage] = useState('');
   const [replyingTo, setReplyingTo] = useState<any>(null);
   const [showEmojiPicker, setShowEmojiPicker] = useState(false);
@@ -313,14 +318,31 @@ const ChatPageV2 = () => {
   const handleSendMessage = useCallback(async () => {
     if (!newMessage.trim() || !conversationId || !user) return;
 
+    // Generate client ID for deduplication
+    const clientId = generateClientId(conversationId);
+    
+    // Check for duplicate
+    if (isDuplicate(clientId)) {
+      toast({
+        title: "Message already sent",
+        description: "This message is being processed",
+      });
+      return;
+    }
+
     const msg = newMessage.trim();
     const replyTo = replyingTo;
     setNewMessage('');
     setReplyingTo(null);
     
+    // Mark as sent to prevent duplicates
+    markAsSent(clientId, conversationId);
+    
     try {
       await sendMessage(conversationId, user.id, msg, undefined, undefined, replyTo?.id);
     } catch (error: any) {
+      // Clear from deduplication on error to allow retry
+      clearMessage(clientId);
       setNewMessage(msg);
       setReplyingTo(replyTo);
       toast({
@@ -329,7 +351,7 @@ const ChatPageV2 = () => {
         variant: "destructive"
       });
     }
-  }, [newMessage, conversationId, user, replyingTo, sendMessage, toast]);
+  }, [newMessage, conversationId, user, replyingTo, sendMessage, toast, generateClientId, isDuplicate, markAsSent, clearMessage]);
 
   const handleReply = (message: any) => {
     setReplyingTo(message);

@@ -5,6 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem } from '@/components/ui/command';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { CulturalBadge } from '@/components/CulturalBadge';
+import { culturalInterests } from '@/data/culturalInterests';
 
 interface CulturalInterestSelectorProps {
   selectedInterests: string[];
@@ -23,18 +24,7 @@ export const CulturalInterestSelector = ({
 }: CulturalInterestSelectorProps) => {
   const [open, setOpen] = useState(false);
   
-  const availableInterests = [
-    { id: "cuisine", name: "Cuisine & Food", emoji: "🍜", category: "food" },
-    { id: "music", name: "Music", emoji: "🎵", category: "music" },
-    { id: "dance", name: "Dance", emoji: "💃", category: "traditions" },
-    { id: "art", name: "Art & Painting", emoji: "🎨", category: "art" },
-    { id: "literature", name: "Literature", emoji: "📚", category: "literature" },
-    { id: "history", name: "History", emoji: "🏛️", category: "traditions" },
-    { id: "festivals", name: "Festivals", emoji: "🎉", category: "festivals" },
-    { id: "crafts", name: "Crafts", emoji: "🧵", category: "art" },
-    { id: "fashion", name: "Fashion", emoji: "👘", category: "art" },
-    { id: "travel", name: "Travel", emoji: "✈️", category: "travel" },
-  ];
+  const availableInterests = culturalInterests;
   
   const getInterestById = (id: string) => {
     return availableInterests.find(i => i.id === id);
@@ -99,15 +89,12 @@ export const CulturalInterestSelector = ({
                 {availableInterests.map((interest) => (
                   <CommandItem
                     key={interest.id}
-                    value={`${interest.name} ${interest.category}`}
+                    value={interest.name}
                     onSelect={() => handleInterestSelect(interest.id)}
                   >
                     <div className="flex items-center space-x-2">
                       <span>{interest.emoji}</span>
                       <span>{interest.name}</span>
-                      <span className="text-xs text-muted-foreground capitalize">
-                        ({interest.category})
-                      </span>
                     </div>
                   </CommandItem>
                 ))}

@@ -39,6 +39,7 @@ import {
 import { formatDistanceToNow } from 'date-fns';
 import { supabase } from '@/integrations/supabase/client';
 import { mobileUploadHelper, getMobileInputAttributes, getMobileErrorMessage } from '@/lib/mobileUploadHelper';
+import { parseSupabaseError } from '@/lib/errorHandler';
 // Helper function to format last seen time
 const getLastSeenText = (profile?: any): string => {
   // Check for real last seen data from database
@@ -245,20 +246,20 @@ const ChatPage = () => {
       });
       
     } catch (error: any) {
+      const errorResponse = parseSupabaseError(error);
       console.error('❌ [ChatPage] Message send failed:', {
-        error: error.message,
+        error: errorResponse,
         conversationId,
         userId: user.id,
         timestamp: new Date().toISOString()
       });
-      
       
       // Restore message to input on failure
       setNewMessage(msg);
       
       toast({
         title: "Failed to send message",
-        description: error.message || "Please try again",
+        description: errorResponse.message,
         variant: "destructive"
       });
     }
@@ -284,14 +285,15 @@ const ChatPage = () => {
         loadMessages(conversationId);
       }, 100);
     } catch (error: any) {
-      console.error('❌ Message retry failed:', error);
+      const errorResponse = parseSupabaseError(error);
+      console.error('❌ Message retry failed:', errorResponse);
       
       // Update message status back to failed
       updateMessageStatusById(message.id, conversationId, 'failed');
       
       toast({
         title: "Retry failed",
-        description: error.message || "Please try again later",
+        description: errorResponse.message,
         variant: "destructive"
       });
     }
@@ -421,7 +423,8 @@ const ChatPage = () => {
         document.head.appendChild(style);
       }
     } catch (error: any) {
-      console.error('❌ Attachment upload error:', error);
+      const errorResponse = parseSupabaseError(error);
+      console.error('❌ Attachment upload error:', errorResponse);
       console.error('Error details:', {
         message: error.message,
         stack: error.stack,
@@ -437,16 +440,11 @@ const ChatPage = () => {
         } : null
       });
       
-      const errorMessage = error.message || 'Upload failed';
-      
-      console.error('📎 Attachment upload failed:', errorMessage);
+      console.error('📎 Attachment upload failed:', errorResponse.message);
       
       toast({
         title: "Upload failed",
-        description: errorMessage.includes('size') ? 'File too large' : 
-                     errorMessage.includes('type') ? 'File type not supported' :
-                     errorMessage.includes('network') ? 'Network error - check connection' :
-                     'Failed to upload attachment. Please try again.',
+        description: errorResponse.message,
         variant: "destructive"
       });
     } finally {

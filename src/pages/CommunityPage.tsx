@@ -7,7 +7,7 @@ import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import UserAvatar from '@/components/UserAvatar';
-import { Heart, MessageCircle, Upload, Globe, Trash2, MoreHorizontal, Loader2, RefreshCw, TrendingUp, Clock, Users, Send, ChevronDown, ChevronUp, Hash, Plus, X } from 'lucide-react';
+import { Heart, MessageCircle, Upload, Globe, Trash2, MoreHorizontal, Loader2, RefreshCw, TrendingUp, Clock, Users, Send, ChevronDown, ChevronUp, Hash, Plus, X, AlertCircle } from 'lucide-react';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -19,6 +19,7 @@ import { uploadPostImage } from '@/lib/storage';
 import { mobileUploadHelper, getMobileErrorMessage } from '@/lib/mobileUploadHelper';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useNavigate } from 'react-router-dom';
+import { parseSupabaseError } from '@/lib/errorHandler';
 
 interface Post {
   id: string;
@@ -70,13 +71,24 @@ const CommunityPage = () => {
   const [allPosts, setAllPosts] = useState<Post[]>([]); // Store all posts
   const [filteredPosts, setFilteredPosts] = useState<Post[]>([]); // Display filtered posts
   const [showCreatePost, setShowCreatePost] = useState(false); // Mobile create post modal
+  const [hasMore, setHasMore] = useState(true);
+  const [isLoadingMore, setIsLoadingMore] = useState(false);
+  const POSTS_PER_PAGE = 20;
 
-  // Optimized load posts with caching
-  const loadPosts = useCallback(async (force = false) => {
-    if (force) setIsRefreshing(true);
+  // Optimized load posts with pagination
+  const loadPosts = useCallback(async (force = false, loadMore = false) => {
+    if (force) {
+      setIsRefreshing(true);
+      setAllPosts([]);
+      setHasMore(true);
+    }
+    if (loadMore) setIsLoadingMore(true);
     
     try {
-      const { data, error } = await supabase
+      const currentPosts = loadMore ? allPosts : [];
+      const lastPost = currentPosts[currentPosts.length - 1];
+      
+      let query = supabase
         .from('community_posts' as any)
         .select(`
           *,
@@ -87,13 +99,28 @@ const CommunityPage = () => {
           )
         `)
         .order('created_at', { ascending: false })
-        .limit(100);
+        .limit(POSTS_PER_PAGE + 1); // +1 to check if there are more
+      
+      // Cursor-based pagination
+      if (loadMore && lastPost) {
+        query = query.lt('created_at', lastPost.created_at);
+      }
+      
+      const { data, error } = await query;
 
       if (error) throw error;
       
       const postsData = (data as any) || [];
-      setAllPosts(postsData);
-      setPosts(postsData);
+      
+      // Check if there are more posts
+      const hasMorePosts = postsData.length > POSTS_PER_PAGE;
+      const displayPosts = hasMorePosts ? postsData.slice(0, POSTS_PER_PAGE) : postsData;
+      setHasMore(hasMorePosts);
+      
+      // Append or replace posts
+      const updatedPosts = loadMore ? [...currentPosts, ...displayPosts] : displayPosts;
+      setAllPosts(updatedPosts);
+      setPosts(updatedPosts);
 
       // Batch load reactions and comments
       if (postsData.length > 0) {
@@ -116,8 +143,16 @@ const CommunityPage = () => {
     } finally {
       setIsLoading(false);
       setIsRefreshing(false);
+      setIsLoadingMore(false);
     }
-  }, [loadMultiplePostReactions, loadMultiplePostComments, toast, activeFilter]);
+  }, [loadMultiplePostReactions, loadMultiplePostComments, toast, activeFilter, allPosts, POSTS_PER_PAGE]);
+  
+  // Load more posts
+  const loadMorePosts = useCallback(() => {
+    if (!isLoadingMore && hasMore) {
+      loadPosts(false, true);
+    }
+  }, [isLoadingMore, hasMore, loadPosts]);
 
   useEffect(() => {
     loadPosts();
@@ -329,9 +364,10 @@ const CommunityPage = () => {
       // Remove from suggested users
       setSuggestedUsers(prev => prev.filter(u => u.id !== userId));
     } catch (error: any) {
+      const errorResponse = parseSupabaseError(error);
       toast({ 
         title: "Failed to send request", 
-        description: error.message,
+        description: errorResponse.message,
         variant: "destructive" 
       });
     }
@@ -411,9 +447,10 @@ const CommunityPage = () => {
         description: "Your post has been removed",
       });
     } catch (error: any) {
+      const errorResponse = parseSupabaseError(error);
       toast({
         title: "Delete failed",
-        description: error.message,
+        description: errorResponse.message,
         variant: "destructive",
       });
     }
@@ -473,9 +510,10 @@ const CommunityPage = () => {
       setImagePreviews([]);
       loadPosts(true);
     } catch (error: any) {
+      const errorResponse = parseSupabaseError(error);
       toast({
         title: "Failed to create post",
-        description: error.message,
+        description: errorResponse.message,
         variant: "destructive",
       });
     } finally {
@@ -1081,6 +1119,36 @@ const CommunityPage = () => {
                 </div>
               </Card>
             ))
+          )}
+          
+          {/* Load More Button */}
+          {hasMore && posts.length > 0 && (
+            <div className="flex justify-center mt-6">
+              <Button
+                onClick={loadMorePosts}
+                disabled={isLoadingMore}
+                variant="outline"
+                className="w-full max-w-md"
+              >
+                {isLoadingMore ? (
+                  <>
+                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                    Loading more posts...
+                  </>
+                ) : (
+                  <>
+                    <ChevronDown className="h-4 w-4 mr-2" />
+                    Load More Posts
+                  </>
+                )}
+              </Button>
+            </div>
+          )}
+          
+          {!hasMore && posts.length > 0 && (
+            <p className="text-center text-sm text-muted-foreground mt-6">
+              You've reached the end! 🎉
+            </p>
           )}
           </div>
         </div>

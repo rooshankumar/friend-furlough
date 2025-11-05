@@ -120,17 +120,22 @@ export const useChatStore = create<ChatState>((set, get) => ({
       // Extract conversation IDs
       const conversationIds = userParticipants.map(up => up.conversation_id);
       
-      // Batch fetch: Get all participants for all conversations in one query
+      console.log('🔍 Fetching participants for conversation IDs:', conversationIds);
+      
+      // Batch fetch: Get ALL participants for all conversations in one query
+      // Note: We need ALL participants (not just current user), so we query by conversation_id only
       const { data: allParticipants, error: allParticipantsError } = await supabase
         .from('conversation_participants')
         .select(`
           conversation_id,
           user_id,
-          profiles!inner (
+          profiles!conversation_participants_user_id_fkey (
             id,
             name,
             avatar_url,
-            country_flag
+            country_flag,
+            online,
+            last_seen
           )
         `)
         .in('conversation_id', conversationIds);
@@ -139,6 +144,11 @@ export const useChatStore = create<ChatState>((set, get) => ({
         console.error('Error fetching participants:', allParticipantsError);
         throw allParticipantsError;
       }
+      
+      console.log('👥 All participants fetched:', allParticipants);
+      console.log('👥 Total participants count:', allParticipants?.length);
+      console.log('👥 Expected count (2 per conversation):', conversationIds.length * 2);
+      console.log('👥 First participant sample:', JSON.stringify(allParticipants?.[0], null, 2));
       
       // Batch fetch: Get last message for each conversation in one query
       const { data: lastMessages, error: lastMessagesError } = await supabase
@@ -162,6 +172,8 @@ export const useChatStore = create<ChatState>((set, get) => ({
           profiles: p.profiles
         });
       });
+      
+      console.log('👥 Participants grouped by conversation:', participantsByConversation);
       
       // Group last messages by conversation_id (take first = most recent)
       const lastMessageByConversation: { [key: string]: DbMessage } = {};
@@ -192,6 +204,9 @@ export const useChatStore = create<ChatState>((set, get) => ({
         const bTime = b.lastMessage?.created_at || b.updated_at;
         return new Date(bTime).getTime() - new Date(aTime).getTime();
       });
+      
+      console.log('💬 Final conversations with details:', conversationsWithDetails);
+      console.log('💬 First conversation sample:', conversationsWithDetails[0]);
       
       set({ conversations: conversationsWithDetails, isLoading: false });
     } catch (error) {

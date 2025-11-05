@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">RoshLingua</string>
+    <string name="title_activity_main">RoshLingua</string>
+    <string name="package_name">com.roshlingua.app</string>
+    <string name="custom_url_scheme">com.roshlingua.app</string>
+</resources>

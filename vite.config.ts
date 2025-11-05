@@ -36,7 +36,7 @@ export default defineConfig(({ mode }) => ({
           
           // Feature chunks
           'chat-features': [
-            './src/pages/ChatPage.tsx',
+            './src/pages/ChatPageV2.tsx',
             './src/components/chat/OptimizedMessage.tsx',
             './src/components/chat/OptimizedConversationList.tsx',
             './src/stores/chatStore.ts'

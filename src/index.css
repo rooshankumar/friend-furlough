@@ -1,9 +1,9 @@
+/* Import responsive utilities - must come before @tailwind */
+@import './styles/responsive.css';
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
-
-/* Import responsive utilities */
-@import './styles/responsive.css';
 
 /* roshLingua Cultural Exchange Platform Design System
 All colors MUST be HSL. Cultural, warm, and inclusive design.

@@ -30,15 +30,48 @@ export const initOAuthListener = () => {
     
     // Check if this is a Supabase OAuth callback
     if (data.url.includes('supabase.co/auth/v1/callback')) {
-      // Extract the URL fragments/params
-      const url = new URL(data.url);
+      console.log('OAuth callback detected, processing session...');
       
-      // Supabase will handle the session from the URL
-      // The auth state change listener in authStore will pick it up
-      console.log('OAuth callback received, session will be handled by Supabase');
-      
-      // Close the browser if still open
-      await Browser.close().catch(() => {});
+      try {
+        // Close the browser first
+        await Browser.close().catch(() => {});
+        
+        // Extract the URL - Supabase callback includes hash fragments
+        const url = new URL(data.url);
+        
+        // Get the hash fragment (contains access_token, refresh_token, etc.)
+        let hashParams = new URLSearchParams(url.hash.substring(1));
+        
+        // If no hash, check search params (some OAuth flows use query params)
+        if (!hashParams.has('access_token')) {
+          hashParams = new URLSearchParams(url.search);
+        }
+        
+        const accessToken = hashParams.get('access_token');
+        const refreshToken = hashParams.get('refresh_token');
+        
+        if (accessToken && refreshToken) {
+          console.log('Tokens found, setting session...');
+          
+          // Set the session in Supabase
+          const { data: sessionData, error } = await supabase.auth.setSession({
+            access_token: accessToken,
+            refresh_token: refreshToken,
+          });
+          
+          if (error) {
+            console.error('Error setting session:', error);
+          } else {
+            console.log('Session set successfully!', sessionData);
+          }
+        } else {
+          console.warn('No tokens found in callback URL');
+          console.log('Hash params:', Array.from(hashParams.entries()));
+          console.log('Search params:', Array.from(new URLSearchParams(url.search).entries()));
+        }
+      } catch (error) {
+        console.error('Error processing OAuth callback:', error);
+      }
     }
   });
 };

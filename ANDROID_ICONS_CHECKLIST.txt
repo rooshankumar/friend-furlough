@@ -1,0 +1,179 @@
+═══════════════════════════════════════════════════════════════
+  ANDROID ICONS REPLACEMENT - COMPLETE CHECKLIST
+═══════════════════════════════════════════════════════════════
+
+✅ STEP 1: RUN THE ICON REPLACEMENT SCRIPT
+═══════════════════════════════════════════════════════════════
+
+Option A (Windows - Easy):
+  Double-click: replace-android-icons.bat
+
+Option B (PowerShell):
+  .\replace-android-icons.ps1
+
+This will replace ALL 15 default Android icons + splash screen!
+
+═══════════════════════════════════════════════════════════════
+✅ STEP 2: VERIFY FILES REPLACED
+═══════════════════════════════════════════════════════════════
+
+Check these folders have your RoshLingua logo:
+
+□ android/app/src/main/res/mipmap-mdpi/
+  □ ic_launcher.png
+  □ ic_launcher_round.png
+  □ ic_launcher_foreground.png
+
+□ android/app/src/main/res/mipmap-hdpi/
+  □ ic_launcher.png
+  □ ic_launcher_round.png
+  □ ic_launcher_foreground.png
+
+□ android/app/src/main/res/mipmap-xhdpi/
+  □ ic_launcher.png
+  □ ic_launcher_round.png
+  □ ic_launcher_foreground.png
+
+□ android/app/src/main/res/mipmap-xxhdpi/
+  □ ic_launcher.png
+  □ ic_launcher_round.png
+  □ ic_launcher_foreground.png
+
+□ android/app/src/main/res/mipmap-xxxhdpi/
+  □ ic_launcher.png
+  □ ic_launcher_round.png
+  □ ic_launcher_foreground.png
+
+□ android/app/src/main/res/drawable/
+  □ splash.png
+
+Total: 16 files (15 icons + 1 splash)
+
+═══════════════════════════════════════════════════════════════
+✅ STEP 3: UPDATE BACKGROUND COLOR (OPTIONAL)
+═══════════════════════════════════════════════════════════════
+
+File: android/app/src/main/res/values/ic_launcher_background.xml
+
+Current color: #3B82F6 (Blue - already updated!)
+
+If you want a different background color:
+1. Open the file
+2. Change the hex color code
+3. Save
+
+Popular options:
+- White: #FFFFFF
+- Blue: #3B82F6 (current)
+- Your brand color: #??????
+
+═══════════════════════════════════════════════════════════════
+✅ STEP 4: OPEN IN ANDROID STUDIO
+═══════════════════════════════════════════════════════════════
+
+1. Open Android Studio
+2. File > Open
+3. Navigate to: d:\Roshan\friend-furlough\android
+4. Click "OK"
+5. Wait for Gradle sync to complete
+
+═══════════════════════════════════════════════════════════════
+✅ STEP 5: CLEAN PROJECT
+═══════════════════════════════════════════════════════════════
+
+In Android Studio:
+1. Build > Clean Project
+2. Wait for completion
+3. Build > Rebuild Project (optional but recommended)
+
+═══════════════════════════════════════════════════════════════
+✅ STEP 6: BUILD SIGNED APK
+═══════════════════════════════════════════════════════════════
+
+In Android Studio:
+1. Build > Generate Signed Bundle / APK
+2. Select: ○ APK
+3. Click: Next
+4. Key store path: android/app/roshlingua-release.keystore
+5. Key store password: roshlingua123
+6. Key alias: roshlingua
+7. Key password: roshlingua123
+8. Click: Next
+9. Select: ☑ release
+10. Signature Versions: ☑ V1 ☑ V2
+11. Click: Finish
+
+═══════════════════════════════════════════════════════════════
+✅ STEP 7: LOCATE YOUR APK
+═══════════════════════════════════════════════════════════════
+
+APK Location:
+android/app/build/outputs/apk/release/roshLingua.apk
+
+Or click "locate" in Android Studio notification.
+
+═══════════════════════════════════════════════════════════════
+✅ STEP 8: INSTALL & TEST
+═══════════════════════════════════════════════════════════════
+
+Install on device:
+  adb install android/app/build/outputs/apk/release/roshLingua.apk
+
+Or:
+  - Copy APK to phone
+  - Open and install
+  - Allow "Install from unknown sources" if prompted
+
+═══════════════════════════════════════════════════════════════
+✅ STEP 9: VERIFY YOUR LOGO APPEARS
+═══════════════════════════════════════════════════════════════
+
+Check these places on your phone:
+
+□ Home screen icon (should show RoshLingua logo)
+□ App drawer icon (should show RoshLingua logo)
+□ Recent apps screen (should show RoshLingua logo)
+□ Splash screen when opening app (should show RoshLingua logo)
+□ Settings > Apps (should show RoshLingua logo)
+
+═══════════════════════════════════════════════════════════════
+  TROUBLESHOOTING
+═══════════════════════════════════════════════════════════════
+
+❌ Icons still show default Android logo:
+   → Uninstall old app completely
+   → Clear Android Studio cache: File > Invalidate Caches
+   → Rebuild and reinstall
+
+❌ Build fails with keystore error:
+   → Make sure roshlingua-release.keystore exists in android/app/
+   → Check passwords are correct: roshlingua123
+
+❌ Icons look blurry:
+   → This is because we used 192px logo for all sizes
+   → For best quality, use Android Asset Studio (see UPDATE_ANDROID_ICONS.txt)
+
+❌ Splash screen doesn't show:
+   → Check capacitor.config.ts has SplashScreen plugin configured
+   → Verify splash.png exists in drawable folder
+
+═══════════════════════════════════════════════════════════════
+  SUMMARY
+═══════════════════════════════════════════════════════════════
+
+Files created:
+✓ replace-android-icons.bat (Windows script)
+✓ replace-android-icons.ps1 (PowerShell script)
+✓ UPDATE_ANDROID_ICONS.txt (Detailed guide)
+✓ ANDROID_ICONS_CHECKLIST.txt (This file)
+
+Files updated:
+✓ ic_launcher_background.xml (Blue background color)
+
+Ready to replace:
+✓ 15 icon files across 5 mipmap folders
+✓ 1 splash screen image
+
+═══════════════════════════════════════════════════════════════
+
+🚀 YOU'RE READY! Run the script and build in Android Studio!

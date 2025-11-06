@@ -2,7 +2,7 @@ import React from 'react';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Check, CheckCheck, Loader2 } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
-import { UploadProgress } from './UploadProgress';
+import { CompactUploadProgress } from '@/components/CompactUploadProgress';
 
 interface DbMessage {
   id: string;
@@ -87,7 +87,7 @@ const ImageMessage = React.memo(({
     {/* Upload Progress Overlay */}
     {isUploading && uploadProgress !== undefined && uploadProgress < 100 && (
       <div className="absolute inset-0 bg-black/40 rounded-2xl flex items-center justify-center backdrop-blur-sm">
-        <UploadProgress progress={uploadProgress} size="md" />
+        <CompactUploadProgress progress={uploadProgress} size={48} strokeWidth={4} />
       </div>
     )}
   </div>

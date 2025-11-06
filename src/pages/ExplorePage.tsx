@@ -34,6 +34,7 @@ export default function ExplorePage() {
   const [openNative, setOpenNative] = useState(false);
   const [openLearning, setOpenLearning] = useState(false);
   const [activeView, setActiveView] = useState<'all' | 'new'>('all');
+  const [displayedUsers, setDisplayedUsers] = useState<any[]>([]);
   
   // Local search state for immediate UI update
   const [localSearchTerm, setLocalSearchTerm] = useState(searchTerm);
@@ -45,10 +46,25 @@ export default function ExplorePage() {
   const usersPullToRefresh = usePullToRefresh({
     onRefresh: async () => {
       await loadUsers();
+      shuffleUsers(filteredUsers);
       toast.success('Users refreshed');
     },
     threshold: 80
   });
+
+  // Shuffle users with online first, then recent
+  const shuffleUsers = (userList: any[]) => {
+    const onlineUsers = userList.filter(u => u.online);
+    const offlineUsers = userList.filter(u => !u.online);
+    
+    // Shuffle online users
+    const shuffledOnline = [...onlineUsers].sort(() => Math.random() - 0.5);
+    // Shuffle offline users
+    const shuffledOffline = [...offlineUsers].sort(() => Math.random() - 0.5);
+    
+    // Combine: online first, then offline
+    setDisplayedUsers([...shuffledOnline, ...shuffledOffline]);
+  };
 
   // Check if onboarding is complete
   useEffect(() => {
@@ -62,6 +78,26 @@ export default function ExplorePage() {
   useEffect(() => {
     loadUsers();
   }, []);
+
+  // Shuffle users when filtered users change
+  useEffect(() => {
+    shuffleUsers(filteredUsers);
+  }, [filteredUsers]);
+
+  // Auto-refresh and shuffle when tab changes
+  useEffect(() => {
+    if (activeView === 'all') {
+      shuffleUsers(filteredUsers);
+    } else if (activeView === 'new') {
+      // Show newest users first (by created_at)
+      const sortedByNew = [...filteredUsers].sort((a, b) => {
+        const dateA = new Date(a.created_at || 0).getTime();
+        const dateB = new Date(b.created_at || 0).getTime();
+        return dateB - dateA;
+      });
+      setDisplayedUsers(sortedByNew);
+    }
+  }, [activeView]);
   
   // Update store search term when debounced value changes
   useEffect(() => {
@@ -75,7 +111,7 @@ export default function ExplorePage() {
     });
   }, [filteredUsers, loadReactionData]);
 
-  const profiles = filteredUsers;
+  const profiles = displayedUsers.length > 0 ? displayedUsers : filteredUsers;
 
   const viewProfile = (profile: any) => {
     // Navigate to profile using the user ID directly
@@ -189,7 +225,7 @@ export default function ExplorePage() {
         isRefreshing={usersPullToRefresh.isRefreshing}
         threshold={80}
       />
-      <div className="p-3 md:p-8">
+      <div className="md:p-8">
         {/* Header - Hidden on Mobile, Visible on Desktop */}
         <div className="hidden md:block mb-8">
           <h1 className="text-3xl font-bold mb-2">Explore Language Partners</h1>
@@ -198,13 +234,16 @@ export default function ExplorePage() {
           </p>
         </div>
 
-        {/* Mobile: Filter Chips + Search */}
-        <div className="lg:hidden mb-3">
+        {/* Mobile: Sticky Filter Chips + Search */}
+        <div className="lg:hidden sticky top-0 z-10 bg-gradient-subtle/95 backdrop-blur-sm border-b border-border/50 pb-3 pt-3 px-3">
           {/* Filter Chips */}
           <div className="grid grid-cols-2 gap-2 mb-3">
             <Button
               variant="ghost"
-              onClick={() => setActiveView('all')}
+              onClick={() => {
+                setActiveView('all');
+                shuffleUsers(filteredUsers);
+              }}
               className={`h-9 text-xs rounded-lg transition-all ${
                 activeView === 'all' 
                   ? 'bg-primary/10 text-primary border border-primary/20 shadow-sm' 
@@ -216,7 +255,15 @@ export default function ExplorePage() {
             </Button>
             <Button
               variant="ghost"
-              onClick={() => setActiveView('new')}
+              onClick={() => {
+                setActiveView('new');
+                const sortedByNew = [...filteredUsers].sort((a, b) => {
+                  const dateA = new Date(a.created_at || 0).getTime();
+                  const dateB = new Date(b.created_at || 0).getTime();
+                  return dateB - dateA;
+                });
+                setDisplayedUsers(sortedByNew);
+              }}
               className={`h-9 text-xs rounded-lg transition-all ${
                 activeView === 'new' 
                   ? 'bg-primary/10 text-primary border border-primary/20 shadow-sm' 

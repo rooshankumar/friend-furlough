@@ -25,6 +25,7 @@ import { OptimizedConversationList } from '@/components/chat/OptimizedConversati
 import { ChatErrorBoundary } from '@/components/ErrorBoundary';
 import { VoiceMessagePlayer } from '@/components/chat/VoiceMessagePlayer';
 import { DeleteConversationDialog } from '@/components/chat/DeleteConversationDialog';
+import { CompactUploadProgress } from '@/components/CompactUploadProgress';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
@@ -65,6 +66,7 @@ interface EnhancedMessageV2Props {
   isOwnMessage: boolean;
   otherUser?: any;
   onRetry?: (message: any) => void;
+  onRemove?: (message: any) => void;
   onReact?: (messageId: string, reaction: string) => void;
   onReply?: (message: any) => void;
   onCopy?: (content: string) => void;
@@ -76,6 +78,7 @@ const EnhancedMessageV2: React.FC<EnhancedMessageV2Props> = ({
   isOwnMessage,
   otherUser,
   onRetry,
+  onRemove,
   onReact,
   onReply,
   onCopy,
@@ -153,41 +156,33 @@ const EnhancedMessageV2: React.FC<EnhancedMessageV2Props> = ({
             {/* Upload Progress Overlay */}
             {message.status === 'sending' && message.uploadProgress !== undefined && message.uploadProgress < 100 && (
               <div className="absolute inset-0 bg-black/40 rounded-2xl flex items-center justify-center backdrop-blur-sm">
-                <div className="relative inline-flex items-center justify-center" style={{ width: 48, height: 48 }}>
-                  <svg className="absolute transform -rotate-90" width={48} height={48}>
-                    <circle cx={24} cy={24} r={20} stroke="currentColor" strokeWidth={4} fill="none" className="text-white opacity-20" />
-                    <circle 
-                      cx={24} 
-                      cy={24} 
-                      r={20} 
-                      stroke="currentColor" 
-                      strokeWidth={4} 
-                      fill="none" 
-                      strokeDasharray={2 * Math.PI * 20}
-                      strokeDashoffset={2 * Math.PI * 20 - (message.uploadProgress / 100) * 2 * Math.PI * 20}
-                      strokeLinecap="round"
-                      className="text-white transition-all duration-300 ease-out"
-                    />
-                  </svg>
-                  <span className="absolute font-semibold text-[10px] text-white">
-                    {Math.round(message.uploadProgress)}%
-                  </span>
-                </div>
+                <CompactUploadProgress progress={message.uploadProgress} size={48} strokeWidth={4} />
               </div>
             )}
             
-            {/* Failed Upload Overlay with Retry */}
+            {/* Failed Upload Overlay with Retry and Remove */}
             {message.status === 'failed' && (
-              <div className="absolute inset-0 bg-red-500/40 rounded-2xl flex flex-col items-center justify-center backdrop-blur-sm gap-2">
+              <div className="absolute inset-0 bg-red-500/40 rounded-2xl flex flex-col items-center justify-center backdrop-blur-sm gap-2 p-3 text-center">
                 <div className="text-white text-sm font-semibold">Upload Failed</div>
-                <Button
-                  size="sm"
-                  variant="secondary"
-                  className="h-8 text-xs"
-                  onClick={() => onRetry?.(message)}
-                >
-                  Retry
-                </Button>
+                <div className="text-white/90 text-xs">This failed upload will disappear in 30s</div>
+                <div className="flex gap-2 mt-1">
+                  <Button
+                    size="sm"
+                    variant="secondary"
+                    className="h-8 text-xs"
+                    onClick={() => onRetry?.(message)}
+                  >
+                    Retry
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant="destructive"
+                    className="h-8 text-xs"
+                    onClick={() => onRemove?.(message)}
+                  >
+                    Remove now
+                  </Button>
+                </div>
               </div>
             )}
           </div>
@@ -346,6 +341,7 @@ const ChatPageV2 = () => {
     subscribeToMessages, 
     unsubscribeFromMessages,
     deleteConversation,
+    removeTempMessage,
   } = useChatStore();
 
   const currentConversation = useMemo(() => 
@@ -483,6 +479,11 @@ const ChatPageV2 = () => {
     
     // Trigger file input
     fileInputRef.current?.click();
+  };
+
+  const handleRemoveFailedUpload = (message: any) => {
+    if (!conversationId || !message?.tempId) return;
+    removeTempMessage(conversationId, message.tempId);
   };
 
   const handleAttachmentUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -938,6 +939,7 @@ const ChatPageV2 = () => {
                   onCopy={handleCopyMessage}
                   onDelete={handleDeleteMessage}
                   onRetry={handleRetryUpload}
+                  onRemove={handleRemoveFailedUpload}
                 />
               ))}
               <div ref={messagesEndRef} />

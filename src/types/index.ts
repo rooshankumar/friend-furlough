@@ -17,6 +17,7 @@ export interface User {
   online: boolean;
   lastSeen?: string;
   joinedDate: string;
+  created_at?: string; // Database field for creation timestamp
   languageGoals?: string[];
   lookingFor?: string[];
   teachingExperience?: boolean;

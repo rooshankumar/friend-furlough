@@ -176,14 +176,19 @@ export const uploadPostImage = async (
     onProgress?.(40);
     
     const fileExt = 'jpg';
-    const fileName = `${Date.now()}.${fileExt}`;
+    const fileName = `${Date.now()}_${Math.random().toString(36).slice(2, 8)}.${fileExt}`;
     const filePath = `${userId}/${fileName}`;
 
     console.log('📤 Uploading to storage:', filePath);
     onProgress?.(50);
 
-    // Upload with timeout (60 seconds for mobile, 120 for desktop)
-    const uploadTimeout = isMobile ? 60000 : 120000;
+    // Upload with dynamic timeout tuned for mobile
+    // Base of 90s on mobile, 120s on desktop, plus 6s per MB (capped extra 120s)
+    const baseTimeout = isMobile ? 90000 : 120000;
+    const perMbMs = 6000;
+    const sizeMb = Math.max(1, Math.ceil(compressedFile.size / (1024 * 1024)));
+    const extra = Math.min(120000, sizeMb * perMbMs);
+    const uploadTimeout = baseTimeout + extra;
     const uploadPromise = supabase.storage
       .from('post_pic')
       .upload(filePath, compressedFile, { 
@@ -261,7 +266,9 @@ export const uploadChatAttachment = async (
       try {
         onProgress?.(20);
         console.log('🖼️ Compressing image...');
-        fileToUpload = await compressImage(file, 1200, 0.85);
+        const targetWidth = isMobile ? (isLowEndDevice ? 720 : 1080) : 1200;
+        const targetQuality = 0.8;
+        fileToUpload = await compressImage(file, targetWidth, targetQuality);
         contentType = 'image/jpeg';
         fileExt = 'jpg';
         console.log('✅ Image compressed:', `${(fileToUpload.size / 1024 / 1024).toFixed(2)}MB`);
@@ -275,14 +282,18 @@ export const uploadChatAttachment = async (
       onProgress?.(40);
     }
     
-    const fileName = `${Date.now()}.${fileExt}`;
+    const fileName = `${Date.now()}_${Math.random().toString(36).slice(2, 8)}.${fileExt}`;
     const filePath = `${conversationId}/${fileName}`;
 
     console.log('📤 Uploading to storage:', filePath);
     onProgress?.(50);
     
-    // Upload with timeout (60 seconds for mobile, 120 for desktop)
-    const uploadTimeout = isMobile ? 60000 : 120000;
+    // Upload with dynamic timeout tuned for mobile (base + per MB)
+    const baseTimeout = isMobile ? 90000 : 120000;
+    const perMbMs = 6000;
+    const sizeMb = Math.max(1, Math.ceil(fileToUpload.size / (1024 * 1024)));
+    const extra = Math.min(120000, sizeMb * perMbMs);
+    const uploadTimeout = baseTimeout + extra;
     const uploadPromise = supabase.storage
       .from('chat_attachments')
       .upload(filePath, fileToUpload, {

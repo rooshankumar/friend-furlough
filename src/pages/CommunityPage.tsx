@@ -5,6 +5,7 @@ import { usePostReactionStore } from '@/stores/postReactionStore';
 import { usePostCommentStore } from '@/stores/postCommentStore';
 import { usePullToRefresh } from '@/hooks/usePullToRefresh';
 import { PullToRefreshIndicator } from '@/components/PullToRefresh';
+import { CompactUploadProgress } from '@/components/CompactUploadProgress';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -957,26 +958,7 @@ const CommunityPage = () => {
                       {/* Upload Progress Overlay - Only show for first image during upload */}
                       {index === 0 && isPosting && uploadProgress > 0 && uploadProgress < 100 && (
                         <div className="absolute inset-0 bg-black/40 rounded-lg flex items-center justify-center backdrop-blur-sm">
-                          <div className="relative inline-flex items-center justify-center" style={{ width: 40, height: 40 }}>
-                            <svg className="absolute transform -rotate-90" width={40} height={40}>
-                              <circle cx={20} cy={20} r={16} stroke="currentColor" strokeWidth={3} fill="none" className="text-white opacity-20" />
-                              <circle 
-                                cx={20} 
-                                cy={20} 
-                                r={16} 
-                                stroke="currentColor" 
-                                strokeWidth={3} 
-                                fill="none" 
-                                strokeDasharray={2 * Math.PI * 16}
-                                strokeDashoffset={2 * Math.PI * 16 - (uploadProgress / 100) * 2 * Math.PI * 16}
-                                strokeLinecap="round"
-                                className="text-white transition-all duration-300 ease-out"
-                              />
-                            </svg>
-                            <span className="absolute font-semibold text-[9px] text-white">
-                              {Math.round(uploadProgress)}%
-                            </span>
-                          </div>
+                          <CompactUploadProgress progress={uploadProgress} size={40} />
                         </div>
                       )}
                       
@@ -1366,26 +1348,7 @@ const CommunityPage = () => {
                         {/* Upload Progress Overlay */}
                         {index === 0 && isPosting && uploadProgress > 0 && uploadProgress < 100 && (
                           <div className="absolute inset-0 bg-black/40 rounded-lg flex items-center justify-center backdrop-blur-sm">
-                            <div className="relative inline-flex items-center justify-center" style={{ width: 40, height: 40 }}>
-                              <svg className="absolute transform -rotate-90" width={40} height={40}>
-                                <circle cx={20} cy={20} r={16} stroke="currentColor" strokeWidth={3} fill="none" className="text-white opacity-20" />
-                                <circle 
-                                  cx={20} 
-                                  cy={20} 
-                                  r={16} 
-                                  stroke="currentColor" 
-                                  strokeWidth={3} 
-                                  fill="none" 
-                                  strokeDasharray={2 * Math.PI * 16}
-                                  strokeDashoffset={2 * Math.PI * 16 - (uploadProgress / 100) * 2 * Math.PI * 16}
-                                  strokeLinecap="round"
-                                  className="text-white transition-all duration-300 ease-out"
-                                />
-                              </svg>
-                              <span className="absolute font-semibold text-[9px] text-white">
-                                {Math.round(uploadProgress)}%
-                              </span>
-                            </div>
+                            <CompactUploadProgress progress={uploadProgress} size={40} />
                           </div>
                         )}
                         

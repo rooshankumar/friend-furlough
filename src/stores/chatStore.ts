@@ -68,6 +68,7 @@ interface ChatState {
   updateMessageStatusById: (messageId: string, conversationId: string, status: MessageStatus) => void;
   processOfflineQueue: () => Promise<void>;
   deleteConversation: (conversationId: string, userId: string) => Promise<void>;
+  removeTempMessage: (conversationId: string, tempId: string) => void;
 }
 
 // Generate idempotent client IDs (safe for reconciliation)
@@ -220,6 +221,14 @@ export const useChatStore = create<ChatState>((set, get) => ({
       console.error('Error loading conversations:', error);
       set({ conversations: [], isLoading: false });
     }
+  },
+  removeTempMessage: (conversationId: string, tempId: string) => {
+    set(state => ({
+      messages: {
+        ...state.messages,
+        [conversationId]: (state.messages[conversationId] || []).filter(m => m.tempId !== tempId)
+      }
+    }));
   },
   loadMessages: async (conversationId: string, limit: number = 50) => {
     try {
@@ -560,6 +569,16 @@ export const useChatStore = create<ChatState>((set, get) => ({
         }
       }));
       
+      // Auto-remove failed temp message after 30 seconds (if still failed)
+      setTimeout(() => {
+        const state = get();
+        const convMsgs = state.messages[conversationId] || [];
+        const stillFailed = convMsgs.find(m => m.tempId === tempId && m.status === 'failed');
+        if (stillFailed) {
+          state && state.messages && state.messages[conversationId] && get().removeTempMessage(conversationId, tempId);
+        }
+      }, 30000);
+
       console.error('❌ Error details:', {
         message: error.message,
         stack: error.stack,

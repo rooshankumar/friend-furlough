@@ -44,13 +44,18 @@ export const usePullToRefresh = ({
     const currentY = e.touches[0].clientY;
     const distance = Math.max(0, currentY - startY.current);
     
-    // Apply resistance effect
-    const resistedDistance = Math.min(distance * 0.5, threshold * 1.5);
-    setPullDistance(resistedDistance);
+    // Only activate pull-to-refresh if pulling down (positive distance)
+    if (distance > 10) {
+      // Apply resistance effect
+      const resistedDistance = Math.min(distance * 0.5, threshold * 1.5);
+      setPullDistance(resistedDistance);
 
-    // Prevent default scroll when pulling
-    if (distance > 0) {
+      // Prevent default scroll when pulling down
       e.preventDefault();
+    } else {
+      // Allow normal scrolling
+      setIsPulling(false);
+      setPullDistance(0);
     }
   }, [isPulling, disabled, isRefreshing, threshold]);
 

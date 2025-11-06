@@ -10,11 +10,11 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useTheme } from '@/components/ThemeProvider';
-import { Moon, Sun, Monitor, Bell, Globe, Lock, User, Camera, Loader2, LogOut, Save, X, Plus, Languages, MapPin, Heart } from 'lucide-react';
+import { Moon, Sun, Monitor, Bell, Globe, Lock, User, Camera, Loader2, LogOut, Save, X, Plus, Languages } from 'lucide-react';
 import { Separator } from '@/components/ui/separator';
 import { useAuthStore } from '@/stores/authStore';
 import { useToast } from '@/hooks/use-toast';
-import { uploadAvatar } from '@/lib/storage';
+import { uploadAvatar } from '@/lib/uploadManager';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { countries } from '@/data/countries';
@@ -50,9 +50,6 @@ export default function SettingsPage() {
   const [learningLanguages, setLearningLanguages] = useState<string[]>([]);
   const [newNativeLang, setNewNativeLang] = useState('');
   const [newLearningLang, setNewLearningLang] = useState('');
-  const [newLookingFor, setNewLookingFor] = useState('');
-  const [newLanguageGoal, setNewLanguageGoal] = useState('');
-  const [newCountryVisited, setNewCountryVisited] = useState('');
 
   // Load profile data
   useEffect(() => {
@@ -102,23 +99,6 @@ export default function SettingsPage() {
 
   const handleInputChange = (field: string, value: any) => {
     setFormData(prev => ({ ...prev, [field]: value }));
-  };
-
-  const handleArrayAdd = (field: string, value: string) => {
-    const currentValue = formData[field as keyof typeof formData];
-    if (value && Array.isArray(currentValue) && !currentValue.includes(value)) {
-      setFormData(prev => ({
-        ...prev,
-        [field]: [...currentValue, value]
-      }));
-    }
-  };
-
-  const handleArrayRemove = (field: string, value: string) => {
-    setFormData(prev => ({
-      ...prev,
-      [field]: (prev[field as keyof typeof prev] as string[]).filter(item => item !== value)
-    }));
   };
 
   const addNativeLanguage = () => {
@@ -200,7 +180,6 @@ export default function SettingsPage() {
         .single();
 
       if (!fetchError && updatedProfile) {
-        // Type-safe profile update
         const profileUpdate: any = { ...updatedProfile };
         await updateProfile(profileUpdate);
         
@@ -224,21 +203,19 @@ export default function SettingsPage() {
     }
   };
 
-  const handleAvatarUpload = async (e: React.ChangeEvent<HTMLInputElement>) =>{
+  const handleAvatarUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file || !user?.id) return;
 
-    // Validate file type
     if (!file.type.startsWith('image/')) {
       toast({
         title: "Invalid file type",
-        description: "Please select an image file (JPG, PNG, etc.)",
+        description: "Please select an image file",
         variant: "destructive"
       });
       return;
     }
 
-    // Validate file size (5MB max)
     if (file.size > 5 * 1024 * 1024) {
       toast({
         title: "File too large",
@@ -251,30 +228,18 @@ export default function SettingsPage() {
     try {
       setIsUploading(true);
       
-      toast({
-        title: "Uploading...",
-        description: "Compressing and uploading your avatar"
+      const avatarUrl = await uploadAvatar(user.id, file, (progress) => {
+        if (progress === 100) {
+          toast({ title: "Avatar uploaded! ✨" });
+        }
       });
-      
-      console.log('Uploading avatar for user:', user.id);
-      const avatarUrl = await uploadAvatar(file, user.id);
-      console.log('Avatar uploaded, URL:', avatarUrl);
       
       await updateProfile({ avatar_url: avatarUrl });
-      console.log('Profile updated with avatar URL');
-      
-      toast({
-        title: "Avatar updated! ✨",
-        description: "Your profile photo has been updated successfully."
-      });
-      
-      // Reload the page to fetch updated profile
-      setTimeout(() => window.location.reload(), 1000);
+      queryClient.invalidateQueries({ queryKey: ['profile'] });
     } catch (error: any) {
-      console.error('Avatar upload error:', error);
       toast({
         title: "Upload failed",
-        description: error.message || "Failed to upload avatar. Please try again.",
+        description: error.message,
         variant: "destructive"
       });
     } finally {
@@ -282,116 +247,85 @@ export default function SettingsPage() {
     }
   };
 
-
   return (
-    <div className="min-h-screen md:ml-16 bg-gradient-subtle pb-16 md:pb-0 overflow-auto">
-      <div className="p-3 md:p-8 max-w-5xl mx-auto">
-        {/* Header - Hidden on Mobile */}
+    <div className="min-h-screen md:ml-16 bg-gradient-subtle pb-20 md:pb-4 overflow-auto">
+      <div className="p-4 md:p-8 max-w-5xl mx-auto">
         <div className="hidden md:block mb-6">
           <h1 className="text-3xl font-bold">Settings</h1>
-          <p className="text-muted-foreground">
-            Manage your profile and preferences
-          </p>
+          <p className="text-muted-foreground">Manage your profile and preferences</p>
         </div>
 
-        {/* Tabbed Interface */}
         <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4">
-          <TabsList className="grid w-full grid-cols-4 lg:grid-cols-5">
-            <TabsTrigger value="profile" className="text-xs md:text-sm">
-              <User className="h-4 w-4 mr-0 md:mr-2" />
-              <span className="hidden md:inline">Profile</span>
+          <TabsList className="grid w-full grid-cols-2">
+            <TabsTrigger value="profile" className="text-sm">
+              <User className="h-4 w-4 mr-2" />
+              Profile & Languages
             </TabsTrigger>
-            <TabsTrigger value="languages" className="text-xs md:text-sm">
-              <Languages className="h-4 w-4 mr-0 md:mr-2" />
-              <span className="hidden md:inline">Languages</span>
-            </TabsTrigger>
-            <TabsTrigger value="appearance" className="text-xs md:text-sm">
-              <Sun className="h-4 w-4 mr-0 md:mr-2" />
-              <span className="hidden md:inline">Appearance</span>
-            </TabsTrigger>
-            <TabsTrigger value="privacy" className="text-xs md:text-sm">
-              <Lock className="h-4 w-4 mr-0 md:mr-2" />
-              <span className="hidden md:inline">Privacy</span>
-            </TabsTrigger>
-            <TabsTrigger value="account" className="text-xs md:text-sm">
-              <LogOut className="h-4 w-4 mr-0 md:mr-2" />
-              <span className="hidden md:inline">Account</span>
+            <TabsTrigger value="preferences" className="text-sm">
+              <Lock className="h-4 w-4 mr-2" />
+              Preferences
             </TabsTrigger>
           </TabsList>
 
-          {/* Profile Tab */}
+          {/* Profile & Languages Tab */}
           <TabsContent value="profile" className="space-y-4">
-        {/* Avatar Upload Only */}
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <User className="h-5 w-5" />
-              Avatar
-            </CardTitle>
-            <CardDescription>
-              Update your profile picture
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-6">
-            {/* Avatar Upload */}
-            <div className="flex items-center gap-4">
-              <Avatar className="h-20 w-20">
-                <AvatarImage src={profile?.avatar_url || user?.user_metadata?.avatar_url} />
-                <AvatarFallback className="bg-gradient-cultural text-white text-lg">
-                  {profile?.name?.[0] || user?.email?.[0]?.toUpperCase() || 'U'}
-                </AvatarFallback>
-              </Avatar>
-              <div className="space-y-2">
-                <Label htmlFor="avatar" className="cursor-pointer">
-                  <Button variant="outline" size="sm" asChild>
-                    <span>
-                      {isUploading ? (
-                        <>
-                          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                          Uploading...
-                        </>
-                      ) : (
-                        <>
-                          <Camera className="mr-2 h-4 w-4" />
-                          Change Avatar
-                        </>
-                      )}
-                    </span>
-                  </Button>
-                </Label>
-                <input
-                  id="avatar"
-                  type="file"
-                  accept="image/jpeg,image/jpg,image/png,image/gif,image/webp"
-                  onChange={handleAvatarUpload}
-                  className="hidden"
-                  disabled={isUploading}
-                  style={{ display: 'none' }}
-                />
-                <p className="text-xs text-muted-foreground">
-                  JPG, PNG or GIF. Max size 5MB.
-                </p>
-              </div>
-            </div>
-
-          </CardContent>
-        </Card>
-
-            {/* Profile Information */}
+            {/* Avatar */}
             <Card>
               <CardHeader>
-                <CardTitle>Profile Information</CardTitle>
-                <CardDescription>Update your personal details</CardDescription>
+                <CardTitle className="flex items-center gap-2">
+                  <User className="h-5 w-5" />
+                  Profile Picture
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="flex items-center gap-4">
+                  <Avatar className="h-20 w-20">
+                    <AvatarImage src={profile?.avatar_url || user?.user_metadata?.avatar_url} />
+                    <AvatarFallback className="bg-gradient-cultural text-white text-lg">
+                      {profile?.name?.[0] || user?.email?.[0]?.toUpperCase() || 'U'}
+                    </AvatarFallback>
+                  </Avatar>
+                  <div>
+                    <Label htmlFor="avatar" className="cursor-pointer">
+                      <Button variant="outline" size="sm" asChild disabled={isUploading}>
+                        <span>
+                          {isUploading ? (
+                            <><Loader2 className="mr-2 h-4 w-4 animate-spin" />Uploading...</>
+                          ) : (
+                            <><Camera className="mr-2 h-4 w-4" />Change Photo</>
+                          )}
+                        </span>
+                      </Button>
+                    </Label>
+                    <input
+                      id="avatar"
+                      type="file"
+                      accept="image/*"
+                      onChange={handleAvatarUpload}
+                      style={{ display: 'none' }}
+                      disabled={isUploading}
+                    />
+                    <p className="text-xs text-muted-foreground mt-1">JPG, PNG or GIF. Max 5MB.</p>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* Profile Info */}
+            <Card>
+              <CardHeader>
+                <CardTitle>Personal Information</CardTitle>
               </CardHeader>
               <CardContent className="space-y-4">
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div className="space-y-2">
-                    <Label htmlFor="name">Name</Label>
+                    <Label htmlFor="name">Name *</Label>
                     <Input
                       id="name"
                       value={formData.name}
                       onChange={(e) => handleInputChange('name', e.target.value)}
                       placeholder="Your name"
+                      className="text-base"
                     />
                   </div>
                   <div className="space-y-2">
@@ -402,6 +336,7 @@ export default function SettingsPage() {
                       value={formData.age}
                       onChange={(e) => handleInputChange('age', e.target.value)}
                       placeholder="Age"
+                      className="text-base"
                     />
                   </div>
                 </div>
@@ -413,13 +348,14 @@ export default function SettingsPage() {
                     onChange={(e) => handleInputChange('bio', e.target.value)}
                     placeholder="Tell us about yourself..."
                     rows={3}
+                    className="text-base resize-none"
                   />
                 </div>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div className="space-y-2">
                     <Label htmlFor="gender">Gender</Label>
                     <Select value={formData.gender} onValueChange={(value) => handleInputChange('gender', value)}>
-                      <SelectTrigger>
+                      <SelectTrigger className="text-base">
                         <SelectValue placeholder="Select gender" />
                       </SelectTrigger>
                       <SelectContent>
@@ -433,7 +369,7 @@ export default function SettingsPage() {
                   <div className="space-y-2">
                     <Label htmlFor="country">Country</Label>
                     <Select value={formData.country} onValueChange={(value) => handleInputChange('country', value)}>
-                      <SelectTrigger>
+                      <SelectTrigger className="text-base">
                         <SelectValue placeholder="Select country" />
                       </SelectTrigger>
                       <SelectContent>
@@ -451,40 +387,34 @@ export default function SettingsPage() {
                     value={formData.city}
                     onChange={(e) => handleInputChange('city', e.target.value)}
                     placeholder="Your city"
+                    className="text-base"
                   />
                 </div>
               </CardContent>
             </Card>
 
-            {/* Save Button */}
-            <Button onClick={handleSaveProfile} disabled={isSaving} className="w-full">
-              {isSaving ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Save className="h-4 w-4 mr-2" />}
-              Save Changes
-            </Button>
-
-          </TabsContent>
-
-          {/* Languages Tab */}
-          <TabsContent value="languages" className="space-y-4">
+            {/* Languages */}
             <Card>
               <CardHeader>
-                <CardTitle>Languages</CardTitle>
-                <CardDescription>Manage your native and learning languages</CardDescription>
+                <CardTitle className="flex items-center gap-2">
+                  <Languages className="h-5 w-5" />
+                  Languages
+                </CardTitle>
               </CardHeader>
               <CardContent className="space-y-4">
                 <div>
                   <Label>Native Languages</Label>
                   <div className="flex gap-2 mt-2 flex-wrap">
                     {nativeLanguages.map(lang => (
-                      <Badge key={lang} variant="secondary">
+                      <Badge key={lang} variant="secondary" className="gap-1">
                         {lang}
-                        <X className="h-3 w-3 ml-1 cursor-pointer" onClick={() => removeNativeLanguage(lang)} />
+                        <X className="h-3 w-3 cursor-pointer" onClick={() => removeNativeLanguage(lang)} />
                       </Badge>
                     ))}
                   </div>
                   <div className="flex gap-2 mt-2">
                     <Select value={newNativeLang} onValueChange={setNewNativeLang}>
-                      <SelectTrigger className="flex-1">
+                      <SelectTrigger className="text-base">
                         <SelectValue placeholder="Add native language" />
                       </SelectTrigger>
                       <SelectContent>
@@ -493,25 +423,27 @@ export default function SettingsPage() {
                         ))}
                       </SelectContent>
                     </Select>
-                    <Button onClick={addNativeLanguage} size="sm">
+                    <Button onClick={addNativeLanguage} size="sm" className="min-w-[44px] min-h-[44px]">
                       <Plus className="h-4 w-4" />
                     </Button>
                   </div>
                 </div>
+
                 <Separator />
+
                 <div>
                   <Label>Learning Languages</Label>
                   <div className="flex gap-2 mt-2 flex-wrap">
                     {learningLanguages.map(lang => (
-                      <Badge key={lang} variant="secondary">
+                      <Badge key={lang} variant="outline" className="gap-1">
                         {lang}
-                        <X className="h-3 w-3 ml-1 cursor-pointer" onClick={() => removeLearningLanguage(lang)} />
+                        <X className="h-3 w-3 cursor-pointer" onClick={() => removeLearningLanguage(lang)} />
                       </Badge>
                     ))}
                   </div>
                   <div className="flex gap-2 mt-2">
                     <Select value={newLearningLang} onValueChange={setNewLearningLang}>
-                      <SelectTrigger className="flex-1">
+                      <SelectTrigger className="text-base">
                         <SelectValue placeholder="Add learning language" />
                       </SelectTrigger>
                       <SelectContent>
@@ -520,136 +452,151 @@ export default function SettingsPage() {
                         ))}
                       </SelectContent>
                     </Select>
-                    <Button onClick={addLearningLanguage} size="sm">
+                    <Button onClick={addLearningLanguage} size="sm" className="min-w-[44px] min-h-[44px]">
                       <Plus className="h-4 w-4" />
                     </Button>
                   </div>
                 </div>
               </CardContent>
             </Card>
-            <Button onClick={handleSaveProfile} disabled={isSaving} className="w-full">
-              {isSaving ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Save className="h-4 w-4 mr-2" />}
-              Save Changes
+
+            {/* Save Button */}
+            <Button 
+              onClick={handleSaveProfile} 
+              disabled={isSaving} 
+              className="w-full min-h-[44px] text-base"
+              size="lg"
+            >
+              {isSaving ? <Loader2 className="h-5 w-5 mr-2 animate-spin" /> : <Save className="h-5 w-5 mr-2" />}
+              Save Profile & Languages
             </Button>
           </TabsContent>
 
-          {/* Appearance Tab */}
-          <TabsContent value="appearance" className="space-y-4">
+          {/* Preferences Tab */}
+          <TabsContent value="preferences" className="space-y-4">
+            {/* Appearance */}
             <Card>
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
                   <Sun className="h-5 w-5" />
-                  Theme
+                  Appearance
                 </CardTitle>
-                <CardDescription>Choose your preferred theme</CardDescription>
+                <CardDescription>Customize how the app looks</CardDescription>
               </CardHeader>
-              <CardContent>
-                <div className="flex gap-4">
-                  <Button
-                    variant={theme === 'light' ? 'default' : 'outline'}
-                    onClick={() => setTheme('light')}
-                    className="flex-1"
-                  >
-                    <Sun className="h-4 w-4 mr-2" />
-                    Light
-                  </Button>
-                  <Button
-                    variant={theme === 'dark' ? 'default' : 'outline'}
-                    onClick={() => setTheme('dark')}
-                    className="flex-1"
-                  >
-                    <Moon className="h-4 w-4 mr-2" />
-                    Dark
-                  </Button>
-                  <Button
-                    variant={theme === 'system' ? 'default' : 'outline'}
-                    onClick={() => setTheme('system')}
-                    className="flex-1"
-                  >
-                    <Monitor className="h-4 w-4 mr-2" />
-                    System
-                  </Button>
+              <CardContent className="space-y-4">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <Label>Theme</Label>
+                    <p className="text-sm text-muted-foreground">Choose your preferred theme</p>
+                  </div>
+                  <div className="flex gap-2">
+                    <Button
+                      variant={theme === 'light' ? 'default' : 'outline'}
+                      size="sm"
+                      onClick={() => setTheme('light')}
+                      className="min-w-[44px] min-h-[44px]"
+                    >
+                      <Sun className="h-4 w-4" />
+                    </Button>
+                    <Button
+                      variant={theme === 'dark' ? 'default' : 'outline'}
+                      size="sm"
+                      onClick={() => setTheme('dark')}
+                      className="min-w-[44px] min-h-[44px]"
+                    >
+                      <Moon className="h-4 w-4" />
+                    </Button>
+                    <Button
+                      variant={theme === 'system' ? 'default' : 'outline'}
+                      size="sm"
+                      onClick={() => setTheme('system')}
+                      className="min-w-[44px] min-h-[44px]"
+                    >
+                      <Monitor className="h-4 w-4" />
+                    </Button>
+                  </div>
                 </div>
               </CardContent>
             </Card>
-          </TabsContent>
 
-          {/* Privacy Tab */}
-          <TabsContent value="privacy" className="space-y-4">
+            {/* Privacy */}
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Lock className="h-5 w-5" />
+                  Privacy & Security
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="flex items-center justify-between py-2">
+                  <div>
+                    <Label>Show Online Status</Label>
+                    <p className="text-sm text-muted-foreground">Let others see when you're online</p>
+                  </div>
+                  <Switch defaultChecked />
+                </div>
+                <Separator />
+                <div className="flex items-center justify-between py-2">
+                  <div>
+                    <Label>Profile Visibility</Label>
+                    <p className="text-sm text-muted-foreground">Who can view your profile</p>
+                  </div>
+                  <Switch defaultChecked />
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* Notifications */}
             <Card>
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
                   <Bell className="h-5 w-5" />
                   Notifications
                 </CardTitle>
-                <CardDescription>Configure notification preferences</CardDescription>
               </CardHeader>
               <CardContent className="space-y-4">
-                <div className="flex items-center justify-between">
-                  <div className="space-y-0.5">
-                    <Label>New Messages</Label>
-                    <p className="text-sm text-muted-foreground">Get notified about new messages</p>
+                <div className="flex items-center justify-between py-2">
+                  <div>
+                    <Label>Push Notifications</Label>
+                    <p className="text-sm text-muted-foreground">Receive notifications on this device</p>
                   </div>
                   <Switch defaultChecked />
                 </div>
                 <Separator />
-                <div className="flex items-center justify-between">
-                  <div className="space-y-0.5">
+                <div className="flex items-center justify-between py-2">
+                  <div>
+                    <Label>Message Alerts</Label>
+                    <p className="text-sm text-muted-foreground">Get notified of new messages</p>
+                  </div>
+                  <Switch defaultChecked />
+                </div>
+                <Separator />
+                <div className="flex items-center justify-between py-2">
+                  <div>
                     <Label>Friend Requests</Label>
-                    <p className="text-sm text-muted-foreground">Get notified about friend requests</p>
+                    <p className="text-sm text-muted-foreground">Notifications for friend requests</p>
                   </div>
                   <Switch defaultChecked />
                 </div>
               </CardContent>
             </Card>
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <Lock className="h-5 w-5" />
-                  Privacy
-                </CardTitle>
-                <CardDescription>Manage privacy settings</CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <div className="flex items-center justify-between">
-                  <div className="space-y-0.5">
-                    <Label>Profile Visibility</Label>
-                    <p className="text-sm text-muted-foreground">Make profile visible to everyone</p>
-                  </div>
-                  <Switch defaultChecked />
-                </div>
-                <Separator />
-                <div className="flex items-center justify-between">
-                  <div className="space-y-0.5">
-                    <Label>Show Online Status</Label>
-                    <p className="text-sm text-muted-foreground">Let others see when you're online</p>
-                  </div>
-                  <Switch defaultChecked />
-                </div>
-              </CardContent>
-            </Card>
-          </TabsContent>
 
-          {/* Account Tab */}
-          <TabsContent value="account" className="space-y-4">
+            {/* Sign Out */}
             <Card className="border-destructive/50">
               <CardHeader>
                 <CardTitle className="flex items-center gap-2 text-destructive">
                   <LogOut className="h-5 w-5" />
-                  Sign Out
+                  Account
                 </CardTitle>
-                <CardDescription>Sign out of your account</CardDescription>
               </CardHeader>
               <CardContent>
-                <p className="text-sm text-muted-foreground mb-4">
-                  You will be redirected to the home page.
-                </p>
                 <Button 
                   variant="destructive" 
-                  onClick={handleLogout}
-                  className="w-full sm:w-auto"
+                  onClick={handleLogout} 
+                  className="w-full min-h-[44px] text-base"
+                  size="lg"
                 >
-                  <LogOut className="h-4 w-4 mr-2" />
+                  <LogOut className="h-5 w-5 mr-2" />
                   Sign Out
                 </Button>
               </CardContent>

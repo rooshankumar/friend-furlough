@@ -169,7 +169,7 @@ export const PostCreator: React.FC<PostCreatorProps> = ({
               type="file"
               multiple
               accept="image/*"
-              className="hidden"
+              style={{ display: 'none' }}
               onChange={handleImageSelect}
               disabled={isSubmitting || isLoading}
             />

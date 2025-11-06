@@ -199,17 +199,23 @@ export const useChatStore = create<ChatState>((set, get) => ({
         };
       });
       
+      // Filter out deleted conversations
+      const deletedConvs = JSON.parse(sessionStorage.getItem('deletedConversations') || '[]');
+      const filteredConversations = conversationsWithDetails.filter(
+        conv => !deletedConvs.includes(conv.id)
+      );
+      
       // Sort by most recent activity
-      conversationsWithDetails.sort((a, b) => {
+      filteredConversations.sort((a, b) => {
         const aTime = a.lastMessage?.created_at || a.updated_at;
         const bTime = b.lastMessage?.created_at || b.updated_at;
         return new Date(bTime).getTime() - new Date(aTime).getTime();
       });
       
-      console.log('💬 Final conversations with details:', conversationsWithDetails);
-      console.log('💬 First conversation sample:', conversationsWithDetails[0]);
+      console.log('💬 Final conversations with details:', filteredConversations);
+      console.log('💬 First conversation sample:', filteredConversations[0]);
       
-      set({ conversations: conversationsWithDetails, isLoading: false });
+      set({ conversations: filteredConversations, isLoading: false });
     } catch (error) {
       console.error('Error loading conversations:', error);
       set({ conversations: [], isLoading: false });
@@ -1049,6 +1055,15 @@ export const useChatStore = create<ChatState>((set, get) => ({
 
   deleteConversation: async (conversationId: string, userId: string) => {
     try {
+      console.log('🗑️ Deleting conversation:', conversationId);
+      
+      // Store deleted conversation in session storage
+      const deletedConvs = JSON.parse(sessionStorage.getItem('deletedConversations') || '[]');
+      if (!deletedConvs.includes(conversationId)) {
+        deletedConvs.push(conversationId);
+        sessionStorage.setItem('deletedConversations', JSON.stringify(deletedConvs));
+      }
+      
       // Delete the conversation participant record (soft delete from user's perspective)
       const { error } = await supabase
         .from('conversation_participants')

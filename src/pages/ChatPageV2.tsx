@@ -920,7 +920,7 @@ const ChatPageV2 = () => {
                 type="file"
                 accept="image/*,video/*,.pdf,.doc,.docx"
                 onChange={handleAttachmentUpload}
-                className="hidden"
+                style={{ display: 'none' }}
               />
               <Input
                 value={newMessage}

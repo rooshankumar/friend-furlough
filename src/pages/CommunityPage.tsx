@@ -1,4 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
+import { isMobileApp } from '@/lib/mobileFilePicker';
+import MobileFileInput from '@/components/MobileFileInput';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuthStore } from '@/stores/authStore';
 import { usePostReactionStore } from '@/stores/postReactionStore';
@@ -386,6 +388,42 @@ const CommunityPage = () => {
     }
   };
 
+  // Handle file selection from MobileFileInput component
+  const handleMobileFileSelect = (file: File) => {
+    // Process a single file from mobile picker
+    const validation = mobileUploadHelper.validateFile(file, {
+      maxSizeMB: 10,
+      allowedTypes: ['image/']
+    });
+    
+    if (!validation.valid) {
+      toast({
+        title: "File couldn't be added",
+        description: getMobileErrorMessage(validation.error!),
+        variant: "destructive",
+      });
+      return;
+    }
+    
+    if (selectedImages.length >= 4) {
+      toast({
+        title: "Image limit",
+        description: "Maximum 4 images per post",
+        variant: "destructive",
+      });
+      return;
+    }
+    
+    setSelectedImages(prev => [...prev, file]);
+    
+    const reader = new FileReader();
+    reader.onloadend = () => {
+      setImagePreviews(prev => [...prev, reader.result as string]);
+    };
+    reader.readAsDataURL(file);
+  };
+
+  // Handle file selection from traditional file input
   const handleImageSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = Array.from(e.target.files || []);
     if (files.length === 0) return;
@@ -916,24 +954,39 @@ const CommunityPage = () => {
                   className="bg-background/60 border-border/50 text-sm h-9"
                   style={{ fontSize: '16px' }}
                 />
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => document.getElementById('post-image')?.click()}
-                  disabled={selectedImages.length >= 4}
-                  className="h-9 w-9 p-0 flex-shrink-0"
-                >
-                  <Upload className="h-4 w-4" />
-                </Button>
-                <input
-                  id="post-image"
-                  type="file"
-                  accept="image/*"
-                  capture="environment"
-                  multiple
-                  className="hidden"
-                  onChange={handleImageSelect}
-                />
+                {isMobileApp() ? (
+                  <MobileFileInput
+                    onFileSelect={handleMobileFileSelect}
+                    accept="image/*"
+                    buttonText=""
+                    icon={<Upload className="h-4 w-4" />}
+                    variant="ghost"
+                    size="icon"
+                    className="h-9 w-9 p-0 flex-shrink-0"
+                    disabled={selectedImages.length >= 4 || isPosting}
+                    maxSizeMB={10}
+                  />
+                ) : (
+                  <>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => document.getElementById('post-image')?.click()}
+                      disabled={selectedImages.length >= 4}
+                      className="h-9 w-9 p-0 flex-shrink-0"
+                    >
+                      <Upload className="h-4 w-4" />
+                    </Button>
+                    <input
+                      id="post-image"
+                      type="file"
+                      accept="image/*"
+                      multiple
+                      className="hidden"
+                      onChange={handleImageSelect}
+                    />
+                  </>
+                )}
                 <Button
                   onClick={handleCreatePost}
                   disabled={isPosting}
@@ -1369,25 +1422,40 @@ const CommunityPage = () => {
                 {/* Actions */}
                 <div className="flex items-center justify-between mt-4 pt-4 border-t border-border/50">
                   <div className="flex items-center gap-2">
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => document.getElementById('mobile-post-image')?.click()}
-                      disabled={selectedImages.length >= 4}
-                      className="h-9"
-                    >
-                      <Upload className="h-4 w-4 mr-1" />
-                      Photo
-                    </Button>
-                    <input
-                      id="mobile-post-image"
-                      type="file"
-                      accept="image/*"
-                      capture="environment"
-                      multiple
-                      className="hidden"
-                      onChange={handleImageSelect}
-                    />
+                    {isMobileApp() ? (
+                      <MobileFileInput
+                        onFileSelect={handleMobileFileSelect}
+                        accept="image/*"
+                        buttonText="Photo"
+                        icon={<Upload className="h-4 w-4 mr-1" />}
+                        variant="outline"
+                        size="sm"
+                        className="h-9"
+                        disabled={selectedImages.length >= 4 || isPosting}
+                        maxSizeMB={10}
+                      />
+                    ) : (
+                      <>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => document.getElementById('mobile-post-image')?.click()}
+                          disabled={selectedImages.length >= 4}
+                          className="h-9"
+                        >
+                          <Upload className="h-4 w-4 mr-1" />
+                          Photo
+                        </Button>
+                        <input
+                          id="mobile-post-image"
+                          type="file"
+                          accept="image/*"
+                          multiple
+                          className="hidden"
+                          onChange={handleImageSelect}
+                        />
+                      </>
+                    )}
                     {selectedImages.length > 0 && (
                       <span className="text-xs text-muted-foreground">
                         {selectedImages.length}/4

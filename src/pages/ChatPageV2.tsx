@@ -11,7 +11,9 @@
  * - Improved mobile UX
  */
 
-import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
+import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
+import { isMobileApp } from '@/lib/mobileFilePicker';
+import MobileFileInput from '@/components/MobileFileInput';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import { usePerformanceMonitor } from '@/hooks/usePerformanceOptimization';
 import { useAuthStore } from '@/stores/authStore';
@@ -301,6 +303,7 @@ const ChatPageV2 = () => {
   const [isTyping, setIsTyping] = useState(false);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
+  const [isUploadingAttachment, setIsUploadingAttachment] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   
   // Pull-to-refresh for messages
@@ -486,16 +489,13 @@ const ChatPageV2 = () => {
     removeTempMessage(conversationId, message.tempId);
   };
 
-  const handleAttachmentUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    
+  const handleAttachmentUpload = async (file: File) => {
     if (!file || !conversationId || !user) {
       toast({
         title: "Upload failed",
         description: "Missing file, conversation, or user information",
         variant: "destructive"
       });
-      e.target.value = '';
       return;
     }
     
@@ -507,7 +507,6 @@ const ChatPageV2 = () => {
         description: `Maximum file size is 20MB. Your file is ${(file.size / 1024 / 1024).toFixed(2)}MB`,
         variant: "destructive"
       });
-      e.target.value = '';
       return;
     }
 
@@ -517,9 +516,10 @@ const ChatPageV2 = () => {
         description: "Attachments require an internet connection.",
         variant: "destructive"
       });
-      e.target.value = '';
       return;
     }
+    
+    setIsUploadingAttachment(true);
     
     try {
       toast({
@@ -540,6 +540,15 @@ const ChatPageV2 = () => {
         variant: "destructive"
       });
     } finally {
+      setIsUploadingAttachment(false);
+    }
+  };
+  
+  // Handle file input change event (for web)
+  const handleFileInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      handleAttachmentUpload(file);
       e.target.value = '';
     }
   };
@@ -1010,21 +1019,44 @@ const ChatPageV2 = () => {
                   </div>
                 )}
               </div>
-              <Button 
-                size="sm" 
-                variant="ghost" 
-                className="h-9 w-9 p-0 flex-shrink-0"
-                onClick={() => fileInputRef.current?.click()}
-              >
-                <Paperclip className="h-5 w-5" />
-              </Button>
-              <input
-                ref={fileInputRef}
-                type="file"
-                accept="image/*,video/*,.pdf,.doc,.docx"
-                onChange={handleAttachmentUpload}
-                style={{ display: 'none' }}
-              />
+              {isMobileApp() ? (
+                <MobileFileInput
+                  onFileSelect={handleAttachmentUpload}
+                  accept="image/*,video/*,audio/*,.pdf,.doc,.docx,.txt"
+                  icon={<Paperclip className="h-5 w-5" />}
+                  buttonText=""
+                  variant="ghost"
+                  size="icon"
+                  className="h-9 w-9 p-0 flex-shrink-0"
+                  disabled={!isOnline}
+                  isLoading={isUploadingAttachment}
+                  maxSizeMB={20}
+                />
+              ) : (
+                <>
+                  <Button 
+                    size="sm" 
+                    variant="ghost" 
+                    className="h-9 w-9 p-0 flex-shrink-0"
+                    onClick={() => fileInputRef.current?.click()}
+                    disabled={!isOnline || isUploadingAttachment}
+                  >
+                    {isUploadingAttachment ? (
+                      <Loader2 className="h-5 w-5 animate-spin" />
+                    ) : (
+                      <Paperclip className="h-5 w-5" />
+                    )}
+                  </Button>
+                  <input
+                    ref={fileInputRef}
+                    type="file"
+                    accept="image/*,video/*,.pdf,.doc,.docx"
+                    onChange={handleFileInputChange}
+                    style={{ display: 'none' }}
+                    disabled={!isOnline || isUploadingAttachment}
+                  />
+                </>
+              )}
               <Input
                 value={newMessage}
                 onChange={(e) => {

@@ -36,6 +36,17 @@ const config: CapacitorConfig = {
       resize: 'body',
       style: 'dark',
       resizeOnFullScreen: true
+    },
+    // File handling plugins
+    CapacitorFilePicker: {
+      // No special config needed
+    },
+    CapacitorFilesystem: {
+      // No special config needed
+    },
+    // Permission handling
+    CapacitorPermissions: {
+      // No special config needed
     }
   }
 };

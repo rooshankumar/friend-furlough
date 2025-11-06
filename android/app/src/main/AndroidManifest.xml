@@ -9,8 +9,7 @@
         android:supportsRtl="true"
         android:theme="@style/AppTheme"
         android:hardwareAccelerated="true"
-        android:largeHeap="true"
-        android:usesCleartextTraffic="false">
+        android.largeHeap="true">
 
         <activity
             android:configChanges="orientation|keyboardHidden|keyboard|screenSize|locale|smallestScreenSize|screenLayout|uiMode|navigation"
@@ -23,6 +22,17 @@
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
                 <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+
+            <!-- Deep Link for OAuth Callback - Supabase HTTPS URL -->
+            <intent-filter android:autoVerify="true">
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data 
+                    android:scheme="https"
+                    android:host="bblrxervgwkphkctdghe.supabase.co"
+                    android:pathPrefix="/auth/v1/callback" />
             </intent-filter>
 
         </activity>

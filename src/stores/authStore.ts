@@ -188,13 +188,9 @@ export const useAuthStore = create<AuthState>()(
       },
 
       signInWithGoogle: async () => {
-        const { error } = await supabase.auth.signInWithOAuth({
-          provider: 'google',
-          options: {
-            redirectTo: `${window.location.origin}/`,
-          },
-        });
-        return { error };
+        // Use mobile-optimized OAuth if on mobile
+        const { signInWithGoogleMobile } = await import('@/lib/mobileAuth');
+        return await signInWithGoogleMobile();
       },
       
       signOut: async () => {

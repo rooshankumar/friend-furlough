@@ -176,9 +176,22 @@ const AppContent = () => {
 
 const App = () => {
   const { initialize } = useAuthStore();
-  // Initialize auth on mount
+  
+  // Initialize auth and OAuth listener on mount
   React.useEffect(() => {
     initialize();
+    
+    // Initialize OAuth deep link listener for mobile
+    import('@/lib/mobileAuth').then(({ initOAuthListener }) => {
+      initOAuthListener();
+    });
+    
+    // Cleanup on unmount
+    return () => {
+      import('@/lib/mobileAuth').then(({ removeOAuthListener }) => {
+        removeOAuthListener();
+      });
+    };
   }, [initialize]);
   
   return (

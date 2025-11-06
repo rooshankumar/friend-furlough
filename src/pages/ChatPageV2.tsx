@@ -45,7 +45,8 @@ import {
   Paperclip,
   X,
   Play,
-  Pause
+  Pause,
+  Loader2
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { toastNotifications } from '@/lib/toastNotifications';
@@ -132,15 +133,48 @@ const EnhancedMessageV2: React.FC<EnhancedMessageV2Props> = ({
 
       <div className={`flex flex-col ${isOwnMessage ? 'items-end' : 'items-start'} max-w-[75%] relative`}>
         {/* Image Message */}
-        {message.type === 'image' && message.media_url ? (
+        {message.type === 'image' ? (
           <div className="relative group">
-            <img 
-              src={message.media_url} 
-              alt="Shared image"
-              loading="lazy"
-              decoding="async"
-              className="max-w-xs w-full h-auto max-h-64 object-cover rounded-2xl shadow-md"
-            />
+            {message.media_url ? (
+              <img 
+                src={message.media_url} 
+                alt="Shared image"
+                loading="lazy"
+                decoding="async"
+                className="max-w-xs w-full h-auto max-h-64 object-cover rounded-2xl shadow-md"
+              />
+            ) : (
+              // Placeholder while uploading
+              <div className="w-48 h-48 bg-muted/20 rounded-2xl flex items-center justify-center">
+                <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+              </div>
+            )}
+            
+            {/* Upload Progress Overlay */}
+            {message.status === 'sending' && message.uploadProgress !== undefined && message.uploadProgress < 100 && (
+              <div className="absolute inset-0 bg-black/40 rounded-2xl flex items-center justify-center backdrop-blur-sm">
+                <div className="relative inline-flex items-center justify-center" style={{ width: 48, height: 48 }}>
+                  <svg className="absolute transform -rotate-90" width={48} height={48}>
+                    <circle cx={24} cy={24} r={20} stroke="currentColor" strokeWidth={4} fill="none" className="text-white opacity-20" />
+                    <circle 
+                      cx={24} 
+                      cy={24} 
+                      r={20} 
+                      stroke="currentColor" 
+                      strokeWidth={4} 
+                      fill="none" 
+                      strokeDasharray={2 * Math.PI * 20}
+                      strokeDashoffset={2 * Math.PI * 20 - (message.uploadProgress / 100) * 2 * Math.PI * 20}
+                      strokeLinecap="round"
+                      className="text-white transition-all duration-300 ease-out"
+                    />
+                  </svg>
+                  <span className="absolute font-semibold text-[10px] text-white">
+                    {Math.round(message.uploadProgress)}%
+                  </span>
+                </div>
+              </div>
+            )}
           </div>
         ) : message.type === 'voice' && message.media_url ? (
           /* Voice Message - Modern Waveform */

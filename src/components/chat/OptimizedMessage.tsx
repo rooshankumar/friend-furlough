@@ -1,7 +1,8 @@
 import React from 'react';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { Check, CheckCheck } from 'lucide-react';
+import { Check, CheckCheck, Loader2 } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
+import { UploadProgress } from './UploadProgress';
 
 interface DbMessage {
   id: string;
@@ -13,6 +14,9 @@ interface DbMessage {
   language?: string;
   translation?: string;
   media_url?: string;
+  uploadProgress?: number;
+  status?: 'sending' | 'sent' | 'failed';
+  tempId?: string;
 }
 
 interface OptimizedMessageProps {
@@ -48,19 +52,45 @@ const AudioMessage = React.memo(({ src }: { src: string }) => (
   </div>
 ));
 
-// Memoized Image Component
-const ImageMessage = React.memo(({ src, alt }: { src: string; alt: string }) => (
-  <img 
-    src={src} 
-    alt={alt}
-    className="max-w-full h-auto cursor-pointer max-h-64 object-cover rounded-2xl"
-    onClick={() => window.open(src, '_blank')}
-    onError={(e) => {
-      console.error('Image failed to load:', src);
-      e.currentTarget.style.display = 'none';
-    }}
-    loading="lazy"
-  />
+// Memoized Image Component with Upload Progress
+const ImageMessage = React.memo(({ 
+  src, 
+  alt, 
+  uploadProgress, 
+  isUploading 
+}: { 
+  src?: string; 
+  alt: string;
+  uploadProgress?: number;
+  isUploading?: boolean;
+}) => (
+  <div className="relative">
+    {src ? (
+      <img 
+        src={src} 
+        alt={alt}
+        className="max-w-full h-auto cursor-pointer max-h-64 object-cover rounded-2xl"
+        onClick={() => window.open(src, '_blank')}
+        onError={(e) => {
+          console.error('Image failed to load:', src);
+          e.currentTarget.style.display = 'none';
+        }}
+        loading="lazy"
+      />
+    ) : (
+      // Placeholder while uploading
+      <div className="w-48 h-48 bg-muted/20 rounded-2xl flex items-center justify-center">
+        <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+      </div>
+    )}
+    
+    {/* Upload Progress Overlay */}
+    {isUploading && uploadProgress !== undefined && uploadProgress < 100 && (
+      <div className="absolute inset-0 bg-black/40 rounded-2xl flex items-center justify-center backdrop-blur-sm">
+        <UploadProgress progress={uploadProgress} size="md" />
+      </div>
+    )}
+  </div>
 ));
 
 // Memoized File Attachment Component
@@ -127,18 +157,27 @@ export const OptimizedMessage = React.memo<OptimizedMessageProps>(({
   isLastUserMessage,
   messageReadStatus
 }) => {
+  // Determine if message is currently uploading
+  const isUploading = message.status === 'sending' && message.uploadProgress !== undefined;
+
   // Memoize media content rendering
   const mediaContent = React.useMemo(() => {
-    if (!message.media_url) return null;
-
     if (message.type === 'image') {
-      return <ImageMessage src={message.media_url} alt="Attachment" />;
-    } else if (message.type === 'voice') {
+      return (
+        <ImageMessage 
+          src={message.media_url} 
+          alt="Attachment"
+          uploadProgress={message.uploadProgress}
+          isUploading={isUploading}
+        />
+      );
+    } else if (message.type === 'voice' && message.media_url) {
       return <AudioMessage src={message.media_url} />;
-    } else {
+    } else if (message.media_url) {
       return <FileMessage src={message.media_url} content={message.content} />;
     }
-  }, [message.media_url, message.type, message.content]);
+    return null;
+  }, [message.media_url, message.type, message.content, message.uploadProgress, isUploading]);
 
   // Memoize message styling
   const messageStyle = React.useMemo(() => {

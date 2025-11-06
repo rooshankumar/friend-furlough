@@ -175,6 +175,21 @@ const EnhancedMessageV2: React.FC<EnhancedMessageV2Props> = ({
                 </div>
               </div>
             )}
+            
+            {/* Failed Upload Overlay with Retry */}
+            {message.status === 'failed' && (
+              <div className="absolute inset-0 bg-red-500/40 rounded-2xl flex flex-col items-center justify-center backdrop-blur-sm gap-2">
+                <div className="text-white text-sm font-semibold">Upload Failed</div>
+                <Button
+                  size="sm"
+                  variant="secondary"
+                  className="h-8 text-xs"
+                  onClick={() => onRetry?.(message)}
+                >
+                  Retry
+                </Button>
+              </div>
+            )}
           </div>
         ) : message.type === 'voice' && message.media_url ? (
           /* Voice Message - Modern Waveform */
@@ -454,6 +469,20 @@ const ChatPageV2 = () => {
         variant: "destructive"
       });
     }
+  };
+
+  const handleRetryUpload = async (message: any) => {
+    if (!conversationId || !user || !message.tempId) return;
+    
+    // Find the original file from the failed message
+    // Since we don't have the file, we'll need to ask user to reselect
+    toast({
+      title: "Retry Upload",
+      description: "Please select the file again to retry upload",
+    });
+    
+    // Trigger file input
+    fileInputRef.current?.click();
   };
 
   const handleAttachmentUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -908,6 +937,7 @@ const ChatPageV2 = () => {
                   onReact={handleReact}
                   onCopy={handleCopyMessage}
                   onDelete={handleDeleteMessage}
+                  onRetry={handleRetryUpload}
                 />
               ))}
               <div ref={messagesEndRef} />

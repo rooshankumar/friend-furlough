@@ -145,43 +145,78 @@ export const uploadAvatar = async (file: File, userId: string): Promise<string> 
 };
 
 /**
- * Upload post image with mobile optimization
+ * Upload post image with mobile optimization and progress tracking
  * @param file - Image file to upload
  * @param userId - User ID for file naming
+ * @param onProgress - Optional callback for upload progress (0-100)
  * @returns Public URL of uploaded image
  */
-export const uploadPostImage = async (file: File, userId: string): Promise<string> => {
+export const uploadPostImage = async (
+  file: File, 
+  userId: string,
+  onProgress?: (progress: number) => void
+): Promise<string> => {
   try {
+    console.log('📤 Starting post image upload:', {
+      name: file.name,
+      size: `${(file.size / 1024 / 1024).toFixed(2)}MB`,
+      type: file.type
+    });
+
+    const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+    
     // Mobile-optimized validation
     validateMobileFile(file, 10, ['image/']);
+    onProgress?.(10);
     
     // Smart compression for posts (balance quality/size, 1200px max)
+    console.log('🖼️ Compressing image...');
     const compressedFile = await compressImage(file, 1200, 0.85);
+    console.log('✅ Image compressed:', `${(compressedFile.size / 1024 / 1024).toFixed(2)}MB`);
+    onProgress?.(40);
     
     const fileExt = 'jpg';
     const fileName = `${Date.now()}.${fileExt}`;
     const filePath = `${userId}/${fileName}`;
 
-    const { error: uploadError } = await supabase.storage
+    console.log('📤 Uploading to storage:', filePath);
+    onProgress?.(50);
+
+    // Upload with timeout (60 seconds for mobile, 120 for desktop)
+    const uploadTimeout = isMobile ? 60000 : 120000;
+    const uploadPromise = supabase.storage
       .from('post_pic')
       .upload(filePath, compressedFile, { 
         upsert: true,
         contentType: 'image/jpeg'
       });
 
+    const timeoutPromise = new Promise((_, reject) => 
+      setTimeout(() => reject(new Error('Upload timeout - please check your connection and try again')), uploadTimeout)
+    );
+
+    const { error: uploadError } = await Promise.race([
+      uploadPromise,
+      timeoutPromise
+    ]) as any;
+
     if (uploadError) {
-      console.error('Post image upload error:', uploadError);
+      console.error('❌ Post image upload error:', uploadError);
       throw new Error(`Upload failed: ${uploadError.message}`);
     }
+
+    console.log('✅ File uploaded to storage');
+    onProgress?.(90);
 
     const { data } = supabase.storage
       .from('post_pic')
       .getPublicUrl(filePath);
 
+    onProgress?.(100);
     console.log('✅ Post image uploaded:', data.publicUrl);
     return data.publicUrl;
   } catch (error) {
-    console.error('Post image upload error:', error);
+    console.error('❌ Post image upload error:', error);
     throw error;
   }
 };
@@ -246,13 +281,24 @@ export const uploadChatAttachment = async (
     console.log('📤 Uploading to storage:', filePath);
     onProgress?.(50);
     
-    const { data: uploadData, error: uploadError } = await supabase.storage
+    // Upload with timeout (60 seconds for mobile, 120 for desktop)
+    const uploadTimeout = isMobile ? 60000 : 120000;
+    const uploadPromise = supabase.storage
       .from('chat_attachments')
       .upload(filePath, fileToUpload, {
         contentType,
         cacheControl: '3600',
         upsert: false
       });
+    
+    const timeoutPromise = new Promise((_, reject) => 
+      setTimeout(() => reject(new Error('Upload timeout - please check your connection and try again')), uploadTimeout)
+    );
+    
+    const { data: uploadData, error: uploadError } = await Promise.race([
+      uploadPromise,
+      timeoutPromise
+    ]) as any;
 
     if (uploadError) {
       console.error('❌ Chat attachment upload error:', uploadError);

@@ -59,6 +59,7 @@ const CommunityPage = () => {
   const [selectedImages, setSelectedImages] = useState<File[]>([]);
   const [imagePreviews, setImagePreviews] = useState<string[]>([]);
   const [isPosting, setIsPosting] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState(0);
   const [isLoading, setIsLoading] = useState(true);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [showComments, setShowComments] = useState<{[key: string]: boolean}>({});
@@ -487,18 +488,15 @@ const CommunityPage = () => {
     }
 
     setIsPosting(true);
+    setUploadProgress(0);
     try {
       let imageUrl = '';
       
       if (selectedImages.length > 0) {
-        const result = await mobileUploadHelper.uploadWithRetry(
-          (f) => uploadPostImage(f, user.id),
-          selectedImages[0],
-          { enableRetry: true }
-        );
-        
-        if (!result.success) throw new Error(result.error);
-        imageUrl = result.url!;
+        // Upload with progress tracking
+        imageUrl = await uploadPostImage(selectedImages[0], user.id, (progress) => {
+          setUploadProgress(progress);
+        });
       }
 
       const { error } = await supabase
@@ -512,23 +510,25 @@ const CommunityPage = () => {
       if (error) throw error;
 
       toast({
-        title: "Post created! 🎉",
+        title: "Post created! ",
         description: "Your post has been shared",
       });
 
       setNewPost('');
       setSelectedImages([]);
       setImagePreviews([]);
+      setUploadProgress(0);
       loadPosts(true);
     } catch (error: any) {
       const errorResponse = parseSupabaseError(error);
       toast({
         title: "Failed to create post",
-        description: errorResponse.message,
+        description: getMobileErrorMessage(errorResponse.message),
         variant: "destructive",
       });
     } finally {
       setIsPosting(false);
+      setUploadProgress(0);
     }
   };
 
@@ -953,11 +953,39 @@ const CommunityPage = () => {
                         className="rounded-lg h-full w-full object-cover"
                         loading="lazy"
                       />
+                      
+                      {/* Upload Progress Overlay - Only show for first image during upload */}
+                      {index === 0 && isPosting && uploadProgress > 0 && uploadProgress < 100 && (
+                        <div className="absolute inset-0 bg-black/40 rounded-lg flex items-center justify-center backdrop-blur-sm">
+                          <div className="relative inline-flex items-center justify-center" style={{ width: 40, height: 40 }}>
+                            <svg className="absolute transform -rotate-90" width={40} height={40}>
+                              <circle cx={20} cy={20} r={16} stroke="currentColor" strokeWidth={3} fill="none" className="text-white opacity-20" />
+                              <circle 
+                                cx={20} 
+                                cy={20} 
+                                r={16} 
+                                stroke="currentColor" 
+                                strokeWidth={3} 
+                                fill="none" 
+                                strokeDasharray={2 * Math.PI * 16}
+                                strokeDashoffset={2 * Math.PI * 16 - (uploadProgress / 100) * 2 * Math.PI * 16}
+                                strokeLinecap="round"
+                                className="text-white transition-all duration-300 ease-out"
+                              />
+                            </svg>
+                            <span className="absolute font-semibold text-[9px] text-white">
+                              {Math.round(uploadProgress)}%
+                            </span>
+                          </div>
+                        </div>
+                      )}
+                      
                       <Button
                         variant="destructive"
                         size="sm"
                         className="absolute top-1 right-1 h-6 w-6 p-0 opacity-0 group-hover:opacity-100 transition-opacity"
                         onClick={() => removeImage(index)}
+                        disabled={isPosting}
                       >
                         ×
                       </Button>
@@ -1334,11 +1362,39 @@ const CommunityPage = () => {
                           className="rounded-lg h-full w-full object-cover"
                           loading="lazy"
                         />
+                        
+                        {/* Upload Progress Overlay */}
+                        {index === 0 && isPosting && uploadProgress > 0 && uploadProgress < 100 && (
+                          <div className="absolute inset-0 bg-black/40 rounded-lg flex items-center justify-center backdrop-blur-sm">
+                            <div className="relative inline-flex items-center justify-center" style={{ width: 40, height: 40 }}>
+                              <svg className="absolute transform -rotate-90" width={40} height={40}>
+                                <circle cx={20} cy={20} r={16} stroke="currentColor" strokeWidth={3} fill="none" className="text-white opacity-20" />
+                                <circle 
+                                  cx={20} 
+                                  cy={20} 
+                                  r={16} 
+                                  stroke="currentColor" 
+                                  strokeWidth={3} 
+                                  fill="none" 
+                                  strokeDasharray={2 * Math.PI * 16}
+                                  strokeDashoffset={2 * Math.PI * 16 - (uploadProgress / 100) * 2 * Math.PI * 16}
+                                  strokeLinecap="round"
+                                  className="text-white transition-all duration-300 ease-out"
+                                />
+                              </svg>
+                              <span className="absolute font-semibold text-[9px] text-white">
+                                {Math.round(uploadProgress)}%
+                              </span>
+                            </div>
+                          </div>
+                        )}
+                        
                         <Button
                           variant="destructive"
                           size="sm"
                           className="absolute top-1 right-1 h-6 w-6 p-0 opacity-0 group-hover:opacity-100 transition-opacity"
                           onClick={() => removeImage(index)}
+                          disabled={isPosting}
                         >
                           ×
                         </Button>

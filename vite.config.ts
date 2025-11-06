@@ -17,7 +17,8 @@ export default defineConfig(({ mode }) => ({
     alias: {
       "@": path.resolve(__dirname, "./src"),
     },
-    dedupe: ['react', 'react-dom'],
+    // Critical: Ensure only ONE instance of React
+    dedupe: ['react', 'react-dom', 'react/jsx-runtime'],
   },
   build: {
     // Optimize build for performance
@@ -30,11 +31,19 @@ export default defineConfig(({ mode }) => ({
         manualChunks: (id) => {
           // Vendor chunks only - don't split app code to avoid circular dependencies
           if (id.includes('node_modules')) {
-            // React MUST be in its own chunk and loaded first
-            if (id.includes('react/') || id.includes('react-dom/')) {
-              return 'react-vendor';
+            // Keep React and React-DOM together in ONE chunk
+            if (id.includes('react') || id.includes('react-dom')) {
+              return 'vendor';
             }
-            // Bundle everything else together to ensure proper loading order
+            // Radix UI components in separate chunk
+            if (id.includes('@radix-ui')) {
+              return 'radix-vendor';
+            }
+            // Supabase in separate chunk
+            if (id.includes('@supabase')) {
+              return 'supabase-vendor';
+            }
+            // Everything else in vendor
             return 'vendor';
           }
           // Let Vite handle app code splitting automatically
@@ -43,6 +52,11 @@ export default defineConfig(({ mode }) => ({
     },
     // Increase chunk size warning limit
     chunkSizeWarningLimit: 1000,
+    // Ensure proper module format
+    commonjsOptions: {
+      include: [/node_modules/],
+      transformMixedEsModules: true
+    }
   },
   optimizeDeps: {
     // Pre-bundle dependencies for faster dev server startup

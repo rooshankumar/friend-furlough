@@ -17,6 +17,7 @@ export default defineConfig(({ mode }) => ({
     alias: {
       "@": path.resolve(__dirname, "./src"),
     },
+    dedupe: ['react', 'react-dom'],
   },
   build: {
     // Optimize build for performance
@@ -29,7 +30,11 @@ export default defineConfig(({ mode }) => ({
         manualChunks: (id) => {
           // Vendor chunks only - don't split app code to avoid circular dependencies
           if (id.includes('node_modules')) {
-            if (id.includes('react') || id.includes('react-dom')) return 'react-vendor';
+            // React MUST be in its own chunk and loaded first
+            if (id.includes('react/') || id.includes('react-dom/')) {
+              return 'react-vendor';
+            }
+            if (id.includes('@radix-ui')) return 'ui-vendor';
             if (id.includes('@tanstack/react-query')) return 'query-vendor';
             if (id.includes('@supabase/supabase-js')) return 'supabase-vendor';
             if (id.includes('lucide-react')) return 'icons-vendor';

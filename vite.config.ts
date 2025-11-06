@@ -34,10 +34,7 @@ export default defineConfig(({ mode }) => ({
             if (id.includes('react/') || id.includes('react-dom/')) {
               return 'react-vendor';
             }
-            if (id.includes('@radix-ui')) return 'ui-vendor';
-            if (id.includes('@tanstack/react-query')) return 'query-vendor';
-            if (id.includes('@supabase/supabase-js')) return 'supabase-vendor';
-            if (id.includes('lucide-react')) return 'icons-vendor';
+            // Bundle everything else together to ensure proper loading order
             return 'vendor';
           }
           // Let Vite handle app code splitting automatically

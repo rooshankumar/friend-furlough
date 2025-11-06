@@ -39,9 +39,11 @@ export default defineConfig(({ mode }) => ({
             return 'vendor';
           }
           
+          // Stores - MUST come first to avoid circular dependencies
+          if (id.includes('src/stores/')) return 'stores';
+          
           // Split chat features into smaller chunks
           if (id.includes('src/pages/ChatPageV2')) return 'chat-page';
-          if (id.includes('src/stores/chatStore')) return 'chat-store';
           if (id.includes('src/components/chat/')) return 'chat-components';
           
           // Profile features
@@ -53,9 +55,6 @@ export default defineConfig(({ mode }) => ({
           if (id.includes('src/pages/CommunityPage')) return 'community-page';
           if (id.includes('src/pages/PostDetailPage')) return 'post-detail';
           if (id.includes('src/components/community/')) return 'community-components';
-          
-          // Stores
-          if (id.includes('src/stores/')) return 'stores';
           
           // Hooks
           if (id.includes('src/hooks/')) return 'hooks';

@@ -19,6 +19,8 @@ import { useChatStore } from '@/stores/chatStore';
 import { useConnectionStatus } from '@/hooks/useConnectionStatus';
 import { useMessageDeduplication } from '@/hooks/useMessageDeduplication';
 import { useVirtualScroll } from '@/hooks/useVirtualScroll';
+import { usePullToRefresh } from '@/hooks/usePullToRefresh';
+import { PullToRefreshIndicator } from '@/components/PullToRefresh';
 import { OptimizedConversationList } from '@/components/chat/OptimizedConversationList';
 import { ChatErrorBoundary } from '@/components/ErrorBoundary';
 import { VoiceMessagePlayer } from '@/components/chat/VoiceMessagePlayer';
@@ -256,6 +258,29 @@ const ChatPageV2 = () => {
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  
+  // Pull-to-refresh for messages
+  const messagesPullToRefresh = usePullToRefresh({
+    onRefresh: async () => {
+      if (conversationId) {
+        await loadMessages(conversationId);
+        toast({ title: 'Messages refreshed' });
+      }
+    },
+    threshold: 80,
+    disabled: !conversationId
+  });
+  
+  // Pull-to-refresh for conversations
+  const conversationsPullToRefresh = usePullToRefresh({
+    onRefresh: async () => {
+      if (user) {
+        await loadConversations(user.id);
+        toast({ title: 'Conversations refreshed' });
+      }
+    },
+    threshold: 80
+  });
   const recordingTimerRef = useRef<NodeJS.Timeout | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const typingTimeoutRef = useRef<NodeJS.Timeout | null>(null);
@@ -687,12 +712,19 @@ const ChatPageV2 = () => {
             fallbackMessage="Unable to load conversations list"
             onReset={() => user?.id && loadConversations(user.id)}
           >
-            <OptimizedConversationList
-              conversations={conversations}
-              currentUserId={user?.id}
-              activeConversationId={conversationId}
-              isDesktop={true}
-            />
+            <div ref={conversationsPullToRefresh.containerRef} className="flex-1 overflow-y-auto relative">
+              <PullToRefreshIndicator 
+                pullDistance={conversationsPullToRefresh.pullDistance}
+                isRefreshing={conversationsPullToRefresh.isRefreshing}
+                threshold={80}
+              />
+              <OptimizedConversationList
+                conversations={conversations}
+                currentUserId={user?.id}
+                activeConversationId={conversationId}
+                isDesktop={true}
+              />
+            </div>
           </ChatErrorBoundary>
         </div>
 
@@ -826,7 +858,12 @@ const ChatPageV2 = () => {
             fallbackMessage="Unable to display messages"
             onReset={() => conversationId && loadMessages(conversationId)}
           >
-            <div className="flex-1 overflow-y-auto p-4 space-y-3">
+            <div ref={messagesPullToRefresh.containerRef} className="flex-1 overflow-y-auto p-4 space-y-3 relative">
+              <PullToRefreshIndicator 
+                pullDistance={messagesPullToRefresh.pullDistance}
+                isRefreshing={messagesPullToRefresh.isRefreshing}
+                threshold={80}
+              />
               {filteredMessages.map((message) => (
                 <EnhancedMessageV2
                   key={message.id}

@@ -21,6 +21,8 @@ import { usePostReactionStore } from '@/stores/postReactionStore';
 import { usePostCommentStore } from '@/stores/postCommentStore';
 import { EditProfileModal } from '@/components/EditProfileModal';
 import { ProfileLoadingSkeleton, ErrorState } from '@/components/LoadingStates';
+import { usePullToRefresh } from '@/hooks/usePullToRefresh';
+import { PullToRefreshIndicator } from '@/components/PullToRefresh';
 import { uploadAvatar } from '@/lib/storage';
 import { mobileUploadHelper, getMobileInputAttributes, getMobileErrorMessage } from '@/lib/mobileUploadHelper';
 import { supabase } from '@/integrations/supabase/client';
@@ -31,9 +33,20 @@ const ProfilePage = () => {
   const [isOwnProfile, setIsOwnProfile] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
   const [isRefreshing, setIsRefreshing] = useState(false);
+  const [refreshTrigger, setRefreshTrigger] = useState(0);
   const { toast } = useToast();
   
   const { user: authUser, profile: authProfile, updateProfile } = useAuthStore();
+  
+  // Pull-to-refresh for profile
+  const profilePullToRefresh = usePullToRefresh({
+    onRefresh: async () => {
+      setIsRefreshing(true);
+      setRefreshTrigger(prev => prev + 1);
+      toast({ title: 'Profile refreshed' });
+    },
+    threshold: 80
+  });
   
   // Convert auth profile to User type
   const currentUser: User | null = authProfile ? {
@@ -202,7 +215,7 @@ const ProfilePage = () => {
 
   useEffect(() => {
     fetchProfileData();
-  }, [userId, authUser, isOwnProfile]);
+  }, [userId, authUser, isOwnProfile, refreshTrigger]);
 
   const handleAvatarUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -410,7 +423,12 @@ const ProfilePage = () => {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-background via-background/95 to-background md:ml-16 pb-20 md:pb-0">
+    <div ref={profilePullToRefresh.containerRef} className="min-h-screen bg-gradient-to-br from-background via-background/95 to-background md:ml-16 pb-20 md:pb-0 overflow-auto relative">
+      <PullToRefreshIndicator 
+        pullDistance={profilePullToRefresh.pullDistance}
+        isRefreshing={profilePullToRefresh.isRefreshing}
+        threshold={80}
+      />
       {/* Compact Sticky Header */}
       <div className="sticky top-0 z-20 bg-card/95 backdrop-blur-xl border-b border-border/50 shadow-sm">
         <div className="max-w-4xl mx-auto flex items-center justify-between px-3 py-2">

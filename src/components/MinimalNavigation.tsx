@@ -274,42 +274,18 @@ const MinimalNavigation = () => {
             <span className="text-[10px] font-medium">Profile</span>
           </Link>
 
-          {/* More Menu */}
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <button className="flex-1 mx-0.5 flex flex-col items-center space-y-0.5 py-1.5 px-1 rounded-md transition-colors touch-manipulation select-none text-muted-foreground hover:text-foreground hover:bg-accent/50 active:bg-accent/70 border-0 bg-transparent">
-                <Avatar className="h-4 w-4">
-                  <AvatarImage src={profile?.avatar_url} />
-                  <AvatarFallback className="text-[8px]">
-                    {profile?.name?.[0] || user?.email?.[0] || 'U'}
-                  </AvatarFallback>
-                </Avatar>
-                <span className="text-[10px] font-medium">More</span>
-              </button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="w-48 mb-2">
-              <DropdownMenuItem className="cursor-pointer">
-                <Bell className="mr-2 h-4 w-4" />
-                Notifications
-                {unreadCount > 0 && (
-                  <Badge className="ml-auto h-5 w-5 flex items-center justify-center p-0 text-xs">
-                    {unreadCount > 9 ? '9+' : unreadCount}
-                  </Badge>
-                )}
-              </DropdownMenuItem>
-              <DropdownMenuItem asChild>
-                <Link to="/settings" className="cursor-pointer">
-                  <Settings className="mr-2 h-4 w-4" />
-                  Settings
-                </Link>
-              </DropdownMenuItem>
-              <DropdownMenuSeparator />
-              <DropdownMenuItem onClick={handleSignOut} className="cursor-pointer">
-                <LogOut className="mr-2 h-4 w-4" />
-                Sign Out
-              </DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
+          {/* Settings */}
+          <Link 
+            to="/settings" 
+            className={`flex-1 mx-0.5 flex flex-col items-center space-y-0.5 py-1.5 px-1 rounded-md transition-colors touch-manipulation select-none ${
+              isActive("/settings") 
+                ? "bg-primary text-primary-foreground" 
+                : "text-muted-foreground hover:text-foreground hover:bg-accent/50 active:bg-accent/70"
+            }`}
+          >
+            <Settings className="h-4 w-4" />
+            <span className="text-[10px] font-medium">Settings</span>
+          </Link>
         </div>
       </nav>
       )}

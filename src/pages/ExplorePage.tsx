@@ -5,6 +5,8 @@ import { useAuthStore } from '@/stores/authStore';
 import { useExploreStore } from '@/stores/exploreStore';
 import { useProfileReactionStore } from '@/stores/profileReactionStore';
 import { useDebounce } from '@/hooks/useDebounce';
+import { usePullToRefresh } from '@/hooks/usePullToRefresh';
+import { PullToRefreshIndicator } from '@/components/PullToRefresh';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -38,6 +40,15 @@ export default function ExplorePage() {
   
   // Debounce search to reduce API calls
   const debouncedSearchTerm = useDebounce(localSearchTerm, 300);
+  
+  // Pull-to-refresh for users
+  const usersPullToRefresh = usePullToRefresh({
+    onRefresh: async () => {
+      await loadUsers();
+      toast.success('Users refreshed');
+    },
+    threshold: 80
+  });
 
   // Check if onboarding is complete
   useEffect(() => {
@@ -172,7 +183,12 @@ export default function ExplorePage() {
   }
 
   return (
-    <div className="min-h-screen md:ml-16 bg-gradient-subtle pb-16 md:pb-0 overflow-auto pt-2 md:pt-0">
+    <div ref={usersPullToRefresh.containerRef} className="min-h-screen md:ml-16 bg-gradient-subtle pb-16 md:pb-0 overflow-auto pt-2 md:pt-0 relative">
+      <PullToRefreshIndicator 
+        pullDistance={usersPullToRefresh.pullDistance}
+        isRefreshing={usersPullToRefresh.isRefreshing}
+        threshold={80}
+      />
       <div className="p-3 md:p-8">
         {/* Header - Hidden on Mobile, Visible on Desktop */}
         <div className="hidden md:block mb-8">

@@ -32,20 +32,17 @@ const WelcomePage = React.lazy(() => import("./pages/onboarding/WelcomePage"));
 const CulturalProfilePage = React.lazy(() => import("./pages/onboarding/CulturalProfilePage"));
 const LearningGoalsPage = React.lazy(() => import("./pages/onboarding/LearningGoalsPage"));
 
-// Enhanced QueryClient with better caching and retry logic
+// Optimized QueryClient for fast initial load
 const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
-      staleTime: 5 * 60 * 1000, // 5 minutes
-      gcTime: 10 * 60 * 1000, // 10 minutes (formerly cacheTime)
-      retry: (failureCount, error: any) => {
-        // Don't retry on auth errors
-        if (error?.status === 401 || error?.status === 403) {
-          return false;
-        }
-        return failureCount < 3;
-      },
-      retryDelay: (attemptIndex) => Math.min(1000 * 2 ** attemptIndex, 30000),
+      staleTime: 2 * 60 * 1000, // 2 minutes (reduced from 5)
+      gcTime: 5 * 60 * 1000, // 5 minutes (reduced from 10)
+      retry: 1, // Only retry once (reduced from 3)
+      retryDelay: 1000, // Fixed 1s delay
+      refetchOnWindowFocus: false, // Disable auto-refetch
+      refetchOnMount: false, // Disable mount refetch
+      refetchOnReconnect: true, // Only on reconnect
     },
   },
 });
@@ -87,15 +84,8 @@ const AppContent = () => {
   // Master optimization hook (replaces useGlobalSync + useAppOptimization)
   useMasterOptimization();
   
-  // Setup global data manager when user is available
-  React.useEffect(() => {
-    if (user) {
-      globalDataManager.setupRealtimeSubscriptions(user.id);
-    }
-  }, [user]);
-  
-  // Preload app data for better performance
-  useAppDataPreloader();
+  // Removed duplicate globalDataManager - already handled in useMasterOptimization
+  // Removed useAppDataPreloader - causing performance issues
   return (
     <div className="min-h-screen bg-background">
       <MinimalNavigation />

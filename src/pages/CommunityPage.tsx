@@ -3,6 +3,8 @@ import { supabase } from '@/integrations/supabase/client';
 import { useAuthStore } from '@/stores/authStore';
 import { usePostReactionStore } from '@/stores/postReactionStore';
 import { usePostCommentStore } from '@/stores/postCommentStore';
+import { usePullToRefresh } from '@/hooks/usePullToRefresh';
+import { PullToRefreshIndicator } from '@/components/PullToRefresh';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -74,6 +76,15 @@ const CommunityPage = () => {
   const [hasMore, setHasMore] = useState(true);
   const [isLoadingMore, setIsLoadingMore] = useState(false);
   const POSTS_PER_PAGE = 20;
+  
+  // Pull-to-refresh for posts
+  const postsPullToRefresh = usePullToRefresh({
+    onRefresh: async () => {
+      await loadPosts(true);
+      toast({ title: 'Posts refreshed' });
+    },
+    threshold: 80
+  });
 
   // Optimized load posts with pagination
   const loadPosts = useCallback(async (force = false, loadMore = false) => {
@@ -770,14 +781,35 @@ const CommunityPage = () => {
           </div>
         </div>
 
-        {/* Main Feed - Center */}
-        <div className="flex-1 max-w-2xl mx-auto w-full">
-          {/* Mobile: Ultra Compact Header | Desktop: Normal Header */}
-          <div className="sticky top-0 z-20 bg-card/95 backdrop-blur-xl border-b border-border/50 shadow-sm">
-            {/* Mobile Minimal Header - 3 Equal Filters with Glass Effect */}
-            <div className="lg:hidden">
-              <div className="grid grid-cols-3 gap-1 p-2">
-                {/* Filter Buttons - Equal Width with Glass Effect */}
+        {/* Center Feed - Responsive Width */}
+        <div ref={postsPullToRefresh.containerRef} className="flex-1 min-w-0 overflow-y-auto relative">
+          <PullToRefreshIndicator 
+            pullDistance={postsPullToRefresh.pullDistance}
+            isRefreshing={postsPullToRefresh.isRefreshing}
+            threshold={80}
+          />
+          
+          {/* Mobile Header with Filters */}
+          <div className="lg:hidden sticky top-0 z-10 bg-background/95 backdrop-blur-md border-b border-border/50">
+            <div className="p-3 pb-2">
+              <div className="flex items-center justify-between mb-2">
+                <div className="flex items-center gap-2">
+                  <Globe className="h-5 w-5 text-primary" />
+                  <h2 className="text-base font-bold">Community</h2>
+                </div>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => loadPosts(true)}
+                  disabled={isRefreshing}
+                  className="h-8 px-2"
+                >
+                  <RefreshCw className={`h-4 w-4 ${isRefreshing ? 'animate-spin' : ''}`} />
+                </Button>
+              </div>
+              
+              {/* Filter Buttons - Mobile */}
+              <div className="flex items-center gap-2 overflow-x-auto pb-1">
                 <Button
                   variant="ghost"
                   size="sm"

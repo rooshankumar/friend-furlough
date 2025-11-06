@@ -26,29 +26,39 @@ export default defineConfig(({ mode }) => ({
     rollupOptions: {
       output: {
         // Manual chunk splitting for better caching
-        manualChunks: {
+        manualChunks: (id) => {
           // Vendor chunks
-          'react-vendor': ['react', 'react-dom'],
-          'router-vendor': ['react-router-dom'],
-          'ui-vendor': ['@radix-ui/react-avatar', '@radix-ui/react-dialog', '@radix-ui/react-dropdown-menu'],
-          'query-vendor': ['@tanstack/react-query'],
-          'supabase-vendor': ['@supabase/supabase-js'],
+          if (id.includes('node_modules')) {
+            if (id.includes('react') || id.includes('react-dom')) return 'react-vendor';
+            if (id.includes('react-router-dom')) return 'router-vendor';
+            if (id.includes('@radix-ui')) return 'ui-vendor';
+            if (id.includes('@tanstack/react-query')) return 'query-vendor';
+            if (id.includes('@supabase/supabase-js')) return 'supabase-vendor';
+            if (id.includes('lucide-react')) return 'icons-vendor';
+            if (id.includes('date-fns')) return 'date-vendor';
+            return 'vendor';
+          }
           
-          // Feature chunks
-          'chat-features': [
-            './src/pages/ChatPageV2.tsx',
-            './src/components/chat/OptimizedMessage.tsx',
-            './src/components/chat/OptimizedConversationList.tsx',
-            './src/stores/chatStore.ts'
-          ],
-          'profile-features': [
-            './src/pages/ProfilePage.tsx',
-            './src/pages/ExplorePage.tsx'
-          ],
-          'community-features': [
-            './src/pages/CommunityPage.tsx',
-            './src/pages/PostDetailPage.tsx'
-          ]
+          // Split chat features into smaller chunks
+          if (id.includes('src/pages/ChatPageV2')) return 'chat-page';
+          if (id.includes('src/stores/chatStore')) return 'chat-store';
+          if (id.includes('src/components/chat/')) return 'chat-components';
+          
+          // Profile features
+          if (id.includes('src/pages/ProfilePage')) return 'profile-page';
+          if (id.includes('src/pages/ExplorePage')) return 'explore-page';
+          if (id.includes('src/components/profile/')) return 'profile-components';
+          
+          // Community features
+          if (id.includes('src/pages/CommunityPage')) return 'community-page';
+          if (id.includes('src/pages/PostDetailPage')) return 'post-detail';
+          if (id.includes('src/components/community/')) return 'community-components';
+          
+          // Stores
+          if (id.includes('src/stores/')) return 'stores';
+          
+          // Hooks
+          if (id.includes('src/hooks/')) return 'hooks';
         }
       }
     },

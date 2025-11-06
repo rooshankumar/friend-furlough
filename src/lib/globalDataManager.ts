@@ -55,21 +55,22 @@ class GlobalDataManager {
   private handlePageVisible() {
     const timeSinceLastRefresh = Date.now() - this.lastRefreshTime;
     
-    // If page was hidden for more than 30 seconds, refresh data
-    if (timeSinceLastRefresh > 30000) {
+    // If page was hidden for more than 5 minutes, refresh data (increased threshold)
+    if (timeSinceLastRefresh > 5 * 60 * 1000) {
       console.log('👁️ Page visible after', Math.round(timeSinceLastRefresh / 1000), 'seconds');
       setTimeout(() => this.refreshAllData('page_visible'), 500);
     }
   }
 
   private startPeriodicRefresh() {
-    // Refresh data every 5 minutes when page is visible
-    this.refreshInterval = setInterval(() => {
-      if (document.visibilityState === 'visible' && connectionManager.connected) {
-        console.log('⏰ Periodic data refresh');
-        this.refreshAllData('periodic');
-      }
-    }, 5 * 60 * 1000); // 5 minutes
+    // Disabled periodic refresh to reduce overhead
+    // Rely on event-driven updates (visibility, connection, real-time) instead
+    // this.refreshInterval = setInterval(() => {
+    //   if (document.visibilityState === 'visible' && connectionManager.connected) {
+    //     console.log('⏰ Periodic data refresh');
+    //     this.refreshAllData('periodic');
+    //   }
+    // }, 5 * 60 * 1000); // 5 minutes
   }
 
   /**

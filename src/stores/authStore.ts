@@ -73,9 +73,10 @@ export const useAuthStore = create<AuthState>()(
           const { data: { session } } = await supabase.auth.getSession();
           
           if (session?.user) {
+            // Fetch only essential profile fields for faster load
             const { data: profile } = await supabase
               .from('profiles')
-              .select('*')
+              .select('id, name, avatar_url, country, age, city, onboarding_completed')
               .eq('id', session.user.id)
               .single();
             

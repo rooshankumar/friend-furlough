@@ -6,19 +6,19 @@ const config: CapacitorConfig = {
   webDir: 'dist',
   server: {
     androidScheme: 'https',
-    cleartext: false,
-    // Enable for faster loading
-    hostname: 'app.roshlingua.com'
+    cleartext: true, // Allow cleartext for development
+    // Comment out hostname for local development
+    // hostname: 'app.roshlingua.com'
   },
   android: {
-    // Optimize for performance
-    allowMixedContent: false,
+    // Development settings
+    allowMixedContent: true,
     captureInput: true,
-    webContentsDebuggingEnabled: false,
+    webContentsDebuggingEnabled: true,
     // Splash screen configuration
     backgroundColor: '#ffffff',
-    // Enable hardware acceleration
-    loggingBehavior: 'production'
+    // Enable debugging
+    loggingBehavior: 'debug'
   },
   plugins: {
     SplashScreen: {
@@ -38,15 +38,16 @@ const config: CapacitorConfig = {
       resizeOnFullScreen: true
     },
     // File handling plugins
-    CapacitorFilePicker: {
+    FilePicker: {
       // No special config needed
     },
-    CapacitorFilesystem: {
+    Filesystem: {
       // No special config needed
     },
-    // Permission handling
-    CapacitorPermissions: {
-      // No special config needed
+    // Disable hostname validation for development
+    CapacitorHttp: {
+      // Enable native HTTP requests
+      enabled: true
     }
   }
 };

@@ -27,37 +27,15 @@ export default defineConfig(({ mode }) => ({
       output: {
         // Manual chunk splitting for better caching
         manualChunks: (id) => {
-          // Vendor chunks
+          // Vendor chunks only - don't split app code to avoid circular dependencies
           if (id.includes('node_modules')) {
             if (id.includes('react') || id.includes('react-dom')) return 'react-vendor';
-            if (id.includes('react-router-dom')) return 'router-vendor';
-            if (id.includes('@radix-ui')) return 'ui-vendor';
             if (id.includes('@tanstack/react-query')) return 'query-vendor';
             if (id.includes('@supabase/supabase-js')) return 'supabase-vendor';
             if (id.includes('lucide-react')) return 'icons-vendor';
-            if (id.includes('date-fns')) return 'date-vendor';
             return 'vendor';
           }
-          
-          // Stores - MUST come first to avoid circular dependencies
-          if (id.includes('src/stores/')) return 'stores';
-          
-          // Split chat features into smaller chunks
-          if (id.includes('src/pages/ChatPageV2')) return 'chat-page';
-          if (id.includes('src/components/chat/')) return 'chat-components';
-          
-          // Profile features
-          if (id.includes('src/pages/ProfilePage')) return 'profile-page';
-          if (id.includes('src/pages/ExplorePage')) return 'explore-page';
-          if (id.includes('src/components/profile/')) return 'profile-components';
-          
-          // Community features
-          if (id.includes('src/pages/CommunityPage')) return 'community-page';
-          if (id.includes('src/pages/PostDetailPage')) return 'post-detail';
-          if (id.includes('src/components/community/')) return 'community-components';
-          
-          // Hooks
-          if (id.includes('src/hooks/')) return 'hooks';
+          // Let Vite handle app code splitting automatically
         }
       }
     },

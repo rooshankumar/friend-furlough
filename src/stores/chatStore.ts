@@ -484,7 +484,8 @@ export const useChatStore = create<ChatState>((set, get) => ({
       let error: any = null;
 
       try {
-        const res = await supabase
+        console.log('📨 Building INSERT query...');
+        const insertPromise = supabase
           .from('messages')
           .insert({
             conversation_id: conversationId,
@@ -495,24 +496,45 @@ export const useChatStore = create<ChatState>((set, get) => ({
           })
           .select()
           .single();
+        
+        console.log('📨 Executing INSERT with 15s timeout...');
+        const timeoutPromise = new Promise((_, reject) => 
+          setTimeout(() => reject(new Error('INSERT timeout after 15s')), 15000)
+        );
+        
+        const res = await Promise.race([insertPromise, timeoutPromise]) as any;
+        console.log('📨 INSERT completed, result:', res);
         data = res.data; error = res.error;
       } catch (e: any) {
+        console.error('📨 INSERT failed or timed out:', e);
         error = e;
       }
 
       if (error && (error.code === '42703' || (error.message && /column .*client_id.* does not exist/i.test(error.message)))) {
-        console.warn('client_id column missing, retrying without it');
-        const fallback = await supabase
-          .from('messages')
-          .insert({
-            conversation_id: conversationId,
-            sender_id: senderId,
-            content: `📎 Uploading: ${file.name}`,
-            type: 'text'
-          })
-          .select()
-          .single();
-        data = fallback.data; error = fallback.error;
+        console.warn('⚠️ client_id column missing, retrying without it');
+        try {
+          const fallbackPromise = supabase
+            .from('messages')
+            .insert({
+              conversation_id: conversationId,
+              sender_id: senderId,
+              content: `📎 Uploading: ${file.name}`,
+              type: 'text'
+            })
+            .select()
+            .single();
+          
+          const timeoutPromise = new Promise((_, reject) => 
+            setTimeout(() => reject(new Error('Fallback INSERT timeout after 15s')), 15000)
+          );
+          
+          const fallback = await Promise.race([fallbackPromise, timeoutPromise]) as any;
+          console.log('✅ Fallback INSERT completed:', fallback);
+          data = fallback.data; error = fallback.error;
+        } catch (e: any) {
+          console.error('❌ Fallback INSERT failed:', e);
+          error = e;
+        }
       }
 
       if (error) {

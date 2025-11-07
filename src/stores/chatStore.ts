@@ -85,7 +85,6 @@ export const useChatStore = create<ChatState>((set, get) => ({
   isProcessingOutbox: false,
 
   loadConversations: async (userId: string) => {
-    console.log('📡 Loading conversations for user:', userId);
     set({ isLoading: true });
 
     try {
@@ -112,10 +111,8 @@ export const useChatStore = create<ChatState>((set, get) => ({
 
       const userParticipants = result;
 
-      console.log('📊 User participants:', { data: userParticipants });
-
       if (!userParticipants || userParticipants.length === 0) {
-        console.log('ℹ️ No conversations found for user');
+        console.log('ℹ️ No conversations found');
         set({ conversations: [], isLoading: false });
         return;
       }
@@ -123,10 +120,7 @@ export const useChatStore = create<ChatState>((set, get) => ({
       // Extract conversation IDs
       const conversationIds = userParticipants.map(up => up.conversation_id);
 
-      console.log('🔍 Fetching participants for conversation IDs:', conversationIds);
-
       // Batch fetch: Get ALL participants for all conversations in one query
-      // Note: We need ALL participants (not just current user), so we query by conversation_id only
       const { data: allParticipants, error: allParticipantsError } = await supabase
         .from('conversation_participants')
         .select(`
@@ -144,14 +138,9 @@ export const useChatStore = create<ChatState>((set, get) => ({
         .in('conversation_id', conversationIds);
 
       if (allParticipantsError) {
-        console.error('Error fetching participants:', allParticipantsError);
+        console.error('❌ Error fetching participants:', allParticipantsError);
         throw allParticipantsError;
       }
-
-      console.log('👥 All participants fetched:', allParticipants);
-      console.log('👥 Total participants count:', allParticipants?.length);
-      console.log('👥 Expected count (2 per conversation):', conversationIds.length * 2);
-      console.log('👥 First participant sample:', JSON.stringify(allParticipants?.[0], null, 2));
 
       // Batch fetch: Get last message for each conversation in one query
       const { data: lastMessages, error: lastMessagesError } = await supabase
@@ -175,8 +164,6 @@ export const useChatStore = create<ChatState>((set, get) => ({
           profiles: p.profiles
         });
       });
-
-      console.log('👥 Participants grouped by conversation:', participantsByConversation);
 
       // Group last messages by conversation_id (take first = most recent)
       const lastMessageByConversation: { [key: string]: DbMessage } = {};

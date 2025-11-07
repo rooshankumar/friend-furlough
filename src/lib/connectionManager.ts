@@ -336,12 +336,10 @@ class ConnectionManager {
 
   public startUpload() {
     this.activeUploads++;
-    console.log(`📤 Upload started (${this.activeUploads} active)`);
   }
 
   public endUpload() {
     this.activeUploads = Math.max(0, this.activeUploads - 1);
-    console.log(`📥 Upload ended (${this.activeUploads} active)`);
   }
 
   public destroy() {
@@ -369,14 +367,14 @@ export class SessionManager {
   private setupSessionManagement() {
     // Monitor auth state changes
     supabase.auth.onAuthStateChange(async (event, session) => {
-      console.log('🔐 Auth state changed:', event, session?.user?.id);
+      // Auth state changed: silently handle
       
       if (event === 'SIGNED_IN' && session) {
         this.scheduleTokenRefresh(session);
       } else if (event === 'SIGNED_OUT') {
         this.clearRefreshTimer();
       } else if (event === 'TOKEN_REFRESHED' && session) {
-        console.log('🔄 Token refreshed successfully');
+        // Token refreshed
         this.scheduleTokenRefresh(session);
       }
     });
@@ -386,7 +384,7 @@ export class SessionManager {
       if (isOnline && !this.isRefreshing) {
         const { data: { session } } = await supabase.auth.getSession();
         if (session) {
-          console.log('🔄 Connection restored, refreshing session...');
+          // Connection restored, refresh session
           await this.refreshSession();
         }
       }
@@ -401,7 +399,7 @@ export class SessionManager {
       const now = Date.now();
       const refreshIn = Math.max(expiresAt - now - 60000, 60000); // Refresh 1 min before expiry, minimum 1 min
       
-      console.log(`⏰ Scheduling token refresh in ${Math.round(refreshIn / 1000)}s`);
+      // Token refresh scheduled
       
       this.refreshTimer = setTimeout(async () => {
         await this.refreshSession();

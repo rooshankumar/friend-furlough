@@ -219,47 +219,32 @@ export const uploadChatAttachment = async (
   conversationId: string,
   onProgress?: (progress: number) => void
 ): Promise<string> => {
-  console.log('📤 uploadChatAttachment CALLED');
-  console.log('📤 File details:', {
-    name: file.name,
-    size: file.size,
-    type: file.type,
-    conversationId
-  });
+  console.log('📤 Uploading:', file.name, `(${(file.size / 1024 / 1024).toFixed(2)}MB)`);
 
   const isMobile = /Android|webOS|iPhone|iPad|iPod/i.test(navigator.userAgent);
-  const timeout = isMobile ? 30000 : 90000; // Reduced: 30s mobile, 90s desktop (40KB file should upload in <5s)
-  console.log('⏱️ Upload timeout set to:', timeout + 'ms');
+  const timeout = isMobile ? 30000 : 90000;
 
   try {
     onProgress?.(5);
-    console.log('📤 Upload progress: 5%');
 
     // Compress image if needed (aggressive compression for mobile)
     let fileToUpload = file;
     if (file.type.startsWith('image/')) {
       onProgress?.(10);
-      console.log('📤 Upload progress: 10% - Starting aggressive compression');
       const { mobileFileHandler } = await import('./mobileFileHandler');
-      // Use 2MB target for mobile (more aggressive)
       fileToUpload = await mobileFileHandler.compressImage(file, isMobile ? 2 : 5);
-      console.log('✅ Image compressed:', (fileToUpload.size / 1024 / 1024).toFixed(2) + 'MB');
+      console.log('✅ Compressed:', (fileToUpload.size / 1024 / 1024).toFixed(2) + 'MB');
       
-      // If still over 1MB on mobile, compress again even more aggressively
+      // If still over 1MB on mobile, compress again
       if (isMobile && fileToUpload.size > 1024 * 1024) {
-        console.log('📤 File still large, compressing again...');
         fileToUpload = await mobileFileHandler.compressImage(fileToUpload, 1);
-        console.log('✅ Second compression:', (fileToUpload.size / 1024 / 1024).toFixed(2) + 'MB');
+        console.log('✅ Re-compressed:', (fileToUpload.size / 1024 / 1024).toFixed(2) + 'MB');
       }
     }
 
     onProgress?.(30);
-    console.log('📤 Upload progress: 30% - Preparing upload');
-
     const fileName = `${conversationId}/${Date.now()}_${file.name}`;
-
     onProgress?.(40);
-    console.log('📤 Upload progress: 40% - Starting Supabase upload');
 
     // Wrap upload in Promise.race with timeout
     const uploadPromise = (async () => {
@@ -270,21 +255,15 @@ export const uploadChatAttachment = async (
           upsert: false
         });
 
-      if (error) {
-        console.error('❌ Supabase upload error:', error);
-        throw error;
-      }
+      if (error) throw error;
 
       onProgress?.(80);
-      console.log('📤 Upload progress: 80% - Getting public URL');
-
       const { data: { publicUrl } } = supabase.storage
         .from('chat-attachments')
         .getPublicUrl(data.path);
 
       onProgress?.(100);
-      console.log('✅ Attachment uploaded successfully:', publicUrl);
-
+      console.log('✅ Uploaded:', publicUrl);
       return publicUrl;
     })();
 

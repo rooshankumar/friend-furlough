@@ -589,10 +589,13 @@ const ChatPageV2 = () => {
 
   // Handle file input change event (for web)
   const handleFileInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    console.log('📎 Web file input changed, files:', e.target.files?.length);
     const file = e.target.files?.[0];
     if (file) {
       handleAttachmentUpload(file);
       e.target.value = ''; // Reset the input value to allow selecting the same file again if needed
+    } else {
+      console.warn('⚠️ No file selected from web input');
     }
   };
 
@@ -1077,25 +1080,27 @@ const ChatPageV2 = () => {
                 />
               ) : (
                 <>
-                  <Button 
-                    size="sm" 
-                    variant="ghost" 
-                    className="h-9 w-9 p-0 flex-shrink-0"
-                    onClick={() => fileInputRef.current?.click()}
-                    disabled={!isOnline || isUploadingAttachment}
-                  >
-                    {isUploadingAttachment ? (
-                      <Loader2 className="h-5 w-5 animate-spin" />
-                    ) : (
-                      <Paperclip className="h-5 w-5" />
-                    )}
-                  </Button>
+                  <label htmlFor="chat-web-file-input" onClick={() => console.log('📎 Web attach label clicked')}>
+                    <Button 
+                      size="sm" 
+                      variant="ghost" 
+                      className="h-9 w-9 p-0 flex-shrink-0"
+                      disabled={!isOnline || isUploadingAttachment}
+                    >
+                      {isUploadingAttachment ? (
+                        <Loader2 className="h-5 w-5 animate-spin" />
+                      ) : (
+                        <Paperclip className="h-5 w-5" />
+                      )}
+                    </Button>
+                  </label>
                   <input
+                    id="chat-web-file-input"
                     ref={fileInputRef}
                     type="file"
-                    accept="image/*,video/*,.pdf,.doc,.docx"
+                    accept="image/*,video/*,audio/*,.pdf,.doc,.docx,.txt"
                     onChange={handleFileInputChange}
-                    style={{ display: 'none' }}
+                    className="sr-only"
                     disabled={!isOnline || isUploadingAttachment}
                   />
                 </>

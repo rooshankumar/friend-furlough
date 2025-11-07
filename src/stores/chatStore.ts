@@ -475,21 +475,58 @@ export const useChatStore = create<ChatState>((set, get) => ({
       
       connectionManager.endUpload();
       
+      // Display immediately with Cloudinary URL
       set(state => ({
         messages: {
           ...state.messages,
           [conversationId]: state.messages[conversationId].map(msg =>
             msg.tempId === tempId ? { 
               ...msg,
-              id: `cloudinary_${Date.now()}`,
               media_url: mediaUrl,
               status: 'sent',
-              uploadProgress: 100,
-              created_at: new Date().toISOString()
+              uploadProgress: 100
             } : msg
           )
         }
       }));
+
+      // Save to database in background (don't wait)
+      console.log('💾 Saving attachment to database...', { conversationId, senderId, fileName: file.name, mediaUrl });
+      supabase
+        .from('messages')
+        .insert({
+          conversation_id: conversationId,
+          sender_id: senderId,
+          content: file.name,
+          type: messageType,
+          media_url: mediaUrl,
+          client_id: clientId
+        })
+        .select()
+        .single()
+        .then(({ data, error }) => {
+          if (error) {
+            console.error('❌ Failed to save attachment to database:', error);
+            return;
+          }
+          
+          console.log('✅ Attachment saved to database successfully!', { id: data.id, created_at: data.created_at });
+          
+          // Update with real database ID when available
+          set(state => ({
+            messages: {
+              ...state.messages,
+              [conversationId]: state.messages[conversationId].map(msg =>
+                msg.client_id === clientId ? { 
+                  ...msg,
+                  id: data.id,
+                  status: 'delivered',
+                  created_at: data.created_at
+                } : msg
+              )
+            }
+          }));
+        });
     } catch (error: any) {
       connectionManager.endUpload();
 

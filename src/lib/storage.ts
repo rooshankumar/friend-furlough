@@ -214,45 +214,85 @@ export const uploadPostImage = async (
  * @param onProgress - Optional callback for upload progress (0-100)
  * @returns Public URL of uploaded file
  */
+// Storage configuration
+const SUPABASE_BUCKET = 'chat_files';
+const UPLOAD_TIMEOUT = 45000; // 45 seconds
+
+/**
+ * Convert file to base64 data URL (fallback for storage failures)
+ */
+async function fileToBase64(file: File): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(reader.result as string);
+    reader.onerror = reject;
+    reader.readAsDataURL(file);
+  });
+}
+
+/**
+ * Upload chat attachment with timeout and base64 fallback
+ */
 export const uploadChatAttachment = async (
   file: File,
   conversationId: string,
   onProgress?: (progress: number) => void
 ): Promise<string> => {
-  console.log('📤 NEW APPROACH: Converting to base64 data URL');
-  console.log('📤 File:', file.name, `(${(file.size / 1024 / 1024).toFixed(2)}MB)`);
+  console.log('📤 Uploading:', file.name, `(${(file.size / 1024 / 1024).toFixed(2)}MB)`);
 
   try {
     onProgress?.(10);
 
-    // Convert file to base64 data URL (works offline!)
-    const dataUrl = await new Promise<string>((resolve, reject) => {
-      const reader = new FileReader();
-      
-      reader.onload = () => {
-        console.log('✅ File converted to base64');
-        resolve(reader.result as string);
-      };
-      
-      reader.onerror = () => {
-        console.error('❌ FileReader error');
-        reject(new Error('Failed to read file'));
-      };
-      
-      reader.readAsDataURL(file);
-    });
+    // Create file path
+    const fileName = `${conversationId}/${Date.now()}_${file.name}`;
+    onProgress?.(30);
+
+    // Try Supabase upload with timeout
+    const uploadPromise = supabase.storage
+      .from(SUPABASE_BUCKET)
+      .upload(fileName, file, {
+        cacheControl: '3600',
+        upsert: false
+      });
+
+    const timeoutPromise = new Promise((_, reject) => 
+      setTimeout(() => reject(new Error('Upload timeout')), UPLOAD_TIMEOUT)
+    );
+
+    const { data, error } = await Promise.race([uploadPromise, timeoutPromise]) as any;
+    onProgress?.(70);
+
+    if (error) {
+      console.warn('⚠️ Supabase upload failed, using base64 fallback:', error.message);
+      const base64 = await fileToBase64(file);
+      onProgress?.(100);
+      console.log('✅ File converted to base64');
+      return base64;
+    }
+
+    // Get public URL
+    const { data: { publicUrl } } = supabase.storage
+      .from(SUPABASE_BUCKET)
+      .getPublicUrl(fileName);
 
     onProgress?.(100);
-    console.log('✅ Base64 data URL ready (length:', dataUrl.length, ')');
-    
-    // Return the data URL directly - no upload needed!
-    return dataUrl;
+    console.log('✅ Upload complete:', publicUrl);
+    return publicUrl;
   } catch (error: any) {
-    console.error('❌ Conversion failed:', error);
-    onProgress?.(0);
-    throw error;
+    console.warn('⚠️ Upload failed, using base64 fallback:', error.message);
+    try {
+      const base64 = await fileToBase64(file);
+      onProgress?.(100);
+      console.log('✅ File converted to base64');
+      return base64;
+    } catch (base64Error) {
+      console.error('❌ Base64 conversion failed:', base64Error);
+      onProgress?.(0);
+      throw error;
+    }
   }
 };
+
 
 /**
  * Upload voice message (audio file)

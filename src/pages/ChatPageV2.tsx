@@ -14,6 +14,7 @@
 import React, { useState, useEffect, useRef, useCallback, useMemo, useLayoutEffect } from 'react';
 import { isMobileApp } from '@/lib/mobileFilePicker';
 import MobileFileInput from '@/components/MobileFileInput';
+import { B2Image } from '@/components/B2Image';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import { usePerformanceMonitor } from '@/hooks/usePerformanceOptimization';
 import { useAuthStore } from '@/stores/authStore';
@@ -141,7 +142,7 @@ const EnhancedMessageV2: React.FC<EnhancedMessageV2Props> = ({
         {message.type === 'image' ? (
           <div className="relative group">
             {message.media_url ? (
-              <img 
+              <B2Image 
                 src={message.media_url} 
                 alt="Shared image"
                 loading="lazy"
@@ -222,7 +223,7 @@ const EnhancedMessageV2: React.FC<EnhancedMessageV2Props> = ({
                   </p>
                 </div>
                 {message.reply_to.type === 'image' && message.reply_to.media_url && (
-                  <img 
+                  <B2Image 
                     src={message.reply_to.media_url} 
                     alt="" 
                     className="w-10 h-10 rounded object-cover flex-shrink-0"
@@ -1018,7 +1019,7 @@ const ChatPageV2 = () => {
                   </p>
                 </div>
                 {replyingTo.type === 'image' && replyingTo.media_url && (
-                  <img 
+                  <B2Image 
                     src={replyingTo.media_url} 
                     alt="" 
                     className="w-12 h-12 rounded object-cover flex-shrink-0"

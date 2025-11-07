@@ -226,32 +226,21 @@ export const uploadChatAttachment = async (
   try {
     onProgress?.(5);
 
-    // Compress image if needed (aggressive compression for mobile)
-    let fileToUpload = file;
-    if (file.type.startsWith('image/')) {
-      onProgress?.(10);
-      const { mobileFileHandler } = await import('./mobileFileHandler');
-      fileToUpload = await mobileFileHandler.compressImage(file, isMobile ? 2 : 5);
-      console.log('✅ Compressed:', (fileToUpload.size / 1024 / 1024).toFixed(2) + 'MB');
-      
-      // If still over 1MB on mobile, compress again
-      if (isMobile && fileToUpload.size > 1024 * 1024) {
-        fileToUpload = await mobileFileHandler.compressImage(fileToUpload, 1);
-        console.log('✅ Re-compressed:', (fileToUpload.size / 1024 / 1024).toFixed(2) + 'MB');
-      }
-    }
+    // SKIP COMPRESSION - Upload directly
+    const fileToUpload = file;
+    console.log('📤 Uploading directly without compression:', (fileToUpload.size / 1024 / 1024).toFixed(2) + 'MB');
 
     onProgress?.(30);
     const fileName = `${conversationId}/${Date.now()}_${file.name}`;
     onProgress?.(40);
 
-    // Retry logic: Try 2 times with short timeout (Supabase API often hangs)
-    const maxRetries = 2;
+    // Retry logic: Try 3 times with longer timeouts (no compression = larger files)
+    const maxRetries = 3;
     let lastError: any;
 
     for (let attempt = 1; attempt <= maxRetries; attempt++) {
       try {
-        const timeout = attempt === 1 ? 10000 : 20000; // 10s then 20s = 30s total
+        const timeout = attempt === 1 ? 30000 : attempt === 2 ? 60000 : 90000; // 30s, 60s, 90s
         console.log(`🔄 Upload attempt ${attempt}/${maxRetries} (${timeout / 1000}s timeout)`);
 
         const uploadPromise = (async () => {

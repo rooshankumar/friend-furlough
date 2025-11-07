@@ -1,8 +1,14 @@
 import { supabase } from '@/integrations/supabase/client';
+import { uploadToCloudinary, uploadVideoToCloudinary, uploadFileToCloudinary } from './cloudinaryUpload';
 
 const SUPABASE_BUCKET = 'chat_files';
-const UPLOAD_TIMEOUT = 45000; // 45 seconds for mobile
+const UPLOAD_TIMEOUT = 30000; // 30 seconds (faster failure detection)
+const MAX_RETRIES = 3; // Retry failed uploads
+const RETRY_DELAY = 2000; // 2 seconds between retries
 const CHUNK_SIZE = 512 * 1024; // 512KB chunks for better mobile support
+
+// Use Cloudinary for uploads (faster and more reliable than Supabase storage)
+const USE_CLOUDINARY = true;
 
 /**
  * Smart compression - only compress if file is too large
@@ -122,7 +128,7 @@ const validateMobileFile = (
 };
 
 /**
- * ✅ FIXED: Upload chat attachment with AbortController and proper error handling
+ * ✅ CLOUDINARY: Upload chat attachment (fast and reliable)
  */
 export const uploadChatAttachment = async (
   file: File,
@@ -135,12 +141,8 @@ export const uploadChatAttachment = async (
     `(${(file.size / 1024 / 1024).toFixed(2)}MB)`
   );
 
-  // Create AbortController for cancellation
-  const abortController = new AbortController();
-  let uploadTimeout: NodeJS.Timeout;
-
   try {
-    onProgress?.(10);
+    onProgress?.(5);
 
     // Validate file
     validateMobileFile(file, 20, [
@@ -151,88 +153,56 @@ export const uploadChatAttachment = async (
       'audio/',
     ]);
 
-    // Set timeout with proper cleanup
-    const timeoutPromise = new Promise<never>((_, reject) => {
-      uploadTimeout = setTimeout(() => {
-        abortController.abort();
-        reject(new Error('Upload timeout - please check your connection'));
-      }, UPLOAD_TIMEOUT);
-    });
+    onProgress?.(10);
 
+    // ✅ USE CLOUDINARY (fast and reliable)
+    if (USE_CLOUDINARY) {
+      console.log('☁️ Using Cloudinary for upload');
+      
+      // Determine file type and use appropriate uploader
+      if (file.type.startsWith('image/')) {
+        console.log('📸 Uploading image to Cloudinary');
+        const url = await uploadToCloudinary(file, onProgress);
+        console.log('✅ Cloudinary upload complete:', url);
+        return url;
+      } else if (file.type.startsWith('video/')) {
+        console.log('🎥 Uploading video to Cloudinary');
+        const url = await uploadVideoToCloudinary(file, onProgress);
+        console.log('✅ Cloudinary video upload complete:', url);
+        return url;
+      } else {
+        console.log('📎 Uploading file to Cloudinary');
+        const url = await uploadFileToCloudinary(file, onProgress);
+        console.log('✅ Cloudinary file upload complete:', url);
+        return url;
+      }
+    }
+
+    // Fallback to Supabase (if Cloudinary is disabled)
+    console.log('⚠️ Using Supabase storage (fallback)');
     const fileName = `${conversationId}/${Date.now()}_${file.name}`;
     onProgress?.(30);
 
-    // ✅ Create upload promise with detailed logging
-    const uploadPromise = (async () => {
-      try {
-        console.log('🔍 Starting Supabase storage upload...');
-        const uploadStartTime = Date.now();
-        
-        const { data, error } = await supabase.storage
-          .from(SUPABASE_BUCKET)
-          .upload(fileName, file, {
-            cacheControl: '3600',
-            upsert: false,
-          });
+    const { data, error } = await supabase.storage
+      .from(SUPABASE_BUCKET)
+      .upload(fileName, file, {
+        cacheControl: '3600',
+        upsert: false,
+      });
 
-        const uploadDuration = Date.now() - uploadStartTime;
-        console.log(`🔍 Supabase upload completed in ${uploadDuration}ms`, { 
-          success: !error, 
-          hasData: !!data,
-          path: data?.path 
-        });
+    if (error) throw error;
+    if (!data || !data.path) throw new Error('Upload failed - no path returned');
 
-        if (error) {
-          console.error('❌ Supabase storage error:', error);
-          throw error;
-        }
-
-        if (!data || !data.path) {
-          console.error('❌ No data or path returned from upload');
-          throw new Error('Upload failed - no path returned');
-        }
-
-        return data;
-      } catch (err: any) {
-        // Check if aborted
-        if (abortController.signal.aborted) {
-          console.error('⏱️ Upload aborted due to timeout');
-          throw new Error('Upload cancelled due to timeout');
-        }
-        console.error('❌ Upload promise error:', err);
-        throw err;
-      }
-    })();
-
-    onProgress?.(50);
-    console.log('🔍 Waiting for upload to complete (max 45s)...');
-
-    let data;
-    try {
-      data = await Promise.race([uploadPromise, timeoutPromise]);
-      console.log('✅ Upload race completed successfully');
-    } catch (error: any) {
-      console.error('❌ Upload race failed:', error.message);
-      clearTimeout(uploadTimeout!);
-      throw error;
-    }
-
-    clearTimeout(uploadTimeout!);
-    console.log('🔍 Getting public URL for:', data.path);
     onProgress?.(70);
 
-    // Get public URL
     const { data: urlData } = supabase.storage
       .from(SUPABASE_BUCKET)
       .getPublicUrl(data.path);
 
     onProgress?.(100);
-    console.log('✅ Upload complete:', urlData.publicUrl);
+    console.log('✅ Supabase upload complete:', urlData.publicUrl);
     return urlData.publicUrl;
   } catch (error: any) {
-    clearTimeout(uploadTimeout!);
-    abortController.abort();
-
     console.error('❌ Upload failed:', error.message);
     
     // Fallback to smaller retry or base64 only for very small files

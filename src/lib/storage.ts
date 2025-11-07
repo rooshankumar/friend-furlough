@@ -229,13 +229,26 @@ export const uploadChatAttachment = async (
     
     onProgress?.(30);
 
-    // Direct upload - no compression, no retries, no timeout
-    const { data, error } = await supabase.storage
+    // Upload with 30 second timeout
+    console.log('⏱️ Starting upload with 30s timeout...');
+    
+    const uploadPromise = supabase.storage
       .from('chat_files')
       .upload(fileName, file, {
         cacheControl: '3600',
         upsert: true
       });
+
+    const timeoutPromise = new Promise<never>((_, reject) => {
+      setTimeout(() => {
+        console.log('⏰ Upload timeout reached!');
+        reject(new Error('Upload timeout after 30s - check your internet connection'));
+      }, 30000); // 30 seconds
+    });
+
+    console.log('🏁 Racing upload vs timeout...');
+    const { data, error } = await Promise.race([uploadPromise, timeoutPromise]);
+    console.log('🎯 Race completed!');
 
     if (error) {
       console.error('❌ Upload error:', error);

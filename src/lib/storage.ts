@@ -14,36 +14,36 @@ const compressImage = async (file: File, maxWidth: number = 1200, quality: numbe
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
     reader.readAsDataURL(file);
-    
+
     reader.onload = (event) => {
       const img = new Image();
       img.src = event.target?.result as string;
-      
+
       img.onload = () => {
         const canvas = document.createElement('canvas');
         let width = img.width;
         let height = img.height;
-        
+
         // Only resize if larger than maxWidth
         if (width > maxWidth) {
           height = Math.round((height * maxWidth) / width);
           width = maxWidth;
         }
-        
+
         canvas.width = width;
         canvas.height = height;
-        
+
         const ctx = canvas.getContext('2d');
         if (!ctx) {
           reject(new Error('Canvas context failed'));
           return;
         }
-        
+
         // High-quality rendering
         ctx.imageSmoothingEnabled = true;
         ctx.imageSmoothingQuality = 'high';
         ctx.drawImage(img, 0, 0, width, height);
-        
+
         canvas.toBlob(
           (blob) => {
             if (blob) {
@@ -65,10 +65,10 @@ const compressImage = async (file: File, maxWidth: number = 1200, quality: numbe
           quality
         );
       };
-      
+
       img.onerror = () => reject(new Error('Failed to load image'));
     };
-    
+
     reader.onerror = () => reject(new Error('Failed to read file'));
   });
 };
@@ -79,19 +79,19 @@ const compressImage = async (file: File, maxWidth: number = 1200, quality: numbe
 const validateMobileFile = (file: File, maxSizeMB: number, allowedTypes: string[]): void => {
   const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
   const isLowEndDevice = (navigator as any).deviceMemory <= 2 || navigator.hardwareConcurrency <= 2;
-  
+
   // Adjust limits for mobile devices
   const actualMaxSize = isMobile && isLowEndDevice ? Math.min(maxSizeMB, 3) : maxSizeMB;
   const maxBytes = actualMaxSize * 1024 * 1024;
-  
+
   if (file.size > maxBytes) {
     throw new Error(`File too large. Maximum size: ${actualMaxSize}MB`);
   }
-  
+
   if (!allowedTypes.some(type => file.type.startsWith(type))) {
     throw new Error('File type not supported');
   }
-  
+
   console.log('📱 Mobile file validation passed:', {
     name: file.name,
     size: `${(file.size / 1024 / 1024).toFixed(2)}MB`,
@@ -112,10 +112,10 @@ export const uploadAvatar = async (file: File, userId: string): Promise<string> 
   try {
     // Mobile-optimized validation
     validateMobileFile(file, 5, ['image/']);
-    
+
     // Smart compression for avatars (maintain quality, 800x800 max)
     const compressedFile = await compressImage(file, 800, 0.9);
-    
+
     const fileExt = 'jpg'; // Always use jpg for consistency
     const fileName = `${Date.now()}.${fileExt}`;
     const filePath = `${userId}/${fileName}`;
@@ -156,74 +156,55 @@ export const uploadPostImage = async (
   userId: string,
   onProgress?: (progress: number) => void
 ): Promise<string> => {
-  try {
-    console.log('📤 Starting post image upload:', {
-      name: file.name,
-      size: `${(file.size / 1024 / 1024).toFixed(2)}MB`,
-      type: file.type
-    });
+  console.log('📤 Starting post image upload:', file.name);
 
-    const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
-    
-    // Mobile-optimized validation
-    validateMobileFile(file, 10, ['image/']);
-    onProgress?.(10);
-    
-    // Smart compression for posts (balance quality/size, 1200px max)
-    console.log('🖼️ Compressing image...');
-    const compressedFile = await compressImage(file, 1200, 0.85);
-    console.log('✅ Image compressed:', `${(compressedFile.size / 1024 / 1024).toFixed(2)}MB`);
-    onProgress?.(40);
-    
-    const fileExt = 'jpg';
-    const fileName = `${Date.now()}_${Math.random().toString(36).slice(2, 8)}.${fileExt}`;
-    const filePath = `${userId}/${fileName}`;
+  const isMobile = /Android|webOS|iPhone|iPad|iPod/i.test(navigator.userAgent);
+  const timeout = isMobile ? 60000 : 120000;
 
-    console.log('📤 Uploading to storage:', filePath);
-    onProgress?.(50);
+  const uploadPromise = new Promise<string>(async (resolve, reject) => {
+    try {
+      onProgress?.(10);
 
-    // Upload with dynamic timeout tuned for mobile
-    // Base of 90s on mobile, 120s on desktop, plus 6s per MB (capped extra 120s)
-    const baseTimeout = isMobile ? 90000 : 120000;
-    const perMbMs = 6000;
-    const sizeMb = Math.max(1, Math.ceil(compressedFile.size / (1024 * 1024)));
-    const extra = Math.min(120000, sizeMb * perMbMs);
-    const uploadTimeout = baseTimeout + extra;
-    const uploadPromise = supabase.storage
-      .from('post_pic')
-      .upload(filePath, compressedFile, { 
-        upsert: true,
-        contentType: 'image/jpeg'
-      });
+      // Compress image
+      const { mobileFileHandler } = await import('./mobileFileHandler');
+      const compressedFile = await mobileFileHandler.compressImage(file, 10);
 
-    const timeoutPromise = new Promise((_, reject) => 
-      setTimeout(() => reject(new Error('Upload timeout - please check your connection and try again')), uploadTimeout)
-    );
+      onProgress?.(40);
 
-    const { error: uploadError } = await Promise.race([
-      uploadPromise,
-      timeoutPromise
-    ]) as any;
+      const fileName = `${userId}/${Date.now()}_${file.name}`;
 
-    if (uploadError) {
-      console.error('❌ Post image upload error:', uploadError);
-      throw new Error(`Upload failed: ${uploadError.message}`);
+      onProgress?.(50);
+
+      const { data, error } = await supabase.storage
+        .from('community-posts')
+        .upload(fileName, compressedFile, {
+          cacheControl: '3600',
+          upsert: false
+        });
+
+      if (error) throw error;
+
+      onProgress?.(90);
+
+      const { data: { publicUrl } } = supabase.storage
+        .from('community-posts')
+        .getPublicUrl(data.path);
+
+      onProgress?.(100);
+      console.log('✅ Post image uploaded:', publicUrl);
+
+      resolve(publicUrl);
+    } catch (error) {
+      console.error('Post image upload error:', error);
+      reject(error);
     }
+  });
 
-    console.log('✅ File uploaded to storage');
-    onProgress?.(90);
+  const timeoutPromise = new Promise<never>((_, reject) => 
+    setTimeout(() => reject(new Error('Upload timeout - please check your connection')), timeout)
+  );
 
-    const { data } = supabase.storage
-      .from('post_pic')
-      .getPublicUrl(filePath);
-
-    onProgress?.(100);
-    console.log('✅ Post image uploaded:', data.publicUrl);
-    return data.publicUrl;
-  } catch (error) {
-    console.error('❌ Post image upload error:', error);
-    throw error;
-  }
+  return Promise.race([uploadPromise, timeoutPromise]);
 };
 
 /**
@@ -234,103 +215,64 @@ export const uploadPostImage = async (
  * @returns Public URL of uploaded file
  */
 export const uploadChatAttachment = async (
-  file: File, 
+  file: File,
   conversationId: string,
   onProgress?: (progress: number) => void
 ): Promise<string> => {
-  try {
-    console.log('📤 Starting chat attachment upload:', {
-      name: file.name,
-      size: `${(file.size / 1024 / 1024).toFixed(2)}MB`,
-      type: file.type
-    });
+  console.log('📎 Uploading chat attachment:', file.name, file.size);
 
-    const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
-    const isLowEndDevice = (navigator as any).deviceMemory <= 2 || navigator.hardwareConcurrency <= 2;
-    
-    const maxSizeMB = isMobile && isLowEndDevice ? 10 : 20;
-    const maxBytes = maxSizeMB * 1024 * 1024;
-    
-    if (file.size > maxBytes) {
-      throw new Error(`File too large. Maximum size: ${maxSizeMB}MB`);
-    }
-    
-    onProgress?.(10);
-    
-    let fileToUpload = file;
-    let contentType = file.type || 'application/octet-stream';
-    let fileExt = file.name.split('.').pop() || 'file';
-    
-    // Smart compression for images only
-    if (file.type.startsWith('image/')) {
-      try {
-        onProgress?.(20);
-        console.log('🖼️ Compressing image...');
-        const targetWidth = isMobile ? (isLowEndDevice ? 720 : 1080) : 1200;
-        const targetQuality = 0.8;
-        fileToUpload = await compressImage(file, targetWidth, targetQuality);
-        contentType = 'image/jpeg';
-        fileExt = 'jpg';
-        console.log('✅ Image compressed:', `${(fileToUpload.size / 1024 / 1024).toFixed(2)}MB`);
-        onProgress?.(40);
-      } catch (err) {
-        console.warn('⚠️ Compression failed, using original:', err);
-        fileToUpload = file;
-        onProgress?.(40);
+  const isMobile = /Android|webOS|iPhone|iPad|iPod/i.test(navigator.userAgent);
+  const timeout = isMobile ? 60000 : 120000; // 60s mobile, 120s desktop
+
+  const uploadPromise = new Promise<string>(async (resolve, reject) => {
+    try {
+      onProgress?.(5);
+
+      // Compress image if needed
+      let fileToUpload = file;
+      if (file.type.startsWith('image/')) {
+        onProgress?.(10);
+        const { mobileFileHandler } = await import('./mobileFileHandler');
+        fileToUpload = await mobileFileHandler.compressImage(file, 5);
+        console.log('Image compressed:', fileToUpload.size);
       }
-    } else {
+
+      onProgress?.(30);
+
+      const fileName = `${conversationId}/${Date.now()}_${file.name}`;
+
       onProgress?.(40);
+
+      const { data, error } = await supabase.storage
+        .from('chat-attachments')
+        .upload(fileName, fileToUpload, {
+          cacheControl: '3600',
+          upsert: false
+        });
+
+      if (error) throw error;
+
+      onProgress?.(80);
+
+      const { data: { publicUrl } } = supabase.storage
+        .from('chat-attachments')
+        .getPublicUrl(data.path);
+
+      onProgress?.(100);
+      console.log('✅ Attachment uploaded:', publicUrl);
+
+      resolve(publicUrl);
+    } catch (error) {
+      console.error('Upload error:', error);
+      reject(error);
     }
-    
-    const fileName = `${Date.now()}_${Math.random().toString(36).slice(2, 8)}.${fileExt}`;
-    const filePath = `${conversationId}/${fileName}`;
+  });
 
-    console.log('📤 Uploading to storage:', filePath);
-    onProgress?.(50);
-    
-    // Upload with dynamic timeout tuned for mobile (base + per MB)
-    const baseTimeout = isMobile ? 90000 : 120000;
-    const perMbMs = 6000;
-    const sizeMb = Math.max(1, Math.ceil(fileToUpload.size / (1024 * 1024)));
-    const extra = Math.min(120000, sizeMb * perMbMs);
-    const uploadTimeout = baseTimeout + extra;
-    const uploadPromise = supabase.storage
-      .from('chat_attachments')
-      .upload(filePath, fileToUpload, {
-        contentType,
-        cacheControl: '3600',
-        upsert: false
-      });
-    
-    const timeoutPromise = new Promise((_, reject) => 
-      setTimeout(() => reject(new Error('Upload timeout - please check your connection and try again')), uploadTimeout)
-    );
-    
-    const { data: uploadData, error: uploadError } = await Promise.race([
-      uploadPromise,
-      timeoutPromise
-    ]) as any;
+  const timeoutPromise = new Promise<never>((_, reject) => 
+    setTimeout(() => reject(new Error('Upload timeout - please check your connection')), timeout)
+  );
 
-    if (uploadError) {
-      console.error('❌ Chat attachment upload error:', uploadError);
-      throw new Error(`Upload failed: ${uploadError.message}`);
-    }
-
-    console.log('✅ File uploaded to storage:', uploadData);
-    onProgress?.(90);
-
-    const { data } = supabase.storage
-      .from('chat_attachments')
-      .getPublicUrl(filePath);
-
-    onProgress?.(100);
-    
-    console.log('✅ Chat attachment URL:', data.publicUrl);
-    return data.publicUrl;
-  } catch (error) {
-    console.error('❌ Chat attachment upload error:', error);
-    throw error;
-  }
+  return Promise.race([uploadPromise, timeoutPromise]);
 };
 
 /**
@@ -345,18 +287,18 @@ export const uploadVoiceMessage = async (audioBlob: Blob, conversationId: string
     if (audioBlob.size > 10 * 1024 * 1024) {
       throw new Error('Voice message must be smaller than 10MB');
     }
-    
+
     // Validate minimum file size to prevent corrupted uploads
     if (audioBlob.size < 1000) {
       throw new Error('Voice message is too short or corrupted');
     }
-    
+
     // Determine file extension based on blob type with better detection
     const blobType = audioBlob.type || 'audio/webm';
     let fileExt = 'webm';
-    
+
     console.log('Voice message blob type:', blobType, 'size:', audioBlob.size);
-    
+
     if (blobType.includes('wav')) {
       fileExt = 'wav';
     } else if (blobType.includes('mp3')) {
@@ -368,7 +310,7 @@ export const uploadVoiceMessage = async (audioBlob: Blob, conversationId: string
     } else if (blobType.includes('webm')) {
       fileExt = 'webm';
     }
-    
+
     const fileName = `voice_${Date.now()}.${fileExt}`;
     const filePath = `${conversationId}/${fileName}`; // Store in conversation's folder
 

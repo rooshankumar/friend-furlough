@@ -35,7 +35,7 @@ export const usePullToRefresh = ({
     if (!isPulling || disabled || isRefreshing) return;
     
     const container = containerRef.current;
-    if (!container || container.scrollTop > 0) {
+    if (!container || container.scrollTop > 5) {
       setIsPulling(false);
       setPullDistance(0);
       return;
@@ -44,18 +44,22 @@ export const usePullToRefresh = ({
     const currentY = e.touches[0].clientY;
     const distance = Math.max(0, currentY - startY.current);
     
-    // Only activate pull-to-refresh if pulling down (positive distance)
-    if (distance > 10) {
+    // Only activate pull-to-refresh if pulling down significantly
+    if (distance > 30) {
       // Apply resistance effect
-      const resistedDistance = Math.min(distance * 0.5, threshold * 1.5);
+      const resistedDistance = Math.min(distance * 0.4, threshold * 1.2);
       setPullDistance(resistedDistance);
 
-      // Prevent default scroll when pulling down
-      e.preventDefault();
+      // Only prevent default if actively pulling to refresh
+      if (resistedDistance > 20) {
+        e.preventDefault();
+      }
     } else {
-      // Allow normal scrolling
-      setIsPulling(false);
-      setPullDistance(0);
+      // Allow normal scrolling for small movements
+      if (distance < 15) {
+        setIsPulling(false);
+        setPullDistance(0);
+      }
     }
   }, [isPulling, disabled, isRefreshing, threshold]);
 

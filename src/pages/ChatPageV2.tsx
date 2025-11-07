@@ -390,8 +390,22 @@ const ChatPageV2 = () => {
   }, [conversationId, user?.id]);
 
   useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-  }, [conversationMessages]);
+    // Auto-scroll to bottom for new messages
+    if (conversationMessages.length > 0) {
+      setTimeout(() => {
+        messagesEndRef.current?.scrollIntoView({ behavior: 'auto' });
+      }, 100);
+    }
+  }, [conversationMessages.length]);
+  
+  // Initial load scroll
+  useEffect(() => {
+    if (conversationId && conversationMessages.length > 0) {
+      setTimeout(() => {
+        messagesEndRef.current?.scrollIntoView({ behavior: 'auto' });
+      }, 300);
+    }
+  }, [conversationId]);
 
   const handleSendMessage = useCallback(async () => {
     if (!newMessage.trim() || !conversationId || !user) return;
@@ -1075,6 +1089,10 @@ const ChatPageV2 = () => {
                 onKeyPress={(e) => e.key === 'Enter' && !e.shiftKey && handleSendMessage()}
                 placeholder="Type a message..."
                 className="flex-1 bg-muted/50"
+                style={{ fontSize: '16px' }}
+                autoComplete="off"
+                autoCorrect="on"
+                autoCapitalize="sentences"
               />
               {newMessage.trim() ? (
                 <Button 

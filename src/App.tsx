@@ -65,25 +65,25 @@ const PageLoadingFallback = () => (
 
 const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
   const { isAuthenticated, onboardingCompleted } = useAuthStore();
-  
+
   if (!isAuthenticated) {
     return <Navigate to="/auth/signin" replace />;
   }
-  
+
   if (!onboardingCompleted) {
     return <Navigate to="/onboarding/cultural-profile" replace />;
   }
-  
+
   return <>{children}</>;
 };
 
 // Component that uses QueryClient - must be inside QueryClientProvider
 const AppContent = () => {
   const { user } = useAuthStore();
-  
+
   // Master optimization hook (replaces useGlobalSync + useAppOptimization)
   useMasterOptimization();
-  
+
   // Removed duplicate globalDataManager - already handled in useMasterOptimization
   // Removed useAppDataPreloader - causing performance issues
   return (
@@ -95,77 +95,77 @@ const AppContent = () => {
       <Suspense fallback={<PageLoadingFallback />}>
         <Routes>
           <Route path="/" element={<HomePage />} />
-          
+
           {/* Authentication Routes */}
           <Route path="/auth/signup" element={<SignUpPage />} />
           <Route path="/auth/signin" element={<SignInPage />} />
-          
+
           {/* Onboarding Routes */}
           <Route path="/onboarding/welcome" element={<WelcomePage />} />
           <Route path="/onboarding/cultural-profile" element={<CulturalProfilePage />} />
           <Route path="/onboarding/learning-goals" element={<LearningGoalsPage />} />
-          
+
           {/* Protected Routes */}
           <Route path="/explore" element={
             <ProtectedRoute>
               <ExplorePage />
             </ProtectedRoute>
           } />
-          
+
           <Route path="/chat" element={
             <ProtectedRoute>
               <ChatPage />
             </ProtectedRoute>
           } />
-          
+
           <Route path="/chat/:conversationId" element={
             <ProtectedRoute>
               <ChatPage />
             </ProtectedRoute>
           } />
-          
+
           <Route path="/community" element={
             <ProtectedRoute>
               <CommunityPage />
             </ProtectedRoute>
           } />
-          
+
           <Route path="/post/:postId" element={
             <ProtectedRoute>
               <PostDetailPage />
             </ProtectedRoute>
           } />
-          
+
           <Route path="/profile" element={
             <ProtectedRoute>
               <ProfilePage />
             </ProtectedRoute>
           } />
-          
+
           <Route path="/profile/:userId" element={
             <ProtectedRoute>
               <ProfilePage />
             </ProtectedRoute>
           } />
-          
+
           <Route path="/settings" element={
             <ProtectedRoute>
               <SettingsPage />
             </ProtectedRoute>
           } />
-          
+
           <Route path="/friends" element={
             <ProtectedRoute>
               <Navigate to="/profile" replace />
             </ProtectedRoute>
           } />
-          
+
           <Route path="/events" element={
             <ProtectedRoute>
               <EventsPage />
             </ProtectedRoute>
           } />
-          
+
           {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
           <Route path="*" element={<NotFound />} />
         </Routes>
@@ -176,24 +176,32 @@ const AppContent = () => {
 
 const App = () => {
   const { initialize } = useAuthStore();
-  
+
   // Initialize auth and OAuth listener on mount
   React.useEffect(() => {
     initialize();
-    
+
     // Initialize OAuth deep link listener for mobile
     import('@/lib/mobileAuth').then(({ initOAuthListener }) => {
       initOAuthListener();
     });
-    
+
+    // Initialize keyboard handling for mobile
+    import('./lib/keyboardHandler').then(({ initKeyboardHandling }) => {
+      initKeyboardHandling();
+    });
+
     // Cleanup on unmount
     return () => {
       import('@/lib/mobileAuth').then(({ removeOAuthListener }) => {
         removeOAuthListener();
       });
+      import('./lib/keyboardHandler').then(({ cleanupKeyboardHandling }) => {
+        cleanupKeyboardHandling();
+      });
     };
   }, [initialize]);
-  
+
   return (
     <QueryClientProvider client={queryClient}>
       <TooltipProvider>

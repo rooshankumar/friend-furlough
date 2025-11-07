@@ -200,8 +200,8 @@ export const useChatStore = create<ChatState>((set, get) => ({
         };
       });
       
-      // Filter out deleted conversations
-      const deletedConvs = JSON.parse(sessionStorage.getItem('deletedConversations') || '[]');
+      // Filter out permanently deleted conversations
+      const deletedConvs = JSON.parse(localStorage.getItem('deletedConversations') || '[]');
       const filteredConversations = conversationsWithDetails.filter(
         conv => !deletedConvs.includes(conv.id)
       );
@@ -1082,14 +1082,14 @@ export const useChatStore = create<ChatState>((set, get) => ({
     try {
       console.log('🗑️ Deleting conversation:', conversationId);
       
-      // Store deleted conversation in session storage
-      const deletedConvs = JSON.parse(sessionStorage.getItem('deletedConversations') || '[]');
+      // Store in localStorage for permanent deletion across sessions
+      const deletedConvs = JSON.parse(localStorage.getItem('deletedConversations') || '[]');
       if (!deletedConvs.includes(conversationId)) {
         deletedConvs.push(conversationId);
-        sessionStorage.setItem('deletedConversations', JSON.stringify(deletedConvs));
+        localStorage.setItem('deletedConversations', JSON.stringify(deletedConvs));
       }
       
-      // Delete the conversation participant record (soft delete from user's perspective)
+      // Delete the conversation participant record
       const { error } = await supabase
         .from('conversation_participants')
         .delete()
@@ -1107,7 +1107,7 @@ export const useChatStore = create<ChatState>((set, get) => ({
         }
       }));
 
-      console.log('✅ Conversation deleted:', conversationId);
+      console.log('✅ Conversation permanently deleted:', conversationId);
     } catch (error) {
       console.error('❌ Failed to delete conversation:', error);
       throw error;

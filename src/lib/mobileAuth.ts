@@ -37,8 +37,7 @@ export const initOAuthListener = () => {
       console.log('OAuth callback detected, processing session...');
       
       try {
-        // Close the browser first
-        await Browser.close().catch(() => {});
+        console.log('🔐 Processing OAuth callback URL:', data.url);
         
         // Extract the URL - Supabase callback includes hash fragments
         const url = new URL(data.url);
@@ -46,7 +45,7 @@ export const initOAuthListener = () => {
         // Get the hash fragment (contains access_token, refresh_token, etc.)
         let hashParams = new URLSearchParams(url.hash.substring(1));
         
-        // If no hash, check search params (some OAuth flows use query params)
+        // If no hash, check search params
         if (!hashParams.has('access_token')) {
           hashParams = new URLSearchParams(url.search);
         }
@@ -54,8 +53,16 @@ export const initOAuthListener = () => {
         const accessToken = hashParams.get('access_token');
         const refreshToken = hashParams.get('refresh_token');
         
+        console.log('🔑 Tokens found:', { 
+          hasAccessToken: !!accessToken, 
+          hasRefreshToken: !!refreshToken 
+        });
+        
         if (accessToken && refreshToken) {
-          console.log('✅ Tokens found, setting session...');
+          console.log('✅ Setting session with tokens...');
+          
+          // Close browser before setting session
+          await Browser.close().catch(() => {});
           
           // Set the session in Supabase
           const { data: sessionData, error } = await supabase.auth.setSession({
@@ -65,19 +72,24 @@ export const initOAuthListener = () => {
           
           if (error) {
             console.error('❌ Error setting session:', error);
+            alert('Login failed: ' + error.message);
           } else {
             console.log('✅ Session set successfully!', sessionData.user?.email);
             
-            // Navigate to home or appropriate page
-            window.location.href = '/';
+            // Small delay before navigation
+            setTimeout(() => {
+              window.location.href = '/dashboard';
+            }, 500);
           }
         } else {
           console.warn('⚠️ No tokens found in callback URL');
-          console.log('Hash params:', Array.from(hashParams.entries()));
-          console.log('Search params:', Array.from(new URLSearchParams(url.search).entries()));
+          await Browser.close().catch(() => {});
+          alert('Login failed: No authentication tokens received');
         }
       } catch (error) {
         console.error('❌ Error processing OAuth callback:', error);
+        await Browser.close().catch(() => {});
+        alert('Login error: ' + (error instanceof Error ? error.message : 'Unknown error'));
       }
     }
   });

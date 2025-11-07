@@ -446,7 +446,7 @@ export const useChatStore = create<ChatState>((set, get) => ({
   },
 
   sendAttachment: async (conversationId: string, senderId: string, file: File) => {
-    console.log('📎 Sending attachment:', { conversationId, senderId, fileName: file.name, fileSize: file.size });
+    console.log('📎 Sending attachment:', { conversationId, senderId, fileName: file.name, fileSize: `${(file.size / 1024 / 1024).toFixed(2)}MB` });
     
     // Create temporary message for optimistic update
     const tempId = `temp_${Date.now()}_${Math.random()}`;
@@ -481,8 +481,9 @@ export const useChatStore = create<ChatState>((set, get) => ({
       
       console.log('📤 Starting file upload...');
       
-      // Upload with timeout (45 seconds)
-      const uploadPromise = uploadChatAttachment(file, conversationId, (progress) => {
+      // Upload with progress tracking (timeout handled inside uploadChatAttachment)
+      const mediaUrl = await uploadChatAttachment(file, conversationId, (progress) => {
+        console.log('📊 Upload progress:', progress + '%');
         // Update upload progress in real-time
         set(state => ({
           messages: {
@@ -494,26 +495,20 @@ export const useChatStore = create<ChatState>((set, get) => ({
         }));
       });
       
-      const timeoutPromise = new Promise<never>((_, reject) => 
-        setTimeout(() => reject(new Error('Upload timeout - please check your connection and try again')), 45000)
-      );
-      
-      const mediaUrl = await Promise.race([uploadPromise, timeoutPromise]);
-      
-      console.log('📤 File uploaded successfully:', mediaUrl);
+      console.log('✅ File uploaded successfully:', mediaUrl);
       
       // Update message with media URL and mark as sent
       set(state => ({
         messages: {
           ...state.messages,
           [conversationId]: state.messages[conversationId].map(msg =>
-            msg.tempId === tempId ? { ...msg, media_url: mediaUrl, status: 'sending' as MessageStatus } : msg
+            msg.tempId === tempId ? { ...msg, media_url: mediaUrl, uploadProgress: 90 } : msg
           )
         }
       }));
       
       // Send message with attachment to database (with client_id for idempotency)
-      console.log('📨 Sending message with attachment...');
+      console.log('📨 Saving message to database...');
       let data: any = null;
       let error: any = null;
       try {
@@ -549,7 +544,10 @@ export const useChatStore = create<ChatState>((set, get) => ({
         data = fallback.data; error = fallback.error;
       }
       
-      if (error) throw error;
+      if (error) {
+        console.error('❌ Database save failed:', error);
+        throw error;
+      }
       
       // Replace temporary message with real one
       set(state => ({
@@ -562,15 +560,20 @@ export const useChatStore = create<ChatState>((set, get) => ({
       }));
       
       console.log('✅ Attachment sent successfully');
-    } catch (error) {
+    } catch (error: any) {
       console.error('❌ Error sending attachment:', error);
       
-      // Update status to failed
+      // Update status to failed with error message
       set(state => ({
         messages: {
           ...state.messages,
           [conversationId]: state.messages[conversationId].map(msg =>
-            msg.tempId === tempId ? { ...msg, status: 'failed' as MessageStatus, uploadProgress: undefined } : msg
+            msg.tempId === tempId ? { 
+              ...msg, 
+              status: 'failed' as MessageStatus, 
+              uploadProgress: undefined,
+              content: `${file.name} (${error.message || 'Upload failed'})`
+            } : msg
           )
         }
       }));
@@ -581,6 +584,7 @@ export const useChatStore = create<ChatState>((set, get) => ({
         const convMsgs = state.messages[conversationId] || [];
         const stillFailed = convMsgs.find(m => m.tempId === tempId && m.status === 'failed');
         if (stillFailed) {
+          console.log('🗑️ Auto-removing failed upload:', tempId);
           state && state.messages && state.messages[conversationId] && get().removeTempMessage(conversationId, tempId);
         }
       }, 30000);
@@ -589,7 +593,8 @@ export const useChatStore = create<ChatState>((set, get) => ({
         message: error.message,
         stack: error.stack,
         conversationId,
-        fileName: file.name
+        fileName: file.name,
+        fileSize: `${(file.size / 1024 / 1024).toFixed(2)}MB`
       });
       throw error;
     }

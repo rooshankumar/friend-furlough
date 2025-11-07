@@ -219,55 +219,36 @@ export const uploadChatAttachment = async (
   conversationId: string,
   onProgress?: (progress: number) => void
 ): Promise<string> => {
-  console.log('📤 Simple upload:', file.name, `(${(file.size / 1024 / 1024).toFixed(2)}MB)`);
+  console.log('📤 NEW APPROACH: Converting to base64 data URL');
+  console.log('📤 File:', file.name, `(${(file.size / 1024 / 1024).toFixed(2)}MB)`);
 
   try {
     onProgress?.(10);
 
-    // Simple filename with timestamp
-    const fileName = `${conversationId}/${Date.now()}_${file.name}`;
-    
-    onProgress?.(30);
-
-    // Upload with 30 second timeout
-    console.log('⏱️ Starting upload with 30s timeout...');
-    
-    const uploadPromise = supabase.storage
-      .from('chat_files')
-      .upload(fileName, file, {
-        cacheControl: '3600',
-        upsert: true
-      });
-
-    const timeoutPromise = new Promise<never>((_, reject) => {
-      setTimeout(() => {
-        console.log('⏰ Upload timeout reached!');
-        reject(new Error('Upload timeout after 30s - check your internet connection'));
-      }, 30000); // 30 seconds
+    // Convert file to base64 data URL (works offline!)
+    const dataUrl = await new Promise<string>((resolve, reject) => {
+      const reader = new FileReader();
+      
+      reader.onload = () => {
+        console.log('✅ File converted to base64');
+        resolve(reader.result as string);
+      };
+      
+      reader.onerror = () => {
+        console.error('❌ FileReader error');
+        reject(new Error('Failed to read file'));
+      };
+      
+      reader.readAsDataURL(file);
     });
 
-    console.log('🏁 Racing upload vs timeout...');
-    const { data, error } = await Promise.race([uploadPromise, timeoutPromise]);
-    console.log('🎯 Race completed!');
-
-    if (error) {
-      console.error('❌ Upload error:', error);
-      throw new Error(error.message || 'Upload failed');
-    }
-
-    onProgress?.(80);
-
-    // Get public URL
-    const { data: { publicUrl } } = supabase.storage
-      .from('chat_files')
-      .getPublicUrl(data.path);
-
     onProgress?.(100);
-    console.log('✅ Upload complete:', publicUrl);
+    console.log('✅ Base64 data URL ready (length:', dataUrl.length, ')');
     
-    return publicUrl;
+    // Return the data URL directly - no upload needed!
+    return dataUrl;
   } catch (error: any) {
-    console.error('❌ Upload failed:', error);
+    console.error('❌ Conversion failed:', error);
     onProgress?.(0);
     throw error;
   }

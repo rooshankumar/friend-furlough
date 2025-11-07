@@ -1103,10 +1103,12 @@ const ChatPageV2 = () => {
                       disabled={!isOnline || isUploadingAttachment}
                       className="absolute inset-0 cursor-pointer z-50"
                       style={{
-                        opacity: 0.01,
-                        backgroundColor: 'rgba(255, 0, 0, 0.1)',
+                        opacity: 1,
+                        backgroundColor: 'rgba(59, 130, 246, 0.3)',
+                        border: '2px solid #3b82f6',
                         width: '48px',
-                        height: '48px'
+                        height: '48px',
+                        borderRadius: '8px'
                       }}
                       aria-label="Upload attachment"
                     />

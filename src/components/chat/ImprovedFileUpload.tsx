@@ -1,77 +1,57 @@
 import React, { useRef, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Progress } from '@/components/ui/progress';
-import { Camera, Loader2, X } from 'lucide-react';
+import { Paperclip, Loader2, X, FileText, Image as ImageIcon } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
-import { isMobileApp, pickFile, FilePickerOptions } from '@/lib/mobileFilePicker';
 
-interface MobileFileInputProps {
-  onFileSelect: (file: File) => void | Promise<void>;
+interface ImprovedFileUploadProps {
+  onFileSelect: (file: File) => Promise<void>;
   accept?: string;
-  buttonText?: string;
-  icon?: React.ReactNode;
-  variant?: 'default' | 'outline' | 'ghost' | 'secondary' | 'destructive' | 'link';
-  size?: 'default' | 'sm' | 'lg' | 'icon';
-  className?: string;
-  disabled?: boolean;
-  isLoading?: boolean;
   maxSizeMB?: number;
+  disabled?: boolean;
+  className?: string;
   showProgress?: boolean;
-  showFileName?: boolean;
 }
 
-const MobileFileInput: React.FC<MobileFileInputProps> = ({
+/**
+ * Improved file upload component with mobile-first design
+ * Based on successful patterns from document upload systems
+ */
+export const ImprovedFileUpload: React.FC<ImprovedFileUploadProps> = ({
   onFileSelect,
   accept = "image/*,video/*,audio/*,.pdf,.doc,.docx,.txt",
-  buttonText = "Upload",
-  icon = <Camera className="mr-2 h-4 w-4" />,
-  variant = "outline",
-  size = "sm",
-  className = "",
-  disabled = false,
-  isLoading = false,
   maxSizeMB = 20,
-  showProgress = true,
-  showFileName = false
+  disabled = false,
+  className = "",
+  showProgress = true
 }) => {
   const { toast } = useToast();
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const [isPickerLoading, setIsPickerLoading] = useState(false);
+  const [uploading, setUploading] = useState(false);
   const [uploadProgress, setUploadProgress] = useState(0);
-  const [selectedFileName, setSelectedFileName] = useState<string>('');
-  
-  // Convert accept string to array for mobile picker
-  const acceptTypes = accept.split(',').map(type => type.trim());
-  
-  const handleClick = async () => {
-    if (disabled || isLoading || isPickerLoading) return;
-    
-    // ALWAYS use native file input (works on both mobile and web)
-    // The Capacitor file picker has issues on some devices
-    fileInputRef.current?.click();
-  };
-  
-  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
+
+  const handleFileSelection = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     
-    console.log('📱 Mobile file selected:', file ? {
+    console.log('📎 File selected:', file ? {
       name: file.name,
       size: `${(file.size / 1024 / 1024).toFixed(2)}MB`,
       type: file.type
     } : 'NO FILE');
-    
+
     if (!file) {
       console.warn('⚠️ No file selected');
       return;
     }
-    
+
     // Validate file size
     const maxBytes = maxSizeMB * 1024 * 1024;
     if (file.size > maxBytes) {
       toast({
-        title: "File too large",
+        title: 'File too large',
         description: `Maximum size: ${maxSizeMB}MB (current: ${(file.size / 1024 / 1024).toFixed(2)}MB)`,
-        variant: "destructive"
+        variant: 'destructive'
       });
       // Reset input
       if (fileInputRef.current) {
@@ -79,7 +59,7 @@ const MobileFileInput: React.FC<MobileFileInputProps> = ({
       }
       return;
     }
-    
+
     // Validate file type
     const acceptedTypes = accept.split(',').map(t => t.trim());
     const isValidType = acceptedTypes.some(type => {
@@ -89,12 +69,12 @@ const MobileFileInput: React.FC<MobileFileInputProps> = ({
       }
       return file.type === type || file.name.endsWith(type);
     });
-    
+
     if (!isValidType) {
       toast({
-        title: "Invalid file type",
+        title: 'Invalid file type',
         description: `Accepted types: ${accept}`,
-        variant: "destructive"
+        variant: 'destructive'
       });
       // Reset input
       if (fileInputRef.current) {
@@ -102,15 +82,15 @@ const MobileFileInput: React.FC<MobileFileInputProps> = ({
       }
       return;
     }
-    
-    setSelectedFileName(file.name);
-    setIsPickerLoading(true);
+
+    setSelectedFile(file);
+    setUploading(true);
     setUploadProgress(10);
-    
+
     try {
-      console.log('📤 Starting mobile upload:', file.name);
+      console.log('📤 Starting upload for:', file.name);
       
-      // Simulate progress
+      // Simulate progress (actual progress will be updated by parent)
       const progressInterval = setInterval(() => {
         setUploadProgress(prev => {
           if (prev >= 90) {
@@ -120,31 +100,32 @@ const MobileFileInput: React.FC<MobileFileInputProps> = ({
           return prev + 10;
         });
       }, 200);
-      
-      // Call parent handler (may be async)
-      await Promise.resolve(onFileSelect(file));
-      
+
+      // Call parent's upload handler
+      await onFileSelect(file);
+
       clearInterval(progressInterval);
       setUploadProgress(100);
-      console.log('✅ Mobile upload successful');
+      
+      console.log('✅ Upload successful');
       
       // Reset after short delay
       setTimeout(() => {
-        setSelectedFileName('');
+        setSelectedFile(null);
         setUploadProgress(0);
-        setIsPickerLoading(false);
+        setUploading(false);
       }, 1000);
-      
+
     } catch (error: any) {
-      console.error('❌ Mobile upload failed:', error);
+      console.error('❌ Upload failed:', error);
       toast({
-        title: "Upload failed",
+        title: 'Upload failed',
         description: error.message || 'Please try again',
-        variant: "destructive"
+        variant: 'destructive'
       });
       setUploadProgress(0);
-      setIsPickerLoading(false);
-      setSelectedFileName('');
+      setUploading(false);
+      setSelectedFile(null);
     } finally {
       // Reset input to allow selecting the same file again
       if (fileInputRef.current) {
@@ -152,54 +133,74 @@ const MobileFileInput: React.FC<MobileFileInputProps> = ({
       }
     }
   };
-  
-  const loading = isLoading || isPickerLoading;
-  
+
+  const handleButtonClick = () => {
+    console.log('📎 Upload button clicked');
+    fileInputRef.current?.click();
+  };
+
+  const cancelUpload = () => {
+    setUploading(false);
+    setUploadProgress(0);
+    setSelectedFile(null);
+    if (fileInputRef.current) {
+      fileInputRef.current.value = '';
+    }
+  };
+
+  const getFileIcon = (file: File | null) => {
+    if (!file) return <Paperclip className="h-5 w-5" />;
+    if (file.type.startsWith('image/')) return <ImageIcon className="h-5 w-5" />;
+    return <FileText className="h-5 w-5" />;
+  };
+
   return (
-    <div className="relative">
+    <div className={`relative ${className}`}>
+      {/* Upload Button */}
       <Button
-        variant={variant}
-        size={size}
-        className={className}
-        onClick={handleClick}
-        disabled={disabled || loading}
-        aria-label="Upload file"
+        type="button"
+        variant="ghost"
+        size="icon"
+        onClick={handleButtonClick}
+        disabled={disabled || uploading}
+        className="h-9 w-9 p-0 flex-shrink-0"
+        aria-label="Upload attachment"
       >
-        {loading ? (
-          <>
-            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-            {buttonText && 'Uploading...'}
-          </>
+        {uploading ? (
+          <Loader2 className="h-5 w-5 animate-spin" />
         ) : (
-          <>
-            {icon}
-            {buttonText}
-          </>
+          getFileIcon(selectedFile)
         )}
       </Button>
-      
-      {/* Hidden file input - works on both mobile and web */}
+
+      {/* Hidden file input */}
       <input
         ref={fileInputRef}
         type="file"
         accept={accept}
-        onChange={handleFileChange}
+        onChange={handleFileSelection}
+        disabled={disabled || uploading}
         style={{ display: 'none' }}
-        disabled={disabled || loading}
         aria-label="File input"
       />
-      
-      {/* Progress indicator */}
-      {showProgress && loading && uploadProgress > 0 && (
+
+      {/* Progress indicator (optional) */}
+      {showProgress && uploading && uploadProgress > 0 && (
         <div className="absolute bottom-full left-0 right-0 mb-2 bg-background border rounded-lg p-3 shadow-lg z-50 min-w-[200px]">
           <div className="space-y-2">
-            {showFileName && selectedFileName && (
-              <div className="flex items-center justify-between text-xs">
-                <span className="font-medium truncate flex-1 mr-2">
-                  {selectedFileName}
-                </span>
-              </div>
-            )}
+            <div className="flex items-center justify-between text-xs">
+              <span className="font-medium truncate flex-1 mr-2">
+                {selectedFile?.name || 'Uploading...'}
+              </span>
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-4 w-4 p-0"
+                onClick={cancelUpload}
+              >
+                <X className="h-3 w-3" />
+              </Button>
+            </div>
             <div className="space-y-1">
               <div className="flex justify-between text-xs text-muted-foreground">
                 <span>Uploading...</span>
@@ -214,4 +215,4 @@ const MobileFileInput: React.FC<MobileFileInputProps> = ({
   );
 };
 
-export default MobileFileInput;
+export default ImprovedFileUpload;

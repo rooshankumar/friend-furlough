@@ -1065,7 +1065,8 @@ const ChatPageV2 = () => {
                   </div>
                 )}
               </div>
-              {isMobileApp() ? (
+              {/* Use MobileFileInput for both mobile app and mobile web */}
+              {isMobileApp() || /Android|webOS|iPhone|iPad|iPod/i.test(navigator.userAgent) ? (
                 <MobileFileInput
                   onFileSelect={handleAttachmentUpload}
                   accept="image/*,video/*,audio/*,.pdf,.doc,.docx,.txt"
@@ -1077,6 +1078,8 @@ const ChatPageV2 = () => {
                   disabled={!isOnline}
                   isLoading={isUploadingAttachment}
                   maxSizeMB={20}
+                  showProgress={true}
+                  showFileName={true}
                 />
               ) : (
                 <>

@@ -245,13 +245,13 @@ export const uploadChatAttachment = async (
     const fileName = `${conversationId}/${Date.now()}_${file.name}`;
     onProgress?.(40);
 
-    // Retry logic: Try 3 times with increasing timeout
-    const maxRetries = 3;
+    // Retry logic: Try 2 times with short timeout (Supabase API often hangs)
+    const maxRetries = 2;
     let lastError: any;
 
     for (let attempt = 1; attempt <= maxRetries; attempt++) {
       try {
-        const timeout = attempt === 1 ? 15000 : attempt === 2 ? 30000 : 45000;
+        const timeout = attempt === 1 ? 10000 : 20000; // 10s then 20s = 30s total
         console.log(`🔄 Upload attempt ${attempt}/${maxRetries} (${timeout / 1000}s timeout)`);
 
         const uploadPromise = (async () => {

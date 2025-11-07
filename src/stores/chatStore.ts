@@ -534,9 +534,17 @@ export const useChatStore = create<ChatState>((set, get) => ({
       // STEP 2: Upload attachment in background
       (async () => {
         try {
+          console.log('📤 Background upload starting for:', file.name);
+          
           const { uploadChatAttachment } = await import('@/lib/storage');
 
-          console.log('📤 Starting background upload...');
+          console.log('📤 uploadChatAttachment imported successfully');
+          console.log('📤 Starting upload with params:', {
+            fileName: file.name,
+            fileSize: `${(file.size / 1024 / 1024).toFixed(2)}MB`,
+            conversationId,
+            messageId
+          });
 
           const mediaUrl = await uploadChatAttachment(file, conversationId, (progress) => {
             console.log('📊 Upload progress:', progress + '%');
@@ -550,7 +558,8 @@ export const useChatStore = create<ChatState>((set, get) => ({
             }));
           });
 
-          console.log('✅ File uploaded, updating message...');
+          console.log('✅ File uploaded successfully, mediaUrl:', mediaUrl);
+          console.log('📝 Updating message with media...');
 
           // STEP 3: Update message with media URL
           const { error: updateError } = await supabase
@@ -601,6 +610,13 @@ export const useChatStore = create<ChatState>((set, get) => ({
 
         } catch (error: any) {
           console.error('❌ Background upload failed:', error);
+          console.error('❌ Error details:', {
+            message: error.message,
+            stack: error.stack,
+            code: error.code,
+            statusCode: error.statusCode,
+            name: error.name
+          });
 
           // If it's just a bucket error, send text message instead
           const isBucketError = error.message?.includes('Bucket not found') || error.statusCode === '404';

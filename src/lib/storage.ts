@@ -219,10 +219,17 @@ export const uploadChatAttachment = async (
   conversationId: string,
   onProgress?: (progress: number) => void
 ): Promise<string> => {
-  console.log('📎 Uploading chat attachment:', file.name, file.size);
+  console.log('📤 uploadChatAttachment CALLED');
+  console.log('📤 File details:', {
+    name: file.name,
+    size: file.size,
+    type: file.type,
+    conversationId
+  });
 
   const isMobile = /Android|webOS|iPhone|iPad|iPod/i.test(navigator.userAgent);
   const timeout = isMobile ? 90000 : 180000; // Increased: 90s mobile, 180s desktop
+  console.log('⏱️ Upload timeout set to:', timeout + 'ms');
 
   try {
     onProgress?.(5);
@@ -281,11 +288,19 @@ export const uploadChatAttachment = async (
       return publicUrl;
     } catch (uploadError: any) {
       clearTimeout(timeoutId);
-      
+
       if (uploadError.name === 'AbortError' || controller.signal.aborted) {
         throw new Error('Upload timeout - please check your connection and try again');
       }
-      
+
+      console.error('❌ Upload error in uploadChatAttachment:', uploadError);
+      console.error('❌ Error type:', typeof uploadError);
+      console.error('❌ Error details:', {
+        message: uploadError?.message,
+        stack: uploadError?.stack,
+        code: uploadError?.code,
+        name: uploadError?.name
+      });
       throw uploadError;
     }
   } catch (error: any) {

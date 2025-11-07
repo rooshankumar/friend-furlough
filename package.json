@@ -22,6 +22,7 @@
     "@capacitor/browser": "^7.0.2",
     "@capacitor/core": "^7.4.4",
     "@capacitor/filesystem": "^7.1.4",
+    "@capacitor/keyboard": "^7.0.3",
     "@capawesome/capacitor-file-picker": "^7.2.0",
     "@gachlab/capacitor-permissions": "^2.0.3",
     "@hookform/resolvers": "^5.2.2",

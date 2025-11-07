@@ -31,11 +31,14 @@ const config: CapacitorConfig = {
       androidSpinnerStyle: 'large',
       spinnerColor: '#3b82f6'
     },
-    // Optimize keyboard behavior
+    // Optimize keyboard behavior for better UX
     Keyboard: {
-      resize: 'body',
+      resize: 'ionic', // Better resize behavior
       style: 'dark',
-      resizeOnFullScreen: true
+      resizeOnFullScreen: true,
+      // Additional keyboard optimization
+      accessoryBarVisible: true,
+      hideFormAccessoryBar: false
     },
     // File handling plugins
     FilePicker: {

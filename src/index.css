@@ -150,6 +150,22 @@ All colors MUST be HSL. Cultural, warm, and inclusive design.
   body {
     @apply bg-background text-foreground font-sans antialiased;
   }
+  
+  /* Smooth scrolling everywhere */
+  * {
+    -webkit-overflow-scrolling: touch;
+    scroll-behavior: smooth;
+  }
+  
+  /* Prevent zoom on input focus (mobile) */
+  input, textarea, select {
+    font-size: 16px !important;
+  }
+  
+  /* Keyboard open state */
+  body.keyboard-open {
+    /* Adjust if needed */
+  }
 
   /* Cultural Typography */
   .text-cultural-gradient {

@@ -39,41 +39,9 @@ const MobileFileInput: React.FC<MobileFileInputProps> = ({
   const handleClick = async () => {
     if (disabled || isLoading || isPickerLoading) return;
     
-    // Check if we're on mobile with Capacitor
-    if (isMobileApp()) {
-      setIsPickerLoading(true);
-      
-      try {
-        const options: FilePickerOptions = {
-          accept: acceptTypes,
-          multiple: false,
-          maxSize: maxSizeMB
-        };
-        
-        const result = await pickFile(options);
-        
-        if (result.success && result.files && result.files.length > 0) {
-          onFileSelect(result.files[0]);
-        } else if (result.error) {
-          toast({
-            title: "File selection failed",
-            description: result.error,
-            variant: "destructive"
-          });
-        }
-      } catch (error: any) {
-        toast({
-          title: "Error",
-          description: error.message || "Failed to select file",
-          variant: "destructive"
-        });
-      } finally {
-        setIsPickerLoading(false);
-      }
-    } else {
-      // On web, use native file input
-      fileInputRef.current?.click();
-    }
+    // ALWAYS use native file input (works on both mobile and web)
+    // The Capacitor file picker has issues on some devices
+    fileInputRef.current?.click();
   };
   
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {

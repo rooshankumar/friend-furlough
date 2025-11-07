@@ -24,9 +24,11 @@ const REDIRECT_URL = 'https://bblrxervgwkphkctdghe.supabase.co/auth/v1/callback'
 export const initOAuthListener = () => {
   if (!isMobileApp()) return;
 
+  console.log('🔐 Initializing OAuth deep link listener...');
+
   // Listen for deep link URLs (Supabase callback)
   App.addListener('appUrlOpen', async (data) => {
-    console.log('Deep link received:', data.url);
+    console.log('🔗 Deep link received:', data.url);
     
     // Check if this is a Supabase OAuth callback
     if (data.url.includes('supabase.co/auth/v1/callback')) {

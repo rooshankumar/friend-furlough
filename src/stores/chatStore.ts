@@ -500,16 +500,18 @@ export const useChatStore = create<ChatState>((set, get) => ({
         : `📎 ${file.name} (Upload failed - storage issue)`;
       const messageTypeToSend = mediaUrl ? messageType : 'text';
       
-      console.log('📨 Sending message:', { 
+      console.log('📨 Sending message to database:', { 
         hasMedia: !!mediaUrl, 
         type: messageTypeToSend,
-        content: messageContent 
+        content: messageContent,
+        mediaUrl: mediaUrl 
       });
       
       let data: any = null;
       let error: any = null;
 
       try {
+        console.log('🔍 Inserting message into database...');
         const res = await supabase
           .from('messages')
           .insert({
@@ -524,7 +526,14 @@ export const useChatStore = create<ChatState>((set, get) => ({
           .single();
         data = res.data;
         error = res.error;
+        console.log('🔍 Database insert result:', { 
+          success: !error, 
+          hasData: !!data,
+          messageId: data?.id,
+          error: error?.message 
+        });
       } catch (e: any) {
+        console.error('🔍 Database insert exception:', e);
         error = e;
       }
 

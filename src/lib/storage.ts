@@ -231,7 +231,7 @@ export const uploadChatAttachment = async (
 
     // Direct upload - no compression, no retries, no timeout
     const { data, error } = await supabase.storage
-      .from('chat-attachments')
+      .from('chat_files')
       .upload(fileName, file, {
         cacheControl: '3600',
         upsert: true
@@ -246,7 +246,7 @@ export const uploadChatAttachment = async (
 
     // Get public URL
     const { data: { publicUrl } } = supabase.storage
-      .from('chat-attachments')
+      .from('chat_files')
       .getPublicUrl(data.path);
 
     onProgress?.(100);

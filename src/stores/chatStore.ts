@@ -3,6 +3,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { connectionManager, supabaseWrapper } from '@/lib/connectionManager';
 import { outbox, OutboxItem } from '@/lib/db/outbox';
 import { messagesCache } from '@/lib/db/messagesCache';
+import { toast } from 'sonner';
 
 type MessageStatus = 'sending' | 'sent' | 'delivered' | 'read' | 'failed';
 
@@ -447,7 +448,7 @@ export const useChatStore = create<ChatState>((set, get) => ({
 
   sendAttachment: async (conversationId: string, senderId: string, file: File) => {
     console.log('📎 Sending attachment:', { conversationId, senderId, fileName: file.name, fileSize: `${(file.size / 1024 / 1024).toFixed(2)}MB` });
-    // Begin critical section: prevent reconnection while sending placeholder/uploading
+    // Begin critical section: prevent reconnection while uploading
     connectionManager.startUpload();
 
     // Create temporary message for optimistic update
@@ -478,263 +479,119 @@ export const useChatStore = create<ChatState>((set, get) => ({
     }));
 
     try {
-      // STEP 1: Send text message FIRST (so it always goes through)
-      console.log('📨 Sending placeholder message first...');
+      // STEP 1: Upload file to storage FIRST (this works reliably)
+      console.log('📤 Uploading file to storage first...');
+      const { uploadChatAttachment } = await import('@/lib/storage');
+      
+      const mediaUrl = await uploadChatAttachment(file, conversationId, (progress) => {
+        console.log(`📊 Upload progress: ${progress}%`);
+        // Update progress in UI
+        set(state => ({
+          messages: {
+            ...state.messages,
+            [conversationId]: state.messages[conversationId].map(msg =>
+              msg.tempId === tempId ? { ...msg, uploadProgress: progress } : msg
+            )
+          }
+        }));
+      });
+      
+      console.log('✅ Upload complete:', mediaUrl);
+
+      // STEP 2: Send message with media URL already attached
+      console.log('📨 Sending message with media URL...');
       let data: any = null;
       let error: any = null;
 
       try {
-        console.log('📨 Building INSERT query...');
-        const insertPromise = supabase
+        const res = await supabase
           .from('messages')
           .insert({
             conversation_id: conversationId,
             sender_id: senderId,
-            content: `📎 Uploading: ${file.name}`,
-            type: 'text',
+            content: file.name,
+            type: messageType,
+            media_url: mediaUrl,
             client_id: clientId
           })
           .select()
           .single();
-        
-        console.log('📨 Executing INSERT with 15s timeout...');
-        const timeoutPromise = new Promise((_, reject) => 
-          setTimeout(() => reject(new Error('INSERT timeout after 15s')), 15000)
-        );
-        
-        const res = await Promise.race([insertPromise, timeoutPromise]) as any;
-        console.log('📨 INSERT completed, result:', res);
-        data = res.data; error = res.error;
+        data = res.data;
+        error = res.error;
       } catch (e: any) {
-        console.error('📨 INSERT failed or timed out:', e);
         error = e;
       }
 
+      // Retry without client_id if column doesn't exist
       if (error && (error.code === '42703' || (error.message && /column .*client_id.* does not exist/i.test(error.message)))) {
         console.warn('⚠️ client_id column missing, retrying without it');
-        try {
-          const fallbackPromise = supabase
-            .from('messages')
-            .insert({
-              conversation_id: conversationId,
-              sender_id: senderId,
-              content: `📎 Uploading: ${file.name}`,
-              type: 'text'
-            })
-            .select()
-            .single();
-          
-          const timeoutPromise = new Promise((_, reject) => 
-            setTimeout(() => reject(new Error('Fallback INSERT timeout after 15s')), 15000)
-          );
-          
-          const fallback = await Promise.race([fallbackPromise, timeoutPromise]) as any;
-          console.log('✅ Fallback INSERT completed:', fallback);
-          data = fallback.data; error = fallback.error;
-        } catch (e: any) {
-          console.error('❌ Fallback INSERT failed:', e);
-          error = e;
-        }
+        const fallback = await supabase
+          .from('messages')
+          .insert({
+            conversation_id: conversationId,
+            sender_id: senderId,
+            content: file.name,
+            type: messageType,
+            media_url: mediaUrl
+          })
+          .select()
+          .single();
+        data = fallback.data;
+        error = fallback.error;
       }
 
       if (error) {
-        console.error('❌ Failed to send placeholder message:', error);
+        console.error('❌ Failed to send message with media:', error);
         throw error;
       }
 
       const messageId = data.id;
-      console.log('✅ Placeholder message sent:', messageId);
+      console.log('✅ Message sent with media:', messageId);
 
-      // Update UI with real message ID
+      // End upload tracking
+      connectionManager.endUpload();
+
+      // Update UI with real message
       set(state => ({
         messages: {
           ...state.messages,
           [conversationId]: state.messages[conversationId].map(msg =>
-            msg.tempId === tempId ? { ...data, uploadProgress: 10, tempId } : msg
+            msg.tempId === tempId ? { ...data, status: 'sent', uploadProgress: 100 } : msg
           )
         }
       }));
 
-      // STEP 2: Upload attachment in background
-      (async () => {
-        try {
-          console.log('📤 Starting background upload...');
-          // Upload already tracked; continue
-
-          // Upload the file to storage
-          const { uploadChatAttachment } = await import('@/lib/storage');
-          const mediaUrl = await uploadChatAttachment(file, conversationId, (progress) => {
-            console.log(`📊 Upload progress: ${progress}%`);
-            // Update progress in UI
-            set(state => ({
-              messages: {
-                ...state.messages,
-                [conversationId]: state.messages[conversationId].map(msg =>
-                  msg.id === messageId ? { ...msg, uploadProgress: progress } : msg
-                )
-              }
-            }));
-          });
-          console.log('✅ Upload complete:', mediaUrl);
-
-          // STEP 3: Update message with media URL
-          const { error: updateError } = await supabase
-            .from('messages')
-            .update({
-              media_url: mediaUrl,
-              type: messageType,
-              content: file.name
-            })
-            .eq('id', messageId);
-
-          if (updateError) {
-            console.error('❌ Failed to update message with media:', updateError);
-            // Message still sent, just without attachment
-            set(state => ({
-              messages: {
-                ...state.messages,
-                [conversationId]: state.messages[conversationId].map(msg =>
-                  msg.id === messageId ? { 
-                    ...msg, 
-                    uploadProgress: undefined,
-                    content: `${file.name} (Upload completed but failed to update)`
-                  } : msg
-                )
-              }
-            }));
-            return;
-          }
-
-          console.log('✅ Message updated with attachment');
-
-          // Update local state
-          set(state => ({
-            messages: {
-              ...state.messages,
-              [conversationId]: state.messages[conversationId].map(msg =>
-                msg.id === messageId ? { 
-                  ...msg, 
-                  media_url: mediaUrl,
-                  type: messageType,
-                  content: file.name,
-                  status: 'sent' as MessageStatus,
-                  uploadProgress: undefined
-                } : msg
-              )
-            }
-          }));
-
-        } catch (error: any) {
-          console.error('❌ Background upload failed:', error);
-          console.error('❌ Error details:', {
-            message: error.message,
-            stack: error.stack,
-            code: error.code,
-            statusCode: error.statusCode,
-            name: error.name
-          });
-
-          // End upload tracking on error
-          connectionManager.endUpload();
-
-          // If it's just a bucket error, send text message instead
-          const isBucketError = error.message?.includes('Bucket not found') || error.statusCode === '404';
-
-          if (isBucketError) {
-            console.log('⚠️ Bucket error - sending text message instead of attachment');
-
-            // Send a simple text message indicating upload wasn't possible
-            const fallbackMessage = {
-              id: messageId, // Use the ID of the placeholder message
-              conversation_id: conversationId,
-              sender_id: senderId,
-              content: `📎 ${file.name} (Upload temporarily unavailable - please contact admin to configure storage)`,
-              type: 'text' as const,
-              created_at: new Date().toISOString(),
-            };
-
-            // Update local state
-            set(state => ({
-              messages: {
-                ...state.messages,
-                [conversationId]: state.messages[conversationId].map(msg =>
-                  msg.id === messageId ? fallbackMessage : msg
-                )
-              }
-            }));
-
-            // Send to database
-            await supabase.from('messages').insert(fallbackMessage);
-
-            // Update progress to 100% to indicate message sent, even if attachment failed
-            set(state => ({
-              messages: {
-                ...state.messages,
-                [conversationId]: state.messages[conversationId].map(msg =>
-                  msg.id === messageId ? { ...msg, uploadProgress: 100, content: `📎 ${file.name} (Upload unavailable)` } : msg
-                )
-              }
-            }));
-          } else {
-            // For other errors, show error in message
-            set(state => ({
-              messages: {
-                ...state.messages,
-                [conversationId]: state.messages[conversationId].map(msg =>
-                  msg.id === messageId ? { 
-                    ...msg, 
-                    media_url: null,
-                    content: `[Upload failed: ${error.message}]`,
-                    type: 'text' as const,
-                    uploadProgress: undefined
-                  } : msg
-                )
-              }
-            }));
-          }
-
-          // Save to outbox for retry if it wasn't a bucket error
-          if (!isBucketError) {
-            try {
-              await outbox.init();
-              await outbox.put({
-                client_id: `retry_${clientId}`,
-                tempId: messageId, // Use the placeholder message ID as tempId for retry
-                conversation_id: conversationId,
-                sender_id: senderId,
-                content: file.name,
-                type: messageType, // Use original type
-                media_url: file.type.startsWith('image/') ? URL.createObjectURL(file) : undefined, // Store a reference if possible
-                created_at: new Date().toISOString()
-              });
-            } catch (e) {
-              console.warn('Failed to save to outbox:', e);
-            }
-          }
-        }
-      })();
-
     } catch (error: any) {
-      console.error('❌ Error sending attachment message:', error);
-      // End upload tracking on early failure
+      console.error('❌ Error sending attachment:', error);
+      console.error('❌ Error details:', {
+        message: error.message,
+        stack: error.stack,
+        code: error.code,
+        statusCode: error.statusCode,
+        name: error.name
+      });
+      
+      // End upload tracking on error
       connectionManager.endUpload();
 
-      // Update status to failed
+      // Update optimistic message to show error
       set(state => ({
         messages: {
           ...state.messages,
           [conversationId]: state.messages[conversationId].map(msg =>
             msg.tempId === tempId ? { 
               ...msg, 
-              status: 'failed' as MessageStatus, 
+              status: 'failed' as MessageStatus,
               uploadProgress: undefined,
-              content: `Failed to send: ${file.name}`
+              error: error.message || 'Upload failed'
             } : msg
           )
         }
       }));
 
-      throw error;
+      toast.error('Failed to send attachment', {
+        description: error.message || 'Please try again'
+      });
     }
   },
 

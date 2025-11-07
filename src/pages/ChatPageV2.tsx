@@ -1080,11 +1080,19 @@ const ChatPageV2 = () => {
                 />
               ) : (
                 <>
-                  <label htmlFor="chat-web-file-input" onClick={() => console.log('📎 Web attach label clicked')}>
+                  <div className="relative h-9 w-9 flex-shrink-0">
                     <Button 
                       size="sm" 
                       variant="ghost" 
                       className="h-9 w-9 p-0 flex-shrink-0"
+                      onClick={() => {
+                        console.log('📎 Web attach button clicked (fallback)');
+                        const el = fileInputRef.current as any;
+                        if (el && typeof el.showPicker === 'function') {
+                          try { el.showPicker(); return; } catch {}
+                        }
+                        fileInputRef.current?.click();
+                      }}
                       disabled={!isOnline || isUploadingAttachment}
                     >
                       {isUploadingAttachment ? (
@@ -1093,16 +1101,16 @@ const ChatPageV2 = () => {
                         <Paperclip className="h-5 w-5" />
                       )}
                     </Button>
-                  </label>
-                  <input
-                    id="chat-web-file-input"
-                    ref={fileInputRef}
-                    type="file"
-                    accept="image/*,video/*,audio/*,.pdf,.doc,.docx,.txt"
-                    onChange={handleFileInputChange}
-                    className="sr-only"
-                    disabled={!isOnline || isUploadingAttachment}
-                  />
+                    <input
+                      ref={fileInputRef}
+                      type="file"
+                      accept="image/*,video/*,audio/*,.pdf,.doc,.docx,.txt,application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document,text/plain"
+                      onChange={handleFileInputChange}
+                      onClick={() => console.log('📎 Web overlay file input tapped')}
+                      className="absolute inset-0 opacity-0 cursor-pointer z-50 pointer-events-auto"
+                      aria-label="Upload attachment"
+                    />
+                  </div>
                 </>
               )}
               <Input

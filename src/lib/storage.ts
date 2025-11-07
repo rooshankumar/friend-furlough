@@ -162,9 +162,12 @@ export const uploadChatAttachment = async (
     const fileName = `${conversationId}/${Date.now()}_${file.name}`;
     onProgress?.(30);
 
-    // ✅ Create upload promise with abort support
+    // ✅ Create upload promise with detailed logging
     const uploadPromise = (async () => {
       try {
+        console.log('🔍 Starting Supabase storage upload...');
+        const uploadStartTime = Date.now();
+        
         const { data, error } = await supabase.storage
           .from(SUPABASE_BUCKET)
           .upload(fileName, file, {
@@ -172,33 +175,50 @@ export const uploadChatAttachment = async (
             upsert: false,
           });
 
+        const uploadDuration = Date.now() - uploadStartTime;
+        console.log(`🔍 Supabase upload completed in ${uploadDuration}ms`, { 
+          success: !error, 
+          hasData: !!data,
+          path: data?.path 
+        });
+
         if (error) {
+          console.error('❌ Supabase storage error:', error);
           throw error;
         }
 
+        if (!data || !data.path) {
+          console.error('❌ No data or path returned from upload');
+          throw new Error('Upload failed - no path returned');
+        }
+
         return data;
-      } catch (err) {
+      } catch (err: any) {
         // Check if aborted
         if (abortController.signal.aborted) {
+          console.error('⏱️ Upload aborted due to timeout');
           throw new Error('Upload cancelled due to timeout');
         }
+        console.error('❌ Upload promise error:', err);
         throw err;
       }
     })();
 
-    // ✅ FIXED: Use AbortController signal instead of Promise.race
-    // This ensures proper cleanup when timeout occurs
     onProgress?.(50);
+    console.log('🔍 Waiting for upload to complete (max 45s)...');
 
     let data;
     try {
       data = await Promise.race([uploadPromise, timeoutPromise]);
+      console.log('✅ Upload race completed successfully');
     } catch (error: any) {
+      console.error('❌ Upload race failed:', error.message);
       clearTimeout(uploadTimeout!);
       throw error;
     }
 
     clearTimeout(uploadTimeout!);
+    console.log('🔍 Getting public URL for:', data.path);
     onProgress?.(70);
 
     // Get public URL

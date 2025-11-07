@@ -228,21 +228,29 @@ export const uploadChatAttachment = async (
   });
 
   const isMobile = /Android|webOS|iPhone|iPad|iPod/i.test(navigator.userAgent);
-  const timeout = isMobile ? 90000 : 180000; // Increased: 90s mobile, 180s desktop
+  const timeout = isMobile ? 30000 : 90000; // Reduced: 30s mobile, 90s desktop (40KB file should upload in <5s)
   console.log('⏱️ Upload timeout set to:', timeout + 'ms');
 
   try {
     onProgress?.(5);
     console.log('📤 Upload progress: 5%');
 
-    // Compress image if needed
+    // Compress image if needed (aggressive compression for mobile)
     let fileToUpload = file;
     if (file.type.startsWith('image/')) {
       onProgress?.(10);
-      console.log('📤 Upload progress: 10% - Starting compression');
+      console.log('📤 Upload progress: 10% - Starting aggressive compression');
       const { mobileFileHandler } = await import('./mobileFileHandler');
-      fileToUpload = await mobileFileHandler.compressImage(file, 5);
+      // Use 2MB target for mobile (more aggressive)
+      fileToUpload = await mobileFileHandler.compressImage(file, isMobile ? 2 : 5);
       console.log('✅ Image compressed:', (fileToUpload.size / 1024 / 1024).toFixed(2) + 'MB');
+      
+      // If still over 1MB on mobile, compress again even more aggressively
+      if (isMobile && fileToUpload.size > 1024 * 1024) {
+        console.log('📤 File still large, compressing again...');
+        fileToUpload = await mobileFileHandler.compressImage(fileToUpload, 1);
+        console.log('✅ Second compression:', (fileToUpload.size / 1024 / 1024).toFixed(2) + 'MB');
+      }
     }
 
     onProgress?.(30);
@@ -253,22 +261,14 @@ export const uploadChatAttachment = async (
     onProgress?.(40);
     console.log('📤 Upload progress: 40% - Starting Supabase upload');
 
-    // Create timeout controller
-    const controller = new AbortController();
-    const timeoutId = setTimeout(() => {
-      console.error('❌ Upload timeout triggered after', timeout, 'ms');
-      controller.abort();
-    }, timeout);
-
-    try {
+    // Wrap upload in Promise.race with timeout
+    const uploadPromise = (async () => {
       const { data, error } = await supabase.storage
         .from('chat-attachments')
         .upload(fileName, fileToUpload, {
           cacheControl: '3600',
           upsert: false
         });
-
-      clearTimeout(timeoutId);
 
       if (error) {
         console.error('❌ Supabase upload error:', error);
@@ -286,13 +286,18 @@ export const uploadChatAttachment = async (
       console.log('✅ Attachment uploaded successfully:', publicUrl);
 
       return publicUrl;
+    })();
+
+    const timeoutPromise = new Promise<never>((_, reject) => {
+      setTimeout(() => {
+        console.error('❌ Upload timeout triggered after', timeout, 'ms');
+        reject(new Error('Upload timeout - connection too slow. Try a smaller file or better network.'));
+      }, timeout);
+    });
+
+    try {
+      return await Promise.race([uploadPromise, timeoutPromise]);
     } catch (uploadError: any) {
-      clearTimeout(timeoutId);
-
-      if (uploadError.name === 'AbortError' || controller.signal.aborted) {
-        throw new Error('Upload timeout - please check your connection and try again');
-      }
-
       console.error('❌ Upload error in uploadChatAttachment:', uploadError);
       console.error('❌ Error type:', typeof uploadError);
       console.error('❌ Error details:', {

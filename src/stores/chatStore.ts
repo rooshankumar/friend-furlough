@@ -478,12 +478,14 @@ export const useChatStore = create<ChatState>((set, get) => ({
       }
     }));
 
+    let mediaUrl: string | undefined;
+    
     try {
-      // STEP 1: Upload file to storage FIRST (this works reliably)
+      // STEP 1: Upload file to storage FIRST
       console.log('📤 Uploading file to storage first...');
       const { uploadChatAttachment } = await import('@/lib/storage');
       
-      const mediaUrl = await uploadChatAttachment(file, conversationId, (progress) => {
+      mediaUrl = await uploadChatAttachment(file, conversationId, (progress) => {
         console.log(`📊 Upload progress: ${progress}%`);
         // Update progress in UI
         set(state => ({
@@ -497,9 +499,26 @@ export const useChatStore = create<ChatState>((set, get) => ({
       });
       
       console.log('✅ Upload complete:', mediaUrl);
+    } catch (uploadError: any) {
+      console.error('❌ Upload to storage failed:', uploadError);
+      // Continue anyway - we'll send a text message about the failed upload
+      mediaUrl = undefined;
+    }
 
-      // STEP 2: Send message with media URL already attached
-      console.log('📨 Sending message with media URL...');
+    try {
+
+      // STEP 2: Send message (with or without media URL)
+      const messageContent = mediaUrl 
+        ? file.name 
+        : `📎 ${file.name} (Upload failed - storage issue)`;
+      const messageTypeToSend = mediaUrl ? messageType : 'text';
+      
+      console.log('📨 Sending message:', { 
+        hasMedia: !!mediaUrl, 
+        type: messageTypeToSend,
+        content: messageContent 
+      });
+      
       let data: any = null;
       let error: any = null;
 
@@ -509,9 +528,9 @@ export const useChatStore = create<ChatState>((set, get) => ({
           .insert({
             conversation_id: conversationId,
             sender_id: senderId,
-            content: file.name,
-            type: messageType,
-            media_url: mediaUrl,
+            content: messageContent,
+            type: messageTypeToSend,
+            media_url: mediaUrl || null,
             client_id: clientId
           })
           .select()
@@ -589,9 +608,16 @@ export const useChatStore = create<ChatState>((set, get) => ({
         }
       }));
 
-      toast.error('Failed to send attachment', {
-        description: error.message || 'Please try again'
-      });
+      // Show appropriate error message
+      if (mediaUrl) {
+        toast.error('Failed to send message', {
+          description: error.message || 'Please try again'
+        });
+      } else {
+        toast.warning('Attachment upload failed', {
+          description: 'Message sent as text. Storage bucket may need configuration.'
+        });
+      }
     }
   },
 

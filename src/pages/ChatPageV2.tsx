@@ -931,7 +931,7 @@ const ChatPageV2 = () => {
             fallbackMessage="Unable to display messages"
             onReset={() => conversationId && loadMessages(conversationId)}
           >
-            <div ref={messagesPullToRefresh.containerRef} className="flex-1 overflow-y-auto p-4 space-y-3 relative">
+            <div ref={messagesPullToRefresh.containerRef} className="messages-container flex-1 overflow-y-auto p-4 space-y-3 relative" style={{ WebkitOverflowScrolling: 'touch' }}>
               <PullToRefreshIndicator 
                 pullDistance={messagesPullToRefresh.pullDistance}
                 isRefreshing={messagesPullToRefresh.isRefreshing}

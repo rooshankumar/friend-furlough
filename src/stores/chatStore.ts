@@ -481,8 +481,8 @@ export const useChatStore = create<ChatState>((set, get) => ({
       
       console.log('📤 Starting file upload...');
       
-      // Upload the file with progress tracking
-      const mediaUrl = await uploadChatAttachment(file, conversationId, (progress) => {
+      // Upload with timeout (45 seconds)
+      const uploadPromise = uploadChatAttachment(file, conversationId, (progress) => {
         // Update upload progress in real-time
         set(state => ({
           messages: {
@@ -493,6 +493,12 @@ export const useChatStore = create<ChatState>((set, get) => ({
           }
         }));
       });
+      
+      const timeoutPromise = new Promise<never>((_, reject) => 
+        setTimeout(() => reject(new Error('Upload timeout - please check your connection and try again')), 45000)
+      );
+      
+      const mediaUrl = await Promise.race([uploadPromise, timeoutPromise]);
       
       console.log('📤 File uploaded successfully:', mediaUrl);
       

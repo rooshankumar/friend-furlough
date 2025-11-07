@@ -447,6 +447,8 @@ export const useChatStore = create<ChatState>((set, get) => ({
 
   sendAttachment: async (conversationId: string, senderId: string, file: File) => {
     console.log('📎 Sending attachment:', { conversationId, senderId, fileName: file.name, fileSize: `${(file.size / 1024 / 1024).toFixed(2)}MB` });
+    // Begin critical section: prevent reconnection while sending placeholder/uploading
+    connectionManager.startUpload();
 
     // Create temporary message for optimistic update
     const tempId = `temp_${Date.now()}_${Math.random()}`;
@@ -475,8 +477,8 @@ export const useChatStore = create<ChatState>((set, get) => ({
       }
     }));
 
-    // STEP 1: Send text message FIRST (so it always goes through)
     try {
+      // STEP 1: Send text message FIRST (so it always goes through)
       console.log('📨 Sending placeholder message first...');
       let data: any = null;
       let error: any = null;
@@ -535,10 +537,8 @@ export const useChatStore = create<ChatState>((set, get) => ({
       (async () => {
         try {
           console.log('📤 Starting background upload...');
-          
-          // Track upload to prevent reconnection
-          connectionManager.startUpload();
-          
+          // Upload already tracked; continue
+
           // Upload the file to storage
           const { uploadChatAttachment } = await import('@/lib/storage');
           const mediaUrl = await uploadChatAttachment(file, conversationId, (progress) => {
@@ -553,12 +553,8 @@ export const useChatStore = create<ChatState>((set, get) => ({
               }
             }));
           });
-          
           console.log('✅ Upload complete:', mediaUrl);
-          
-          // End upload tracking
-          connectionManager.endUpload();
-          
+
           // STEP 3: Update message with media URL
           const { error: updateError } = await supabase
             .from('messages')
@@ -615,7 +611,7 @@ export const useChatStore = create<ChatState>((set, get) => ({
             statusCode: error.statusCode,
             name: error.name
           });
-          
+
           // End upload tracking on error
           connectionManager.endUpload();
 
@@ -698,6 +694,8 @@ export const useChatStore = create<ChatState>((set, get) => ({
 
     } catch (error: any) {
       console.error('❌ Error sending attachment message:', error);
+      // End upload tracking on early failure
+      connectionManager.endUpload();
 
       // Update status to failed
       set(state => ({

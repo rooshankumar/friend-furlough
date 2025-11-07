@@ -60,11 +60,18 @@ class ConnectionManager {
       console.log('🎯 App gained focus, checking connection...');
       setTimeout(() => this.checkConnection(), 100);
       
-      // Only attempt reconnection if it's been more than 30 seconds since last one AND no active uploads
+      // Only attempt reconnection if it's been more than 30 seconds since last one.
+      // Re-check activeUploads at execution time to avoid interrupting uploads.
       const now = Date.now();
-      if (now - lastFocusReconnect > 30000 && this.activeUploads === 0) {
-        setTimeout(() => this.attemptReconnection(), 300);
-        lastFocusReconnect = now;
+      if (now - lastFocusReconnect > 30000) {
+        setTimeout(() => {
+          if (this.activeUploads === 0) {
+            this.attemptReconnection();
+            lastFocusReconnect = Date.now();
+          } else {
+            console.log('⏸️ Skipping reconnection on focus - upload in progress');
+          }
+        }, 300);
       }
     });
 
@@ -249,6 +256,11 @@ class ConnectionManager {
   }
   
   private attemptReconnection() {
+    // Avoid reconnection during active uploads
+    if (this.activeUploads > 0) {
+      console.log('⏸️ Skipping reconnection - upload in progress');
+      return;
+    }
     // Only reconnect if connection was actually lost
     if (!this.isOnline) {
       console.log('⏸️ Skipping reconnection - still offline');

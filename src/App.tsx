@@ -11,6 +11,7 @@ import ConnectionStatus from "./components/ConnectionStatus";
 import MinimalNavigation from "./components/MinimalNavigation";
 import InstallPWA from "./components/InstallPWA";
 import PerformanceMonitor from "./components/PerformanceMonitor";
+import MobileConsole from "./components/MobileConsole"; // Assuming MobileConsole is in this path
 import { useAppDataPreloader } from "./hooks/useDataPreloader";
 import { useMasterOptimization } from "./hooks/useMasterOptimization";
 import { globalDataManager } from "./lib/globalDataManager";
@@ -208,6 +209,7 @@ const App = () => {
         <ThemeProvider defaultTheme="system">
           <Toaster />
           <Sonner />
+          <MobileConsole />
           <BrowserRouter
             future={{
               v7_startTransition: true,

@@ -475,51 +475,20 @@ export const useChatStore = create<ChatState>((set, get) => ({
       }
     }));
     
+    // STEP 1: Send text message FIRST (so it always goes through)
     try {
-      // Import the upload function
-      const { uploadChatAttachment } = await import('@/lib/storage');
-      
-      console.log('📤 Starting file upload...');
-      
-      // Upload with progress tracking (timeout handled inside uploadChatAttachment)
-      const mediaUrl = await uploadChatAttachment(file, conversationId, (progress) => {
-        console.log('📊 Upload progress:', progress + '%');
-        // Update upload progress in real-time
-        set(state => ({
-          messages: {
-            ...state.messages,
-            [conversationId]: state.messages[conversationId].map(msg =>
-              msg.tempId === tempId ? { ...msg, uploadProgress: progress } : msg
-            )
-          }
-        }));
-      });
-      
-      console.log('✅ File uploaded successfully:', mediaUrl);
-      
-      // Update message with media URL and mark as sent
-      set(state => ({
-        messages: {
-          ...state.messages,
-          [conversationId]: state.messages[conversationId].map(msg =>
-            msg.tempId === tempId ? { ...msg, media_url: mediaUrl, uploadProgress: 90 } : msg
-          )
-        }
-      }));
-      
-      // Send message with attachment to database (with client_id for idempotency)
-      console.log('📨 Saving message to database...');
+      console.log('📨 Sending placeholder message first...');
       let data: any = null;
       let error: any = null;
+      
       try {
         const res = await supabase
           .from('messages')
           .insert({
             conversation_id: conversationId,
             sender_id: senderId,
-            content: file.name,
-            type: messageType,
-            media_url: mediaUrl,
+            content: `📎 Uploading: ${file.name}`,
+            type: 'text',
             client_id: clientId
           })
           .select()
@@ -528,16 +497,16 @@ export const useChatStore = create<ChatState>((set, get) => ({
       } catch (e: any) {
         error = e;
       }
+      
       if (error && (error.code === '42703' || (error.message && /column .*client_id.* does not exist/i.test(error.message)))) {
-        console.warn('client_id column missing on server (attachment), retrying without it');
+        console.warn('client_id column missing, retrying without it');
         const fallback = await supabase
           .from('messages')
           .insert({
             conversation_id: conversationId,
             sender_id: senderId,
-            content: file.name,
-            type: messageType,
-            media_url: mediaUrl
+            content: `📎 Uploading: ${file.name}`,
+            type: 'text'
           })
           .select()
           .single();
@@ -545,25 +514,130 @@ export const useChatStore = create<ChatState>((set, get) => ({
       }
       
       if (error) {
-        console.error('❌ Database save failed:', error);
+        console.error('❌ Failed to send placeholder message:', error);
         throw error;
       }
       
-      // Replace temporary message with real one
+      const messageId = data.id;
+      console.log('✅ Placeholder message sent:', messageId);
+      
+      // Update UI with real message ID
       set(state => ({
         messages: {
           ...state.messages,
           [conversationId]: state.messages[conversationId].map(msg =>
-            msg.tempId === tempId ? { ...data, status: 'sent' as MessageStatus } : msg
+            msg.tempId === tempId ? { ...data, uploadProgress: 10, tempId } : msg
           )
         }
       }));
       
-      console.log('✅ Attachment sent successfully');
-    } catch (error: any) {
-      console.error('❌ Error sending attachment:', error);
+      // STEP 2: Upload attachment in background
+      (async () => {
+        try {
+          const { uploadChatAttachment } = await import('@/lib/storage');
+          
+          console.log('📤 Starting background upload...');
+          
+          const mediaUrl = await uploadChatAttachment(file, conversationId, (progress) => {
+            console.log('📊 Upload progress:', progress + '%');
+            set(state => ({
+              messages: {
+                ...state.messages,
+                [conversationId]: state.messages[conversationId].map(msg =>
+                  msg.id === messageId ? { ...msg, uploadProgress: progress } : msg
+                )
+              }
+            }));
+          });
+          
+          console.log('✅ File uploaded, updating message...');
+          
+          // STEP 3: Update message with media URL
+          const { error: updateError } = await supabase
+            .from('messages')
+            .update({
+              media_url: mediaUrl,
+              type: messageType,
+              content: file.name
+            })
+            .eq('id', messageId);
+          
+          if (updateError) {
+            console.error('❌ Failed to update message with media:', updateError);
+            // Message still sent, just without attachment
+            set(state => ({
+              messages: {
+                ...state.messages,
+                [conversationId]: state.messages[conversationId].map(msg =>
+                  msg.id === messageId ? { 
+                    ...msg, 
+                    uploadProgress: undefined,
+                    content: `${file.name} (Upload completed but failed to update)`
+                  } : msg
+                )
+              }
+            }));
+            return;
+          }
+          
+          console.log('✅ Message updated with attachment');
+          
+          // Update local state
+          set(state => ({
+            messages: {
+              ...state.messages,
+              [conversationId]: state.messages[conversationId].map(msg =>
+                msg.id === messageId ? { 
+                  ...msg, 
+                  media_url: mediaUrl,
+                  type: messageType,
+                  content: file.name,
+                  status: 'sent' as MessageStatus,
+                  uploadProgress: undefined
+                } : msg
+              )
+            }
+          }));
+          
+        } catch (uploadError: any) {
+          console.error('❌ Background upload failed:', uploadError);
+          
+          // Keep the text message, mark upload as failed
+          set(state => ({
+            messages: {
+              ...state.messages,
+              [conversationId]: state.messages[conversationId].map(msg =>
+                msg.id === messageId ? { 
+                  ...msg, 
+                  uploadProgress: undefined,
+                  content: `${file.name} (Upload failed - tap to retry)`
+                } : msg
+              )
+            }
+          }));
+          
+          // Save to outbox for retry
+          try {
+            await outbox.init();
+            await outbox.put({
+              client_id: `retry_${clientId}`,
+              tempId: messageId,
+              conversation_id: conversationId,
+              sender_id: senderId,
+              content: file.name,
+              type: messageType,
+              created_at: new Date().toISOString()
+            });
+          } catch (e) {
+            console.warn('Failed to save to outbox:', e);
+          }
+        }
+      })();
       
-      // Update status to failed with error message
+    } catch (error: any) {
+      console.error('❌ Error sending attachment message:', error);
+      
+      // Update status to failed
       set(state => ({
         messages: {
           ...state.messages,
@@ -572,30 +646,12 @@ export const useChatStore = create<ChatState>((set, get) => ({
               ...msg, 
               status: 'failed' as MessageStatus, 
               uploadProgress: undefined,
-              content: `${file.name} (${error.message || 'Upload failed'})`
+              content: `Failed to send: ${file.name}`
             } : msg
           )
         }
       }));
       
-      // Auto-remove failed temp message after 30 seconds (if still failed)
-      setTimeout(() => {
-        const state = get();
-        const convMsgs = state.messages[conversationId] || [];
-        const stillFailed = convMsgs.find(m => m.tempId === tempId && m.status === 'failed');
-        if (stillFailed) {
-          console.log('🗑️ Auto-removing failed upload:', tempId);
-          state && state.messages && state.messages[conversationId] && get().removeTempMessage(conversationId, tempId);
-        }
-      }, 30000);
-
-      console.error('❌ Error details:', {
-        message: error.message,
-        stack: error.stack,
-        conversationId,
-        fileName: file.name,
-        fileSize: `${(file.size / 1024 / 1024).toFixed(2)}MB`
-      });
       throw error;
     }
   },

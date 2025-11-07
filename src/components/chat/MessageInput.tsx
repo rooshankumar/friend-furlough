@@ -32,6 +32,7 @@ export const MessageInput: React.FC<MessageInputProps> = ({
   disabled = false,
 }) => {
   const { toast } = useToast();
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const handleKeyPress = (e: React.KeyboardEvent) => {
     if (e.key === 'Enter' && !e.shiftKey) {
@@ -41,10 +42,13 @@ export const MessageInput: React.FC<MessageInputProps> = ({
   };
 
   const handleAttachmentClick = () => {
-    const input = document.getElementById('attachment-upload') as HTMLInputElement;
-    if (input) {
-      input.value = '';
-      input.click();
+    console.log('📎 Attachment button clicked');
+    if (fileInputRef.current) {
+      fileInputRef.current.value = '';
+      fileInputRef.current.click();
+      console.log('📎 File input triggered');
+    } else {
+      console.error('❌ File input ref is null');
     }
   };
 
@@ -95,12 +99,15 @@ export const MessageInput: React.FC<MessageInputProps> = ({
           <Image className="h-4 w-4" />
         </Button>
         <input
-          id="attachment-upload"
+          ref={fileInputRef}
           type="file"
           accept="image/*,video/*,audio/*,.pdf,.doc,.docx,.txt"
           className="hidden"
           style={{ display: 'none' }}
-          onChange={onAttachmentUpload}
+          onChange={(e) => {
+            console.log('📎 File input changed, files:', e.target.files?.length);
+            onAttachmentUpload(e);
+          }}
         />
 
         <div className="flex-1">

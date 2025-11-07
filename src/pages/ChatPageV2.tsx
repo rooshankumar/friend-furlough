@@ -154,14 +154,14 @@ const EnhancedMessageV2: React.FC<EnhancedMessageV2Props> = ({
                 <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
               </div>
             )}
-            
+
             {/* Upload Progress Overlay */}
             {message.status === 'sending' && message.uploadProgress !== undefined && message.uploadProgress < 100 && (
               <div className="absolute inset-0 bg-black/40 rounded-2xl flex items-center justify-center backdrop-blur-sm">
                 <CompactUploadProgress progress={message.uploadProgress} size={48} strokeWidth={4} />
               </div>
             )}
-            
+
             {/* Failed Upload Overlay with Retry and Remove */}
             {message.status === 'failed' && (
               <div className="absolute inset-0 bg-red-500/40 rounded-2xl flex flex-col items-center justify-center backdrop-blur-sm gap-2 p-3 text-center">
@@ -288,10 +288,10 @@ const ChatPageV2 = () => {
   const { conversationId } = useParams<{ conversationId: string }>();
   const { toast } = useToast();
   const isOnline = useConnectionStatus();
-  
+
   // Message deduplication
   const { generateClientId, isDuplicate, markAsSent, clearMessage } = useMessageDeduplication();
-  
+
   const [newMessage, setNewMessage] = useState('');
   const [replyingTo, setReplyingTo] = useState<any>(null);
   const [showEmojiPicker, setShowEmojiPicker] = useState(false);
@@ -305,7 +305,7 @@ const ChatPageV2 = () => {
   const [isDeleting, setIsDeleting] = useState(false);
   const [isUploadingAttachment, setIsUploadingAttachment] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
-  
+
   // Pull-to-refresh for messages
   const messagesPullToRefresh = usePullToRefresh({
     onRefresh: async () => {
@@ -317,7 +317,7 @@ const ChatPageV2 = () => {
     threshold: 80,
     disabled: !conversationId
   });
-  
+
   // Pull-to-refresh for conversations
   const conversationsPullToRefresh = usePullToRefresh({
     onRefresh: async () => {
@@ -331,7 +331,7 @@ const ChatPageV2 = () => {
   const recordingTimerRef = useRef<NodeJS.Timeout | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const typingTimeoutRef = useRef<NodeJS.Timeout | null>(null);
-  
+
   const { 
     conversations, 
     messages,
@@ -383,7 +383,7 @@ const ChatPageV2 = () => {
     loadMessages(conversationId);
     markAsRead(conversationId, user.id);
     const channel = subscribeToMessages(conversationId);
-    
+
     return () => {
       unsubscribeFromMessages();
     };
@@ -397,7 +397,7 @@ const ChatPageV2 = () => {
       }, 100);
     }
   }, [conversationMessages.length]);
-  
+
   // Initial load scroll
   useEffect(() => {
     if (conversationId && conversationMessages.length > 0) {
@@ -412,7 +412,7 @@ const ChatPageV2 = () => {
 
     // Generate client ID for deduplication
     const clientId = generateClientId(conversationId);
-    
+
     // Check for duplicate
     if (isDuplicate(clientId)) {
       toast({
@@ -426,10 +426,10 @@ const ChatPageV2 = () => {
     const replyTo = replyingTo;
     setNewMessage('');
     setReplyingTo(null);
-    
+
     // Mark as sent to prevent duplicates
     markAsSent(clientId, conversationId);
-    
+
     try {
       await sendMessage(conversationId, user.id, msg, undefined, undefined, replyTo?.id);
     } catch (error: any) {
@@ -468,9 +468,9 @@ const ChatPageV2 = () => {
         .from('messages')
         .delete()
         .eq('id', messageId);
-      
+
       if (error) throw error;
-      
+
       toast({
         title: "Deleted",
         description: "Message deleted successfully",
@@ -486,14 +486,14 @@ const ChatPageV2 = () => {
 
   const handleRetryUpload = async (message: any) => {
     if (!conversationId || !user || !message.tempId) return;
-    
+
     // Find the original file from the failed message
     // Since we don't have the file, we'll need to ask user to reselect
     toast({
       title: "Retry Upload",
       description: "Please select the file again to retry upload",
     });
-    
+
     // Trigger file input
     fileInputRef.current?.click();
   };
@@ -504,15 +504,41 @@ const ChatPageV2 = () => {
   };
 
   const handleAttachmentUpload = async (file: File) => {
-    if (!file || !conversationId || !user) {
+    console.log('📎 handleAttachmentUpload triggered');
+    console.log('📎 File selected:', file ? { name: file.name, size: file.size, type: file.type } : 'NO FILE');
+
+    if (!file) {
+      console.error('❌ No file selected');
       toast({
         title: "Upload failed",
-        description: "Missing file, conversation, or user information",
+        description: "No file was selected.",
         variant: "destructive"
       });
       return;
     }
-    
+
+    if (!conversationId) {
+      console.error('❌ No conversation selected');
+      toast({
+        title: "Upload failed",
+        description: "No active conversation selected.",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    if (!user) {
+      console.error('❌ No user authenticated');
+      toast({
+        title: "Upload failed",
+        description: "You are not authenticated.",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    console.log('📎 All checks passed, calling sendAttachment');
+
     // Basic file size validation (20MB max)
     const maxSize = 20 * 1024 * 1024;
     if (file.size > maxSize) {
@@ -532,22 +558,25 @@ const ChatPageV2 = () => {
       });
       return;
     }
-    
+
     setIsUploadingAttachment(true);
-    
+
     try {
+      console.log('📎 Sending attachment via sendAttachment function');
       toast({
         title: "Uploading...",
         description: `Sending ${file.name}`,
       });
-      
+
       await sendAttachment(conversationId, user.id, file);
-      
+
+      console.log('📎 sendAttachment successful');
       toast({
         title: "Sent!",
         description: "Attachment uploaded successfully",
       });
     } catch (error: any) {
+      console.error('❌ Error during sendAttachment:', error);
       toast({
         title: "Upload failed",
         description: error.message || 'Failed to upload attachment. Please try again.',
@@ -557,13 +586,13 @@ const ChatPageV2 = () => {
       setIsUploadingAttachment(false);
     }
   };
-  
+
   // Handle file input change event (for web)
   const handleFileInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
       handleAttachmentUpload(file);
-      e.target.value = '';
+      e.target.value = ''; // Reset the input value to allow selecting the same file again if needed
     }
   };
 
@@ -599,10 +628,10 @@ const ChatPageV2 = () => {
             channelCount: 1
           }
         });
-        
+
         let recorder;
         let selectedMimeType = 'audio/webm';
-        
+
         if (MediaRecorder.isTypeSupported('audio/webm;codecs=opus')) {
           recorder = new MediaRecorder(stream, { 
             mimeType: 'audio/webm;codecs=opus',
@@ -619,7 +648,7 @@ const ChatPageV2 = () => {
           recorder = new MediaRecorder(stream);
           selectedMimeType = recorder.mimeType || 'audio/webm';
         }
-        
+
         const audioChunks: BlobPart[] = [];
         let isProcessing = false;
 
@@ -632,7 +661,7 @@ const ChatPageV2 = () => {
         recorder.onstop = async () => {
           if (isProcessing) return;
           isProcessing = true;
-          
+
           if (audioChunks.length === 0) {
             toast({
               title: "Recording failed",
@@ -642,9 +671,9 @@ const ChatPageV2 = () => {
             stream.getTracks().forEach(track => track.stop());
             return;
           }
-          
+
           const audioBlob = new Blob(audioChunks, { type: selectedMimeType });
-          
+
           if (audioBlob.size < 500) {
             toast({
               title: "Recording too short",
@@ -653,7 +682,7 @@ const ChatPageV2 = () => {
             stream.getTracks().forEach(track => track.stop());
             return;
           }
-          
+
           try {
             await sendVoiceMessage(conversationId, user.id, audioBlob);
             toast({
@@ -673,7 +702,7 @@ const ChatPageV2 = () => {
         setMediaRecorder(recorder);
         setIsRecording(true);
         setRecordingDuration(0);
-        
+
         recordingTimerRef.current = setInterval(() => {
           setRecordingDuration(prev => prev + 1);
         }, 1000);
@@ -693,11 +722,11 @@ const ChatPageV2 = () => {
     setIsDeleting(true);
     try {
       await deleteConversation(convId, user.id);
-      
+
       toastNotifications.success('Conversation deleted', 'The conversation has been removed from your chat list');
-      
+
       setDeleteDialogOpen(false);
-      
+
       // Navigate back to chat list
       navigate('/chat');
     } catch (error) {
@@ -1113,7 +1142,7 @@ const ChatPageV2 = () => {
                 </Button>
               )}
             </div>
-            
+
             {/* Recording Indicator */}
             {isRecording && (
               <div className="mt-2 flex items-center gap-2 text-sm text-red-500">

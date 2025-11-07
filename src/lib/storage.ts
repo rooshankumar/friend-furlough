@@ -222,7 +222,6 @@ export const uploadChatAttachment = async (
   console.log('📤 Uploading:', file.name, `(${(file.size / 1024 / 1024).toFixed(2)}MB)`);
 
   const isMobile = /Android|webOS|iPhone|iPad|iPod/i.test(navigator.userAgent);
-  const timeout = isMobile ? 30000 : 90000;
 
   try {
     onProgress?.(5);
@@ -246,50 +245,61 @@ export const uploadChatAttachment = async (
     const fileName = `${conversationId}/${Date.now()}_${file.name}`;
     onProgress?.(40);
 
-    // Wrap upload in Promise.race with timeout
-    const uploadPromise = (async () => {
-      const { data, error } = await supabase.storage
-        .from('chat-attachments')
-        .upload(fileName, fileToUpload, {
-          cacheControl: '3600',
-          upsert: false
+    // Retry logic: Try 3 times with increasing timeout
+    const maxRetries = 3;
+    let lastError: any;
+
+    for (let attempt = 1; attempt <= maxRetries; attempt++) {
+      try {
+        const timeout = attempt === 1 ? 15000 : attempt === 2 ? 30000 : 45000;
+        console.log(`🔄 Upload attempt ${attempt}/${maxRetries} (${timeout / 1000}s timeout)`);
+
+        const uploadPromise = (async () => {
+          const { data, error } = await supabase.storage
+            .from('chat-attachments')
+            .upload(fileName, fileToUpload, {
+              cacheControl: '3600',
+              upsert: true // Allow retry to overwrite
+            });
+
+          if (error) throw error;
+
+          onProgress?.(80);
+          const { data: { publicUrl } } = supabase.storage
+            .from('chat-attachments')
+            .getPublicUrl(data.path);
+
+          onProgress?.(100);
+          console.log(`✅ Uploaded (attempt ${attempt}):`, publicUrl);
+          return publicUrl;
+        })();
+
+        const timeoutPromise = new Promise<never>((_, reject) => {
+          setTimeout(() => {
+            reject(new Error(`Timeout after ${timeout / 1000}s`));
+          }, timeout);
         });
 
-      if (error) throw error;
-
-      onProgress?.(80);
-      const { data: { publicUrl } } = supabase.storage
-        .from('chat-attachments')
-        .getPublicUrl(data.path);
-
-      onProgress?.(100);
-      console.log('✅ Uploaded:', publicUrl);
-      return publicUrl;
-    })();
-
-    const timeoutPromise = new Promise<never>((_, reject) => {
-      setTimeout(() => {
-        console.error('❌ Upload timeout triggered after', timeout, 'ms');
-        reject(new Error('Upload timeout - connection too slow. Try a smaller file or better network.'));
-      }, timeout);
-    });
-
-    try {
-      return await Promise.race([uploadPromise, timeoutPromise]);
-    } catch (uploadError: any) {
-      console.error('❌ Upload error in uploadChatAttachment:', uploadError);
-      console.error('❌ Error type:', typeof uploadError);
-      console.error('❌ Error details:', {
-        message: uploadError?.message,
-        stack: uploadError?.stack,
-        code: uploadError?.code,
-        name: uploadError?.name
-      });
-      throw uploadError;
+        return await Promise.race([uploadPromise, timeoutPromise]);
+      } catch (error: any) {
+        lastError = error;
+        console.warn(`⚠️ Attempt ${attempt} failed:`, error.message);
+        
+        if (attempt < maxRetries) {
+          // Wait before retry (exponential backoff: 1s, 2s)
+          const waitTime = attempt * 1000;
+          console.log(`⏳ Retrying in ${waitTime / 1000}s...`);
+          await new Promise(resolve => setTimeout(resolve, waitTime));
+          onProgress?.(40); // Reset to 40% for retry
+        }
+      }
     }
+
+    // All retries failed
+    throw lastError;
   } catch (error: any) {
-    console.error('❌ Upload failed:', error.message);
-    onProgress?.(0); // Reset progress on error
+    console.error('❌ Upload failed after all retries:', error.message);
+    onProgress?.(0);
     throw error;
   }
 };

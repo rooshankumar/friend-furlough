@@ -12,6 +12,7 @@ class ConnectionManager {
   private aggressiveCheckInterval: NodeJS.Timeout | null = null;
   private lastSuccessfulCheck = Date.now();
   private isCheckingConnection = false;
+  private activeUploads = 0; // Track active uploads
 
   constructor() {
     this.setupEventListeners();
@@ -40,8 +41,14 @@ class ConnectionManager {
         console.log('👁️ App became visible, checking connection...');
         // Immediate check when app becomes visible
         setTimeout(() => this.checkConnection(), 100);
-        // Force reconnection for real-time subscriptions
-        setTimeout(() => this.attemptReconnection(), 500);
+        // Only reconnect if no active uploads
+        setTimeout(() => {
+          if (this.activeUploads === 0) {
+            this.attemptReconnection();
+          } else {
+            console.log('⏸️ Skipping reconnection - upload in progress');
+          }
+        }, 500);
       } else {
         console.log('👁️ App went to background');
       }
@@ -53,9 +60,9 @@ class ConnectionManager {
       console.log('🎯 App gained focus, checking connection...');
       setTimeout(() => this.checkConnection(), 100);
       
-      // Only attempt reconnection if it's been more than 30 seconds since last one
+      // Only attempt reconnection if it's been more than 30 seconds since last one AND no active uploads
       const now = Date.now();
-      if (now - lastFocusReconnect > 30000) {
+      if (now - lastFocusReconnect > 30000 && this.activeUploads === 0) {
         setTimeout(() => this.attemptReconnection(), 300);
         lastFocusReconnect = now;
       }
@@ -265,13 +272,6 @@ class ConnectionManager {
       // Only disconnect/reconnect if we detect actual connection issues
       const reconnectRealtime = () => {
         try {
-          // Check if realtime is already connected before forcing reconnection
-          if (supabase.realtime.connection?.readyState === WebSocket.OPEN) {
-            console.log('✅ Realtime already connected, skipping reconnection');
-            window.dispatchEvent(new CustomEvent('supabase-reconnected'));
-            return;
-          }
-
           // Disconnect all existing channels
           supabase.realtime.disconnect();
           
@@ -320,6 +320,16 @@ class ConnectionManager {
     } catch (error) {
       console.warn('Failed to clear stale data:', error);
     }
+  }
+
+  public startUpload() {
+    this.activeUploads++;
+    console.log(`📤 Upload started (${this.activeUploads} active)`);
+  }
+
+  public endUpload() {
+    this.activeUploads = Math.max(0, this.activeUploads - 1);
+    console.log(`📥 Upload ended (${this.activeUploads} active)`);
   }
 
   public destroy() {

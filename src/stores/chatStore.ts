@@ -534,20 +534,16 @@ export const useChatStore = create<ChatState>((set, get) => ({
       // STEP 2: Upload attachment in background
       (async () => {
         try {
-          console.log('📤 Background upload starting for:', file.name);
+          console.log('📤 Starting background upload...');
           
+          // Track upload to prevent reconnection
+          connectionManager.startUpload();
+          
+          // Upload the file to storage
           const { uploadChatAttachment } = await import('@/lib/storage');
-
-          console.log('📤 uploadChatAttachment imported successfully');
-          console.log('📤 Starting upload with params:', {
-            fileName: file.name,
-            fileSize: `${(file.size / 1024 / 1024).toFixed(2)}MB`,
-            conversationId,
-            messageId
-          });
-
           const mediaUrl = await uploadChatAttachment(file, conversationId, (progress) => {
-            console.log('📊 Upload progress:', progress + '%');
+            console.log(`📊 Upload progress: ${progress}%`);
+            // Update progress in UI
             set(state => ({
               messages: {
                 ...state.messages,
@@ -557,10 +553,12 @@ export const useChatStore = create<ChatState>((set, get) => ({
               }
             }));
           });
-
-          console.log('✅ File uploaded successfully, mediaUrl:', mediaUrl);
-          console.log('📝 Updating message with media...');
-
+          
+          console.log('✅ Upload complete:', mediaUrl);
+          
+          // End upload tracking
+          connectionManager.endUpload();
+          
           // STEP 3: Update message with media URL
           const { error: updateError } = await supabase
             .from('messages')
@@ -617,6 +615,9 @@ export const useChatStore = create<ChatState>((set, get) => ({
             statusCode: error.statusCode,
             name: error.name
           });
+          
+          // End upload tracking on error
+          connectionManager.endUpload();
 
           // If it's just a bucket error, send text message instead
           const isBucketError = error.message?.includes('Bucket not found') || error.statusCode === '404';

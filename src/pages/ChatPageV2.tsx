@@ -1080,36 +1080,46 @@ const ChatPageV2 = () => {
                 />
               ) : (
                 <>
-                  <div className="relative h-9 w-9 flex-shrink-0">
-                    <Button 
-                      size="sm" 
-                      variant="ghost" 
-                      className="h-9 w-9 p-0 flex-shrink-0"
-                      onClick={() => {
-                        console.log('📎 Web attach button clicked (fallback)');
-                        const el = fileInputRef.current as any;
-                        if (el && typeof el.showPicker === 'function') {
-                          try { el.showPicker(); return; } catch {}
-                        }
-                        fileInputRef.current?.click();
-                      }}
-                      disabled={!isOnline || isUploadingAttachment}
-                    >
-                      {isUploadingAttachment ? (
-                        <Loader2 className="h-5 w-5 animate-spin" />
-                      ) : (
-                        <Paperclip className="h-5 w-5" />
-                      )}
-                    </Button>
+                  {/* Mobile-friendly file input with larger touch target */}
+                  <div className="relative flex-shrink-0" style={{ width: '48px', height: '48px' }}>
                     <input
                       ref={fileInputRef}
                       type="file"
-                      accept="image/*,video/*,audio/*,.pdf,.doc,.docx,.txt,application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document,text/plain"
+                      accept="image/*,video/*,audio/*,.pdf,.doc,.docx,.txt"
                       onChange={handleFileInputChange}
-                      onClick={() => console.log('📎 Web overlay file input tapped')}
-                      className="absolute inset-0 opacity-0 cursor-pointer z-50 pointer-events-auto"
+                      onClick={(e) => {
+                        console.log('📎 Mobile web file input clicked/tapped');
+                        console.log('📎 Input element:', e.currentTarget);
+                        console.log('📎 Touch event details:', e);
+                      }}
+                      onTouchStart={(e) => {
+                        console.log('📎 Touch start on file input');
+                        e.stopPropagation();
+                      }}
+                      onTouchEnd={(e) => {
+                        console.log('📎 Touch end on file input');
+                        e.stopPropagation();
+                      }}
+                      disabled={!isOnline || isUploadingAttachment}
+                      className="absolute inset-0 cursor-pointer z-50"
+                      style={{
+                        opacity: 0.01,
+                        backgroundColor: 'rgba(255, 0, 0, 0.1)',
+                        width: '48px',
+                        height: '48px'
+                      }}
                       aria-label="Upload attachment"
                     />
+                    <div 
+                      className="absolute inset-0 flex items-center justify-center pointer-events-none"
+                      style={{ zIndex: 40 }}
+                    >
+                      {isUploadingAttachment ? (
+                        <Loader2 className="h-6 w-6 animate-spin text-primary" />
+                      ) : (
+                        <Paperclip className="h-6 w-6 text-muted-foreground" />
+                      )}
+                    </div>
                   </div>
                 </>
               )}

@@ -52,7 +52,7 @@ interface ChatState {
   typingUsers: { [conversationId: string]: { [userId: string]: string } }; // userId -> userName
   offlineQueue: DbMessage[]; // Messages waiting to be sent
   isProcessingOutbox?: boolean;
-  
+
   // Actions
   loadConversations: (userId: string) => Promise<void>;
   loadMessages: (conversationId: string, limit?: number) => Promise<void>;
@@ -82,11 +82,11 @@ export const useChatStore = create<ChatState>((set, get) => ({
   typingUsers: {},
   offlineQueue: [],
   isProcessingOutbox: false,
-  
+
   loadConversations: async (userId: string) => {
     console.log('📡 Loading conversations for user:', userId);
     set({ isLoading: true });
-    
+
     try {
       const result = await supabaseWrapper.withRetry(async () => {
         // Optimized: Single query to get user's conversations with participants
@@ -104,26 +104,26 @@ export const useChatStore = create<ChatState>((set, get) => ({
             )
           `)
           .eq('user_id', userId);
-        
+
         if (participantError) throw participantError;
         return userParticipants;
       }, 'load conversations');
-      
+
       const userParticipants = result;
-      
+
       console.log('📊 User participants:', { data: userParticipants });
-      
+
       if (!userParticipants || userParticipants.length === 0) {
         console.log('ℹ️ No conversations found for user');
         set({ conversations: [], isLoading: false });
         return;
       }
-      
+
       // Extract conversation IDs
       const conversationIds = userParticipants.map(up => up.conversation_id);
-      
+
       console.log('🔍 Fetching participants for conversation IDs:', conversationIds);
-      
+
       // Batch fetch: Get ALL participants for all conversations in one query
       // Note: We need ALL participants (not just current user), so we query by conversation_id only
       const { data: allParticipants, error: allParticipantsError } = await supabase
@@ -141,28 +141,28 @@ export const useChatStore = create<ChatState>((set, get) => ({
           )
         `)
         .in('conversation_id', conversationIds);
-      
+
       if (allParticipantsError) {
         console.error('Error fetching participants:', allParticipantsError);
         throw allParticipantsError;
       }
-      
+
       console.log('👥 All participants fetched:', allParticipants);
       console.log('👥 Total participants count:', allParticipants?.length);
       console.log('👥 Expected count (2 per conversation):', conversationIds.length * 2);
       console.log('👥 First participant sample:', JSON.stringify(allParticipants?.[0], null, 2));
-      
+
       // Batch fetch: Get last message for each conversation in one query
       const { data: lastMessages, error: lastMessagesError } = await supabase
         .from('messages')
         .select('*')
         .in('conversation_id', conversationIds)
         .order('created_at', { ascending: false });
-      
+
       if (lastMessagesError) {
         console.error('Error fetching last messages:', lastMessagesError);
       }
-      
+
       // Group participants by conversation_id
       const participantsByConversation: { [key: string]: any[] } = {};
       allParticipants?.forEach(p => {
@@ -174,9 +174,9 @@ export const useChatStore = create<ChatState>((set, get) => ({
           profiles: p.profiles
         });
       });
-      
+
       console.log('👥 Participants grouped by conversation:', participantsByConversation);
-      
+
       // Group last messages by conversation_id (take first = most recent)
       const lastMessageByConversation: { [key: string]: DbMessage } = {};
       lastMessages?.forEach(msg => {
@@ -184,7 +184,7 @@ export const useChatStore = create<ChatState>((set, get) => ({
           lastMessageByConversation[msg.conversation_id] = msg;
         }
       });
-      
+
       // Assemble final conversations array
       const conversationsWithDetails: ConversationWithDetails[] = userParticipants.map(up => {
         const conversation = (up as any).conversations;
@@ -199,23 +199,23 @@ export const useChatStore = create<ChatState>((set, get) => ({
           unreadCount: up.unread_count || 0
         };
       });
-      
+
       // Filter out permanently deleted conversations
       const deletedConvs = JSON.parse(localStorage.getItem('deletedConversations') || '[]');
       const filteredConversations = conversationsWithDetails.filter(
         conv => !deletedConvs.includes(conv.id)
       );
-      
+
       // Sort by most recent activity
       filteredConversations.sort((a, b) => {
         const aTime = a.lastMessage?.created_at || a.updated_at;
         const bTime = b.lastMessage?.created_at || b.updated_at;
         return new Date(bTime).getTime() - new Date(aTime).getTime();
       });
-      
+
       console.log('💬 Final conversations with details:', filteredConversations);
       console.log('💬 First conversation sample:', filteredConversations[0]);
-      
+
       set({ conversations: filteredConversations, isLoading: false });
     } catch (error) {
       console.error('Error loading conversations:', error);
@@ -233,7 +233,7 @@ export const useChatStore = create<ChatState>((set, get) => ({
   loadMessages: async (conversationId: string, limit: number = 50) => {
     try {
       set({ isLoading: true });
-      
+
       const { data, error } = await supabase
         .from('messages')
         .select(`
@@ -257,21 +257,21 @@ export const useChatStore = create<ChatState>((set, get) => ({
 
       // Get current user to determine message status
       const { data: { user } } = await supabase.auth.getUser();
-      
+
       // Get all participants to map sender names
       const { data: participants } = await supabase
         .from('conversation_participants')
         .select('user_id, profiles(name)')
         .eq('conversation_id', conversationId);
-      
+
       const userMap = new Map(
         (participants || []).map(p => [p.user_id, p.profiles?.name || 'User'])
       );
-      
+
       // Add status and populate reply_to data
       const messagesWithStatus = (data || []).map((message, index) => {
         let status: MessageStatus = 'delivered'; // Default for received messages
-        
+
         if (message.sender_id === user?.id) {
           // For sent messages, determine read status
           // Check if there's a newer message from someone else (indicates they've read this message)
@@ -280,11 +280,11 @@ export const useChatStore = create<ChatState>((set, get) => ({
             laterMsg.sender_id !== user.id && 
             new Date(laterMsg.created_at) > new Date(message.created_at)
           );
-          
+
           // Also check the message_reads table for explicit read status
           status = hasLaterReplyFromOthers ? 'read' : 'delivered';
         }
-        
+
         // Populate reply_to data if message is a reply
         let reply_to = undefined;
         if (message.reply_to_message_id) {
@@ -299,7 +299,7 @@ export const useChatStore = create<ChatState>((set, get) => ({
             };
           }
         }
-        
+
         return {
           ...message,
           status,
@@ -320,24 +320,24 @@ export const useChatStore = create<ChatState>((set, get) => ({
       throw error;
     }
   },
-  
+
   sendMessage: async (conversationId: string, senderId: string, content: string, mediaUrl?: string, clientIdOverride?: string, replyToMessageId?: string) => {
     console.log('📤 ChatStore sendMessage called:', { conversationId, senderId, content: content.substring(0, 50), mediaUrl });
-    
+
     // Validate inputs
     if (!conversationId || !senderId || !content.trim()) {
       console.error('❌ Invalid message data:', { conversationId, senderId, hasContent: !!content.trim() });
       throw new Error('Missing required message data');
     }
-    
+
     const messageType = mediaUrl ? 
       (mediaUrl.includes('.jpg') || mediaUrl.includes('.jpeg') || mediaUrl.includes('.png') || mediaUrl.includes('.gif') || mediaUrl.includes('.webp') ? 'image' : 
        mediaUrl.includes('.webm') || mediaUrl.includes('.mp3') || mediaUrl.includes('.wav') ? 'voice' : 'file') : 'text';
-    
+
     // Generate client_id for idempotency and reconciliation
     const clientId = clientIdOverride || generateClientId();
     const tempId = `temp_${Date.now()}_${Math.random()}`;
-    
+
     // Get reply_to data if replying to a message
     let reply_to = undefined;
     if (replyToMessageId) {
@@ -354,7 +354,7 @@ export const useChatStore = create<ChatState>((set, get) => ({
         };
       }
     }
-    
+
     const optimisticMessage: DbMessage = {
       id: tempId,
       conversation_id: conversationId,
@@ -377,7 +377,7 @@ export const useChatStore = create<ChatState>((set, get) => ({
         [conversationId]: [...(state.messages[conversationId] || []), optimisticMessage]
       }
     }));
-    
+
     try {
       // Send to database with client_id for reconciliation
       const { data, error } = await supabase
@@ -393,9 +393,9 @@ export const useChatStore = create<ChatState>((set, get) => ({
         })
         .select()
         .single();
-      
+
       console.log('📊 Database insert result:', { data, error });
-      
+
       if (error) {
         console.error('❌ Database insert failed:', error);
         // Update optimistic message to failed
@@ -409,7 +409,7 @@ export const useChatStore = create<ChatState>((set, get) => ({
         }));
         throw new Error(`Failed to send message: ${error.message}`);
       }
-      
+
       if (!data) {
         console.error('❌ No data returned from insert');
         // Update optimistic message to failed
@@ -423,7 +423,7 @@ export const useChatStore = create<ChatState>((set, get) => ({
         }));
         throw new Error('Failed to send message: No data returned');
       }
-      
+
       // Replace optimistic message with real message (delivered status)
       set(state => ({
         messages: {
@@ -436,7 +436,7 @@ export const useChatStore = create<ChatState>((set, get) => ({
           ) || []
         }
       }));
-      
+
       console.log('✅ Message sent successfully to database:', data.id);
       return data;
     } catch (error: any) {
@@ -447,12 +447,12 @@ export const useChatStore = create<ChatState>((set, get) => ({
 
   sendAttachment: async (conversationId: string, senderId: string, file: File) => {
     console.log('📎 Sending attachment:', { conversationId, senderId, fileName: file.name, fileSize: `${(file.size / 1024 / 1024).toFixed(2)}MB` });
-    
+
     // Create temporary message for optimistic update
     const tempId = `temp_${Date.now()}_${Math.random()}`;
     const clientId = generateClientId();
     const messageType = file.type.startsWith('image/') ? 'image' : 'file';
-    
+
     const optimisticMessage: DbMessage = {
       id: tempId,
       conversation_id: conversationId,
@@ -466,7 +466,7 @@ export const useChatStore = create<ChatState>((set, get) => ({
       client_id: clientId,
       uploadProgress: 0
     };
-    
+
     // Add optimistic message to UI
     set(state => ({
       messages: {
@@ -474,13 +474,13 @@ export const useChatStore = create<ChatState>((set, get) => ({
         [conversationId]: [...(state.messages[conversationId] || []), optimisticMessage]
       }
     }));
-    
+
     // STEP 1: Send text message FIRST (so it always goes through)
     try {
       console.log('📨 Sending placeholder message first...');
       let data: any = null;
       let error: any = null;
-      
+
       try {
         const res = await supabase
           .from('messages')
@@ -497,7 +497,7 @@ export const useChatStore = create<ChatState>((set, get) => ({
       } catch (e: any) {
         error = e;
       }
-      
+
       if (error && (error.code === '42703' || (error.message && /column .*client_id.* does not exist/i.test(error.message)))) {
         console.warn('client_id column missing, retrying without it');
         const fallback = await supabase
@@ -512,15 +512,15 @@ export const useChatStore = create<ChatState>((set, get) => ({
           .single();
         data = fallback.data; error = fallback.error;
       }
-      
+
       if (error) {
         console.error('❌ Failed to send placeholder message:', error);
         throw error;
       }
-      
+
       const messageId = data.id;
       console.log('✅ Placeholder message sent:', messageId);
-      
+
       // Update UI with real message ID
       set(state => ({
         messages: {
@@ -530,14 +530,14 @@ export const useChatStore = create<ChatState>((set, get) => ({
           )
         }
       }));
-      
+
       // STEP 2: Upload attachment in background
       (async () => {
         try {
           const { uploadChatAttachment } = await import('@/lib/storage');
-          
+
           console.log('📤 Starting background upload...');
-          
+
           const mediaUrl = await uploadChatAttachment(file, conversationId, (progress) => {
             console.log('📊 Upload progress:', progress + '%');
             set(state => ({
@@ -549,9 +549,9 @@ export const useChatStore = create<ChatState>((set, get) => ({
               }
             }));
           });
-          
+
           console.log('✅ File uploaded, updating message...');
-          
+
           // STEP 3: Update message with media URL
           const { error: updateError } = await supabase
             .from('messages')
@@ -561,7 +561,7 @@ export const useChatStore = create<ChatState>((set, get) => ({
               content: file.name
             })
             .eq('id', messageId);
-          
+
           if (updateError) {
             console.error('❌ Failed to update message with media:', updateError);
             // Message still sent, just without attachment
@@ -579,9 +579,9 @@ export const useChatStore = create<ChatState>((set, get) => ({
             }));
             return;
           }
-          
+
           console.log('✅ Message updated with attachment');
-          
+
           // Update local state
           set(state => ({
             messages: {
@@ -598,45 +598,90 @@ export const useChatStore = create<ChatState>((set, get) => ({
               )
             }
           }));
-          
-        } catch (uploadError: any) {
-          console.error('❌ Background upload failed:', uploadError);
-          
-          // Keep the text message, mark upload as failed
-          set(state => ({
-            messages: {
-              ...state.messages,
-              [conversationId]: state.messages[conversationId].map(msg =>
-                msg.id === messageId ? { 
-                  ...msg, 
-                  uploadProgress: undefined,
-                  content: `${file.name} (Upload failed - tap to retry)`
-                } : msg
-              )
-            }
-          }));
-          
-          // Save to outbox for retry
-          try {
-            await outbox.init();
-            await outbox.put({
-              client_id: `retry_${clientId}`,
-              tempId: messageId,
+
+        } catch (error: any) {
+          console.error('❌ Background upload failed:', error);
+
+          // If it's just a bucket error, send text message instead
+          const isBucketError = error.message?.includes('Bucket not found') || error.statusCode === '404';
+
+          if (isBucketError) {
+            console.log('⚠️ Bucket error - sending text message instead of attachment');
+
+            // Send a simple text message indicating upload wasn't possible
+            const fallbackMessage = {
+              id: messageId, // Use the ID of the placeholder message
               conversation_id: conversationId,
               sender_id: senderId,
-              content: file.name,
-              type: messageType,
-              created_at: new Date().toISOString()
-            });
-          } catch (e) {
-            console.warn('Failed to save to outbox:', e);
+              content: `📎 ${file.name} (Upload temporarily unavailable - please contact admin to configure storage)`,
+              type: 'text' as const,
+              created_at: new Date().toISOString(),
+            };
+
+            // Update local state
+            set(state => ({
+              messages: {
+                ...state.messages,
+                [conversationId]: state.messages[conversationId].map(msg =>
+                  msg.id === messageId ? fallbackMessage : msg
+                )
+              }
+            }));
+
+            // Send to database
+            await supabase.from('messages').insert(fallbackMessage);
+
+            // Update progress to 100% to indicate message sent, even if attachment failed
+            set(state => ({
+              messages: {
+                ...state.messages,
+                [conversationId]: state.messages[conversationId].map(msg =>
+                  msg.id === messageId ? { ...msg, uploadProgress: 100, content: `📎 ${file.name} (Upload unavailable)` } : msg
+                )
+              }
+            }));
+          } else {
+            // For other errors, show error in message
+            set(state => ({
+              messages: {
+                ...state.messages,
+                [conversationId]: state.messages[conversationId].map(msg =>
+                  msg.id === messageId ? { 
+                    ...msg, 
+                    media_url: null,
+                    content: `[Upload failed: ${error.message}]`,
+                    type: 'text' as const,
+                    uploadProgress: undefined
+                  } : msg
+                )
+              }
+            }));
+          }
+
+          // Save to outbox for retry if it wasn't a bucket error
+          if (!isBucketError) {
+            try {
+              await outbox.init();
+              await outbox.put({
+                client_id: `retry_${clientId}`,
+                tempId: messageId, // Use the placeholder message ID as tempId for retry
+                conversation_id: conversationId,
+                sender_id: senderId,
+                content: file.name,
+                type: messageType, // Use original type
+                media_url: file.type.startsWith('image/') ? URL.createObjectURL(file) : undefined, // Store a reference if possible
+                created_at: new Date().toISOString()
+              });
+            } catch (e) {
+              console.warn('Failed to save to outbox:', e);
+            }
           }
         }
       })();
-      
+
     } catch (error: any) {
       console.error('❌ Error sending attachment message:', error);
-      
+
       // Update status to failed
       set(state => ({
         messages: {
@@ -651,18 +696,18 @@ export const useChatStore = create<ChatState>((set, get) => ({
           )
         }
       }));
-      
+
       throw error;
     }
   },
 
   sendVoiceMessage: async (conversationId: string, senderId: string, audioBlob: Blob) => {
     console.log('🎤 Sending voice message:', { conversationId, senderId, size: audioBlob.size, type: audioBlob.type });
-    
+
     // Create temporary message for optimistic update
     const tempId = `temp_${Date.now()}_${Math.random()}`;
     const clientId = generateClientId();
-    
+
     const optimisticMessage: DbMessage = {
       id: tempId,
       conversation_id: conversationId,
@@ -676,7 +721,7 @@ export const useChatStore = create<ChatState>((set, get) => ({
       client_id: clientId,
       uploadProgress: 0
     };
-    
+
     // Add optimistic message to UI immediately
     set(state => ({
       messages: {
@@ -684,13 +729,13 @@ export const useChatStore = create<ChatState>((set, get) => ({
         [conversationId]: [...(state.messages[conversationId] || []), optimisticMessage]
       }
     }));
-    
+
     try {
       // Import the upload function
       const { uploadVoiceMessage } = await import('@/lib/storage');
-      
+
       console.log('📤 Starting voice upload...');
-      
+
       // Simulate progress for voice upload (no actual progress API for blob upload)
       set(state => ({
         messages: {
@@ -700,11 +745,11 @@ export const useChatStore = create<ChatState>((set, get) => ({
           )
         }
       }));
-      
+
       // Upload the voice message
       const mediaUrl = await uploadVoiceMessage(audioBlob, conversationId);
       console.log('📤 Voice uploaded successfully:', mediaUrl);
-      
+
       // Update progress to 70% before database save
       set(state => ({
         messages: {
@@ -714,7 +759,7 @@ export const useChatStore = create<ChatState>((set, get) => ({
           )
         }
       }));
-      
+
       // Send message with voice attachment to database (with client_id for idempotency)
       console.log('📨 Saving voice message to database...');
       let data: any = null; let error: any = null;
@@ -748,9 +793,9 @@ export const useChatStore = create<ChatState>((set, get) => ({
           .single();
         data = fallback.data; error = fallback.error;
       }
-      
+
       if (error) throw error;
-      
+
       // Replace temporary message with real one
       set(state => ({
         messages: {
@@ -760,11 +805,11 @@ export const useChatStore = create<ChatState>((set, get) => ({
           )
         }
       }));
-      
+
       console.log('✅ Voice message sent successfully');
     } catch (error) {
       console.error('❌ Error sending voice message:', error);
-      
+
       // Update status to failed
       set(state => ({
         messages: {
@@ -774,7 +819,7 @@ export const useChatStore = create<ChatState>((set, get) => ({
           )
         }
       }));
-      
+
       // Persist to outbox for retry if upload succeeded and connection issue
       try {
         if (!navigator.onLine || !connectionManager.connected) {
@@ -828,7 +873,7 @@ export const useChatStore = create<ChatState>((set, get) => ({
           throw error;
         }
       }
-      
+
       // Update message status to 'read' in local state
       set(state => {
         const updatedMessages = { ...state.messages };
@@ -839,7 +884,7 @@ export const useChatStore = create<ChatState>((set, get) => ({
         });
         return { messages: updatedMessages };
       });
-      
+
       console.log('✅ Message marked as read');
     } catch (error) {
       console.error('❌ Error marking message as read:', error);
@@ -849,7 +894,7 @@ export const useChatStore = create<ChatState>((set, get) => ({
       }
     }
   },
-  
+
   markAsRead: async (conversationId: string, userId: string) => {
     try {
       await supabase
@@ -857,7 +902,7 @@ export const useChatStore = create<ChatState>((set, get) => ({
         .update({ unread_count: 0 })
         .eq('conversation_id', conversationId)
         .eq('user_id', userId);
-      
+
       set(state => ({
         conversations: state.conversations.map(conv =>
           conv.id === conversationId ? { ...conv, unreadCount: 0 } : conv
@@ -867,17 +912,17 @@ export const useChatStore = create<ChatState>((set, get) => ({
       console.error('Error marking as read:', error);
     }
   },
-  
+
   subscribeToMessages: (conversationId: string) => {
     console.log('Subscribing to messages for conversation:', conversationId);
-    
+
     // Unsubscribe from previous channel if exists
     const { activeChannel } = get();
     if (activeChannel) {
       console.log('Unsubscribing from previous channel');
       supabase.removeChannel(activeChannel);
     }
-    
+
     const channel = supabase
       .channel(`messages:${conversationId}`, {
         config: {
@@ -912,21 +957,21 @@ export const useChatStore = create<ChatState>((set, get) => ({
               const reconciled = existingMessages.map((m: any) => {
                 // Skip if already replaced
                 if (replaced) return m;
-                
+
                 // Primary: Match by client_id (most reliable)
                 if (incoming.client_id && m.client_id && incoming.client_id === m.client_id) {
                   console.log('✅ Reconciled message by client_id:', incoming.client_id);
                   replaced = true;
                   return { ...(incoming as DbMessage), status: 'delivered' };
                 }
-                
+
                 // Fallback: Match by tempId (for messages sent without client_id)
                 if (m.tempId && m.status === 'sending' && m.sender_id === incoming.sender_id) {
                   // Additional validation: check if content and type match
                   const contentMatch = m.content === incoming.content;
                   const typeMatch = m.type === incoming.type;
                   const mediaMatch = (m.media_url || '') === (incoming.media_url || '');
-                  
+
                   // Only match if at least 2 of 3 criteria match (prevents false positives)
                   const matchScore = [contentMatch, typeMatch, mediaMatch].filter(Boolean).length;
                   if (matchScore >= 2) {
@@ -935,7 +980,7 @@ export const useChatStore = create<ChatState>((set, get) => ({
                     return { ...(incoming as DbMessage), status: 'delivered' };
                   }
                 }
-                
+
                 return m;
               });
 
@@ -952,7 +997,7 @@ export const useChatStore = create<ChatState>((set, get) => ({
               // No match found - this is a new message from another user
               console.log('📨 New message from another user');
               const newMessage: DbMessage = { ...(incoming as DbMessage), status: 'delivered' };
-              
+
               return {
                 messages: {
                   ...state.messages,
@@ -960,7 +1005,7 @@ export const useChatStore = create<ChatState>((set, get) => ({
                 }
               };
             });
-            
+
             // Persist incoming to cache (non-blocking)
             (async () => {
               try {
@@ -973,22 +1018,22 @@ export const useChatStore = create<ChatState>((set, get) => ({
       )
       .on('broadcast', { event: 'typing' }, (payload) => {
         const { userId, userName, isTyping } = payload.payload;
-        
+
         set(state => {
           const updatedTypingUsers = { ...state.typingUsers };
           if (!updatedTypingUsers[conversationId]) {
             updatedTypingUsers[conversationId] = {};
           }
-          
+
           if (isTyping) {
             updatedTypingUsers[conversationId][userId] = userName;
           } else {
             delete updatedTypingUsers[conversationId][userId];
           }
-          
+
           return { typingUsers: updatedTypingUsers };
         });
-        
+
         // Auto-clear typing indicator after 3 seconds
         if (isTyping) {
           setTimeout(() => {
@@ -1004,12 +1049,12 @@ export const useChatStore = create<ChatState>((set, get) => ({
       })
       .subscribe((status) => {
         console.log('Subscription status:', status, 'at', new Date().toLocaleTimeString());
-        
+
         if (status === 'SUBSCRIBED') {
           set({ activeChannel: channel });
         } else if (status === 'CLOSED' || status === 'CHANNEL_ERROR') {
           console.warn('Connection lost, attempting to reconnect...');
-          
+
           // Enhanced reconnection with connection manager
           const reconnect = async () => {
             try {
@@ -1025,11 +1070,11 @@ export const useChatStore = create<ChatState>((set, get) => ({
               setTimeout(reconnect, 10000);
             }
           };
-          
+
           setTimeout(reconnect, 3000);
         }
       });
-    
+
     // Listen for connection changes to resubscribe
     const unsubscribeConnection = connectionManager.onConnectionChange((isOnline) => {
       if (isOnline) {
@@ -1042,13 +1087,13 @@ export const useChatStore = create<ChatState>((set, get) => ({
         }, 2000);
       }
     });
-    
+
     // Store cleanup function
     (channel as any)._connectionCleanup = unsubscribeConnection;
-    
+
     return channel;
   },
-  
+
   unsubscribeFromMessages: () => {
     console.log('Unsubscribing from messages');
     const { activeChannel } = get();
@@ -1061,7 +1106,7 @@ export const useChatStore = create<ChatState>((set, get) => ({
       set({ activeChannel: null });
     }
   },
-  
+
   broadcastTyping: (conversationId: string, userId: string, userName: string, isTyping: boolean) => {
     const { activeChannel } = get();
     if (activeChannel) {
@@ -1072,11 +1117,11 @@ export const useChatStore = create<ChatState>((set, get) => ({
       });
     }
   },
-  
+
   updateMessageStatus: (tempId: string, status: MessageStatus, realId?: string) => {
     set(state => {
       const updatedMessages = { ...state.messages };
-      
+
       Object.keys(updatedMessages).forEach(convId => {
         updatedMessages[convId] = updatedMessages[convId].map(msg => {
           if (msg.tempId === tempId) {
@@ -1085,7 +1130,7 @@ export const useChatStore = create<ChatState>((set, get) => ({
           return msg;
         });
       });
-      
+
       return { messages: updatedMessages };
     });
   },
@@ -1100,7 +1145,7 @@ export const useChatStore = create<ChatState>((set, get) => ({
       }
     }));
   },
-  
+
   processOfflineQueue: async () => {
     if (!navigator.onLine || !connectionManager.connected) return;
     // Guard against concurrent processing
@@ -1142,14 +1187,14 @@ export const useChatStore = create<ChatState>((set, get) => ({
   deleteConversation: async (conversationId: string, userId: string) => {
     try {
       console.log('🗑️ Deleting conversation:', conversationId);
-      
+
       // Store in localStorage for permanent deletion across sessions
       const deletedConvs = JSON.parse(localStorage.getItem('deletedConversations') || '[]');
       if (!deletedConvs.includes(conversationId)) {
         deletedConvs.push(conversationId);
         localStorage.setItem('deletedConversations', JSON.stringify(deletedConvs));
       }
-      
+
       // Delete the conversation participant record
       const { error } = await supabase
         .from('conversation_participants')
@@ -1197,10 +1242,10 @@ try {
 if (typeof window !== 'undefined') {
   window.addEventListener('supabase-reconnected', () => {
     console.log('🔄 Supabase reconnected, resubscribing to active channels...');
-    
+
     const state = useChatStore.getState();
     const { activeChannel } = state;
-    
+
     // If there was an active channel, resubscribe
     if (activeChannel && activeChannel.topic) {
       const conversationId = activeChannel.topic.split(':')[1];

@@ -914,10 +914,17 @@ export const useChatStore = create<ChatState>((set, get) => ({
   },
 
   subscribeToMessages: (conversationId: string) => {
+    const { activeChannel } = get();
+    
+    // Prevent duplicate subscriptions to the same conversation
+    if (activeChannel && activeChannel.topic === `messages:${conversationId}`) {
+      console.log('✅ Already subscribed to conversation:', conversationId);
+      return activeChannel;
+    }
+
     console.log('Subscribing to messages for conversation:', conversationId);
 
     // Unsubscribe from previous channel if exists
-    const { activeChannel } = get();
     if (activeChannel) {
       console.log('Unsubscribing from previous channel');
       supabase.removeChannel(activeChannel);
@@ -1051,28 +1058,10 @@ export const useChatStore = create<ChatState>((set, get) => ({
         console.log('Subscription status:', status, 'at', new Date().toLocaleTimeString());
 
         if (status === 'SUBSCRIBED') {
+          console.log('✅ Successfully subscribed to messages:', conversationId);
           set({ activeChannel: channel });
-        } else if (status === 'CLOSED' || status === 'CHANNEL_ERROR') {
-          console.warn('Connection lost, attempting to reconnect...');
-
-          // Enhanced reconnection with connection manager
-          const reconnect = async () => {
-            try {
-              await connectionManager.waitForConnection(10000);
-              const { activeChannel: currentChannel } = get();
-              if (!currentChannel || currentChannel.state !== 'joined') {
-                console.log('Reconnecting to messages...');
-                get().subscribeToMessages(conversationId);
-              }
-            } catch (error) {
-              console.error('Reconnection failed:', error);
-              // Retry after longer delay
-              setTimeout(reconnect, 10000);
-            }
-          };
-
-          setTimeout(reconnect, 3000);
         }
+        // Removed automatic reconnection - let the global connection manager handle it
       });
 
     // Listen for connection changes to resubscribe

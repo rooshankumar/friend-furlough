@@ -47,11 +47,18 @@ class ConnectionManager {
       }
     });
 
-    // Window focus events (tab switching)
+    // Window focus events (tab switching) - reduced frequency
+    let lastFocusReconnect = 0;
     window.addEventListener('focus', () => {
       console.log('🎯 App gained focus, checking connection...');
       setTimeout(() => this.checkConnection(), 100);
-      setTimeout(() => this.attemptReconnection(), 300);
+      
+      // Only attempt reconnection if it's been more than 30 seconds since last one
+      const now = Date.now();
+      if (now - lastFocusReconnect > 30000) {
+        setTimeout(() => this.attemptReconnection(), 300);
+        lastFocusReconnect = now;
+      }
     });
 
     window.addEventListener('blur', () => {
@@ -235,6 +242,12 @@ class ConnectionManager {
   }
   
   private attemptReconnection() {
+    // Only reconnect if connection was actually lost
+    if (!this.isOnline) {
+      console.log('⏸️ Skipping reconnection - still offline');
+      return;
+    }
+
     // Force refresh Supabase connection
     try {
       console.log('🔄 Attempting full reconnection...');
@@ -248,9 +261,17 @@ class ConnectionManager {
         }
       });
       
-      // 2. Re-establish realtime connections more aggressively
+      // 2. Re-establish realtime connections (less aggressive)
+      // Only disconnect/reconnect if we detect actual connection issues
       const reconnectRealtime = () => {
         try {
+          // Check if realtime is already connected before forcing reconnection
+          if (supabase.realtime.connection?.readyState === WebSocket.OPEN) {
+            console.log('✅ Realtime already connected, skipping reconnection');
+            window.dispatchEvent(new CustomEvent('supabase-reconnected'));
+            return;
+          }
+
           // Disconnect all existing channels
           supabase.realtime.disconnect();
           
@@ -264,15 +285,10 @@ class ConnectionManager {
           }, 1000);
         } catch (error) {
           console.warn('Realtime reconnection failed:', error);
-          // Retry after delay
-          setTimeout(reconnectRealtime, 2000);
         }
       };
       
       reconnectRealtime();
-      
-      // 3. Clear any stale data/caches
-      this.clearStaleData();
       
     } catch (error) {
       console.warn('Failed to refresh Supabase connections:', error);

@@ -84,7 +84,6 @@ class ConnectionManager {
       // Handle service worker messages (for background sync)
       navigator.serviceWorker.addEventListener('message', (event) => {
         if (event.data?.type === 'BACKGROUND_SYNC') {
-          console.log('📱 Background sync triggered');
           this.checkConnection();
         }
       });
@@ -180,8 +179,6 @@ class ConnectionManager {
       // Consider connected if at least 2 out of 3 tests pass
       const passedTests = connectionResults.filter(Boolean).length;
       const isConnected = passedTests >= 2;
-      
-      console.log(`🔍 Connection test results: ${connectionResults.join(', ')} (${passedTests}/3 passed)`);
       
       if (isConnected !== this.isOnline) {
         this.isOnline = isConnected;

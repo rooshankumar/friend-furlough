@@ -330,7 +330,6 @@ const ChatPageV2 = () => {
     threshold: 80
   });
   const recordingTimerRef = useRef<NodeJS.Timeout | null>(null);
-  const fileInputRef = useRef<HTMLInputElement>(null);
   const typingTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   const { 
@@ -486,17 +485,11 @@ const ChatPageV2 = () => {
   };
 
   const handleRetryUpload = async (message: any) => {
-    if (!conversationId || !user || !message.tempId) return;
-
-    // Find the original file from the failed message
-    // Since we don't have the file, we'll need to ask user to reselect
+    if (!conversationId || !message.tempId) return;
     toast({
       title: "Retry Upload",
       description: "Please select the file again to retry upload",
     });
-
-    // Trigger file input
-    fileInputRef.current?.click();
   };
 
   const handleRemoveFailedUpload = (message: any) => {
@@ -505,44 +498,16 @@ const ChatPageV2 = () => {
   };
 
   const handleAttachmentUpload = async (file: File) => {
-    console.log('📎 handleAttachmentUpload triggered');
-    console.log('📎 File selected:', file ? { name: file.name, size: file.size, type: file.type } : 'NO FILE');
-
-    if (!file) {
-      console.error('❌ No file selected');
+    if (!file || !conversationId || !user) {
       toast({
         title: "Upload failed",
-        description: "No file was selected.",
+        description: "Invalid upload request.",
         variant: "destructive"
       });
       return;
     }
 
-    if (!conversationId) {
-      console.error('❌ No conversation selected');
-      toast({
-        title: "Upload failed",
-        description: "No active conversation selected.",
-        variant: "destructive"
-      });
-      return;
-    }
-
-    if (!user) {
-      console.error('❌ No user authenticated');
-      toast({
-        title: "Upload failed",
-        description: "You are not authenticated.",
-        variant: "destructive"
-      });
-      return;
-    }
-
-    console.log('📎 All checks passed, calling sendAttachment');
-
-    // Basic file size validation (20MB max)
-    const maxSize = 20 * 1024 * 1024;
-    if (file.size > maxSize) {
+    if (file.size > 20 * 1024 * 1024) {
       toast({
         title: "File too large",
         description: `Maximum file size is 20MB. Your file is ${(file.size / 1024 / 1024).toFixed(2)}MB`,
@@ -563,24 +528,15 @@ const ChatPageV2 = () => {
     setIsUploadingAttachment(true);
 
     try {
-      console.log('📎 Sending attachment via sendAttachment function');
-      toast({
-        title: "Uploading...",
-        description: `Sending ${file.name}`,
-      });
-
       await sendAttachment(conversationId, user.id, file);
-
-      console.log('📎 sendAttachment successful');
       toast({
         title: "Sent!",
         description: "Attachment uploaded successfully",
       });
     } catch (error: any) {
-      console.error('❌ Error during sendAttachment:', error);
       toast({
         title: "Upload failed",
-        description: error.message || 'Failed to upload attachment. Please try again.',
+        description: error.message || 'Failed to upload attachment.',
         variant: "destructive"
       });
     } finally {
@@ -588,17 +544,6 @@ const ChatPageV2 = () => {
     }
   };
 
-  // Handle file input change event (for web)
-  const handleFileInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    console.log('📎 Web file input changed, files:', e.target.files?.length);
-    const file = e.target.files?.[0];
-    if (file) {
-      handleAttachmentUpload(file);
-      e.target.value = ''; // Reset the input value to allow selecting the same file again if needed
-    } else {
-      console.warn('⚠️ No file selected from web input');
-    }
-  };
 
   const handleVoiceRecording = async () => {
     if (!isOnline) {
@@ -1066,69 +1011,21 @@ const ChatPageV2 = () => {
                   </div>
                 )}
               </div>
-              {/* Use MobileFileInput for both mobile app and mobile web */}
-              {isMobileApp() || /Android|webOS|iPhone|iPad|iPod/i.test(navigator.userAgent) ? (
-                <MobileFileInput
-                  onFileSelect={handleAttachmentUpload}
-                  accept="image/*,video/*,audio/*,.pdf,.doc,.docx,.txt"
-                  icon={<Paperclip className="h-5 w-5" />}
-                  buttonText=""
-                  variant="ghost"
-                  size="icon"
-                  className="h-9 w-9 p-0 flex-shrink-0"
-                  disabled={!isOnline}
-                  isLoading={isUploadingAttachment}
-                  maxSizeMB={20}
-                  showProgress={true}
-                  showFileName={true}
-                />
-              ) : (
-                <>
-                  {/* Mobile-friendly file input with larger touch target */}
-                  <div className="relative flex-shrink-0" style={{ width: '48px', height: '48px' }}>
-                    <input
-                      ref={fileInputRef}
-                      type="file"
-                      accept="image/*,video/*,audio/*,.pdf,.doc,.docx,.txt"
-                      onChange={handleFileInputChange}
-                      onClick={(e) => {
-                        console.log('📎 Mobile web file input clicked/tapped');
-                        console.log('📎 Input element:', e.currentTarget);
-                        console.log('📎 Touch event details:', e);
-                      }}
-                      onTouchStart={(e) => {
-                        console.log('📎 Touch start on file input');
-                        e.stopPropagation();
-                      }}
-                      onTouchEnd={(e) => {
-                        console.log('📎 Touch end on file input');
-                        e.stopPropagation();
-                      }}
-                      disabled={!isOnline || isUploadingAttachment}
-                      className="absolute inset-0 cursor-pointer z-50"
-                      style={{
-                        opacity: 1,
-                        backgroundColor: 'rgba(59, 130, 246, 0.3)',
-                        border: '2px solid #3b82f6',
-                        width: '48px',
-                        height: '48px',
-                        borderRadius: '8px'
-                      }}
-                      aria-label="Upload attachment"
-                    />
-                    <div 
-                      className="absolute inset-0 flex items-center justify-center pointer-events-none"
-                      style={{ zIndex: 40 }}
-                    >
-                      {isUploadingAttachment ? (
-                        <Loader2 className="h-6 w-6 animate-spin text-primary" />
-                      ) : (
-                        <Paperclip className="h-6 w-6 text-muted-foreground" />
-                      )}
-                    </div>
-                  </div>
-                </>
-              )}
+              {/* ✅ FIXED: Single MobileFileInput for all platforms */}
+              <MobileFileInput
+                onFileSelect={handleAttachmentUpload}
+                accept="image/*,video/*,audio/*,.pdf,.doc,.docx,.txt"
+                icon={<Paperclip className="h-5 w-5" />}
+                buttonText=""
+                variant="ghost"
+                size="icon"
+                className="h-9 w-9 p-0 flex-shrink-0"
+                disabled={!isOnline}
+                isLoading={isUploadingAttachment}
+                maxSizeMB={20}
+                showProgress={false}
+                showFileName={false}
+              />
               <Input
                 value={newMessage}
                 onChange={(e) => {

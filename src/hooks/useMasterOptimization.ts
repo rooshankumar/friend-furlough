@@ -21,7 +21,6 @@ export const useMasterOptimization = () => {
 
   // Configure React Query defaults (optimized for speed)
   useEffect(() => {
-    console.log('🚀 Master optimization initialized');
     
     queryClient.setDefaultOptions({
       queries: {
@@ -56,8 +55,6 @@ export const useMasterOptimization = () => {
   // Setup real-time subscriptions (optimized - only critical ones)
   const setupRealtimeSubscriptions = useCallback(() => {
     if (!user) return;
-
-    console.log('📡 Setting up real-time subscriptions');
 
     // Only subscribe to profile changes (most critical)
     const profileChannel = supabase

@@ -201,8 +201,6 @@ export const useChatStore = create<ChatState>((set, get) => ({
         return new Date(bTime).getTime() - new Date(aTime).getTime();
       });
 
-      console.log('💬 Final conversations with details:', filteredConversations);
-      console.log('💬 First conversation sample:', filteredConversations[0]);
 
       set({ conversations: filteredConversations, isLoading: false });
     } catch (error) {
@@ -310,7 +308,6 @@ export const useChatStore = create<ChatState>((set, get) => ({
   },
 
   sendMessage: async (conversationId: string, senderId: string, content: string, mediaUrl?: string, clientIdOverride?: string, replyToMessageId?: string) => {
-    console.log('📤 ChatStore sendMessage called:', { conversationId, senderId, content: content.substring(0, 50), mediaUrl });
 
     // Validate inputs
     if (!conversationId || !senderId || !content.trim()) {
@@ -382,7 +379,6 @@ export const useChatStore = create<ChatState>((set, get) => ({
         .select()
         .single();
 
-      console.log('📊 Database insert result:', { data, error });
 
       if (error) {
         console.error('❌ Database insert failed:', error);
@@ -434,11 +430,8 @@ export const useChatStore = create<ChatState>((set, get) => ({
   },
 
   sendAttachment: async (conversationId: string, senderId: string, file: File) => {
-    console.log('📎 Sending attachment:', { conversationId, senderId, fileName: file.name, fileSize: `${(file.size / 1024 / 1024).toFixed(2)}MB` });
-    // Begin critical section: prevent reconnection while uploading
     connectionManager.startUpload();
 
-    // Create temporary message for optimistic update
     const tempId = `temp_${Date.now()}_${Math.random()}`;
     const clientId = generateClientId();
     const messageType = file.type.startsWith('image/') ? 'image' : 'file';
@@ -457,7 +450,6 @@ export const useChatStore = create<ChatState>((set, get) => ({
       uploadProgress: 0
     };
 
-    // Add optimistic message to UI
     set(state => ({
       messages: {
         ...state.messages,
@@ -468,13 +460,9 @@ export const useChatStore = create<ChatState>((set, get) => ({
     let mediaUrl: string | undefined;
     
     try {
-      // STEP 1: Upload file to storage FIRST
-      console.log('📤 Uploading file to storage first...');
       const { uploadChatAttachment } = await import('@/lib/storage');
       
       mediaUrl = await uploadChatAttachment(file, conversationId, (progress) => {
-        console.log(`📊 Upload progress: ${progress}%`);
-        // Update progress in UI
         set(state => ({
           messages: {
             ...state.messages,
@@ -485,139 +473,26 @@ export const useChatStore = create<ChatState>((set, get) => ({
         }));
       });
       
-      console.log('✅ Upload complete:', mediaUrl);
-    } catch (uploadError: any) {
-      console.error('❌ Upload to storage failed:', uploadError);
-      // Continue anyway - we'll send a text message about the failed upload
-      mediaUrl = undefined;
-    }
-
-    try {
-
-      // STEP 2: Send message (with or without media URL)
-      const messageContent = mediaUrl 
-        ? file.name 
-        : `📎 ${file.name} (Upload failed - storage issue)`;
-      const messageTypeToSend = mediaUrl ? messageType : 'text';
-      
-      console.log('📨 Sending message to database:', { 
-        hasMedia: !!mediaUrl, 
-        type: messageTypeToSend,
-        content: messageContent,
-        mediaUrl: mediaUrl 
-      });
-      
-      let data: any = null;
-      let error: any = null;
-
-      try {
-        console.log('🔍 Inserting message into database...');
-        
-        // Add timeout to database insert (10 seconds)
-        const insertPromise = supabase
-          .from('messages')
-          .insert({
-            conversation_id: conversationId,
-            sender_id: senderId,
-            content: messageContent,
-            type: messageTypeToSend,
-            media_url: mediaUrl || null,
-            client_id: clientId
-          })
-          .select()
-          .single();
-        
-        const timeoutPromise = new Promise((_, reject) => 
-          setTimeout(() => reject(new Error('Database insert timeout')), 10000)
-        );
-        
-        const res = await Promise.race([insertPromise, timeoutPromise]) as any;
-        data = res.data;
-        error = res.error;
-        
-        console.log('🔍 Database insert result:', { 
-          success: !error, 
-          hasData: !!data,
-          messageId: data?.id,
-          error: error?.message 
-        });
-      } catch (e: any) {
-        console.error('🔍 Database insert exception:', e);
-        error = e;
-      }
-
-      // Retry without client_id if column doesn't exist
-      if (error && (error.code === '42703' || (error.message && /column .*client_id.* does not exist/i.test(error.message)))) {
-        console.warn('⚠️ client_id column missing, retrying without it');
-        const fallback = await supabase
-          .from('messages')
-          .insert({
-            conversation_id: conversationId,
-            sender_id: senderId,
-            content: file.name,
-            type: messageType,
-            media_url: mediaUrl
-          })
-          .select()
-          .single();
-        data = fallback.data;
-        error = fallback.error;
-      }
-
-      // End upload tracking
       connectionManager.endUpload();
-
-      if (error) {
-        console.error('❌ Failed to send message to database:', error);
-        console.warn('⚠️ Showing message in UI anyway (optimistic update)');
-        
-        // Show message in UI even if database insert failed
-        set(state => ({
-          messages: {
-            ...state.messages,
-            [conversationId]: state.messages[conversationId].map(msg =>
-              msg.tempId === tempId ? { 
-                ...msg, 
-                id: tempId, // Keep temp ID
-                media_url: mediaUrl,
-                status: 'sent',
-                uploadProgress: 100 
-              } : msg
-            )
-          }
-        }));
-        
-        // Don't throw - message is visible in UI
-        return;
-      }
-
-      const messageId = data.id;
-      console.log('✅ Message sent to database:', messageId);
-
-      // Update UI with real message from database
+      
       set(state => ({
         messages: {
           ...state.messages,
           [conversationId]: state.messages[conversationId].map(msg =>
-            msg.tempId === tempId ? { ...data, status: 'sent', uploadProgress: 100 } : msg
+            msg.tempId === tempId ? { 
+              ...msg,
+              id: `cloudinary_${Date.now()}`,
+              media_url: mediaUrl,
+              status: 'sent',
+              uploadProgress: 100,
+              created_at: new Date().toISOString()
+            } : msg
           )
         }
       }));
-
     } catch (error: any) {
-      console.error('❌ Error sending attachment:', error);
-      console.error('❌ Error details:', {
-        message: error.message,
-        stack: error.stack,
-        code: error.code,
-        statusCode: error.statusCode,
-        name: error.name
-      });
-      
-      // End upload tracking on error
       connectionManager.endUpload();
 
-      // Update optimistic message to show error
       set(state => ({
         messages: {
           ...state.messages,
@@ -632,21 +507,11 @@ export const useChatStore = create<ChatState>((set, get) => ({
         }
       }));
 
-      // Show appropriate error message
-      if (mediaUrl) {
-        toast.error('Failed to send message', {
-          description: error.message || 'Please try again'
-        });
-      } else {
-        toast.warning('Attachment upload failed', {
-          description: 'Message sent as text. Storage bucket may need configuration.'
-        });
-      }
+      throw error;
     }
   },
 
   sendVoiceMessage: async (conversationId: string, senderId: string, audioBlob: Blob) => {
-    console.log('🎤 Sending voice message:', { conversationId, senderId, size: audioBlob.size, type: audioBlob.type });
 
     // Create temporary message for optimistic update
     const tempId = `temp_${Date.now()}_${Math.random()}`;
@@ -678,7 +543,6 @@ export const useChatStore = create<ChatState>((set, get) => ({
       // Import the upload function
       const { uploadVoiceMessage } = await import('@/lib/storage');
 
-      console.log('📤 Starting voice upload...');
 
       // Simulate progress for voice upload (no actual progress API for blob upload)
       set(state => ({
@@ -692,7 +556,6 @@ export const useChatStore = create<ChatState>((set, get) => ({
 
       // Upload the voice message
       const mediaUrl = await uploadVoiceMessage(audioBlob, conversationId);
-      console.log('📤 Voice uploaded successfully:', mediaUrl);
 
       // Update progress to 70% before database save
       set(state => ({
@@ -705,7 +568,6 @@ export const useChatStore = create<ChatState>((set, get) => ({
       }));
 
       // Send message with voice attachment to database (with client_id for idempotency)
-      console.log('📨 Saving voice message to database...');
       let data: any = null; let error: any = null;
       try {
         const res = await supabase
@@ -946,7 +808,6 @@ export const useChatStore = create<ChatState>((set, get) => ({
               }
 
               // No match found - this is a new message from another user
-              console.log('📨 New message from another user');
               const newMessage: DbMessage = { ...(incoming as DbMessage), status: 'delivered' };
 
               return {
@@ -1093,7 +954,6 @@ export const useChatStore = create<ChatState>((set, get) => ({
       set({ isProcessingOutbox: false });
       return;
     }
-    console.log('📤 Processing outbox:', items.length, 'items');
     for (const item of items) {
       try {
         await get().sendMessage(item.conversation_id, item.sender_id, item.content, item.media_url, item.client_id);

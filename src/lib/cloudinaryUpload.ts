@@ -15,74 +15,45 @@ export const uploadToCloudinary = async (
   file: File,
   onProgress?: (progress: number) => void
 ): Promise<string> => {
-  console.log('☁️ Uploading to Cloudinary:', file.name, `(${(file.size / 1024 / 1024).toFixed(2)}MB)`);
+  onProgress?.(10);
+
+  const formData = new FormData();
+  formData.append('file', file);
+  formData.append('upload_preset', CLOUDINARY_UPLOAD_PRESET);
+  formData.append('cloud_name', CLOUDINARY_CLOUD_NAME);
+  formData.append('folder', 'chat_attachments');
   
-  try {
-    onProgress?.(10);
+  onProgress?.(30);
 
-    // Create form data
-    const formData = new FormData();
-    formData.append('file', file);
-    formData.append('upload_preset', CLOUDINARY_UPLOAD_PRESET);
-    formData.append('cloud_name', CLOUDINARY_CLOUD_NAME);
+  const url = `https://api.cloudinary.com/v1_1/${CLOUDINARY_CLOUD_NAME}/image/upload`;
+  
+  return new Promise((resolve, reject) => {
+    const xhr = new XMLHttpRequest();
     
-    // Optional: Add folder organization
-    formData.append('folder', 'chat_attachments');
-    
-    onProgress?.(30);
-
-    // Upload with XMLHttpRequest for progress tracking
-    const url = `https://api.cloudinary.com/v1_1/${CLOUDINARY_CLOUD_NAME}/image/upload`;
-    
-    return new Promise((resolve, reject) => {
-      const xhr = new XMLHttpRequest();
-      
-      // Track upload progress
-      xhr.upload.addEventListener('progress', (e) => {
-        if (e.lengthComputable) {
-          const percentComplete = Math.round((e.loaded / e.total) * 100);
-          onProgress?.(percentComplete);
-          console.log(`☁️ Upload progress: ${percentComplete}%`);
-        }
-      });
-      
-      // Handle completion
-      xhr.addEventListener('load', () => {
-        if (xhr.status === 200) {
-          const response = JSON.parse(xhr.responseText);
-          console.log('✅ Cloudinary upload complete:', response.secure_url);
-          onProgress?.(100);
-          resolve(response.secure_url);
-        } else {
-          console.error('❌ Cloudinary upload failed:', xhr.status, xhr.responseText);
-          reject(new Error(`Upload failed: ${xhr.status}`));
-        }
-      });
-      
-      // Handle errors
-      xhr.addEventListener('error', () => {
-        console.error('❌ Cloudinary network error');
-        reject(new Error('Network error during upload'));
-      });
-      
-      // Handle timeout
-      xhr.addEventListener('timeout', () => {
-        console.error('❌ Cloudinary upload timeout');
-        reject(new Error('Upload timeout'));
-      });
-      
-      // Set timeout (60 seconds for mobile)
-      xhr.timeout = 60000;
-      
-      // Send request
-      xhr.open('POST', url);
-      xhr.send(formData);
+    xhr.upload.addEventListener('progress', (e) => {
+      if (e.lengthComputable) {
+        const percentComplete = Math.round((e.loaded / e.total) * 100);
+        onProgress?.(percentComplete);
+      }
     });
     
-  } catch (error: any) {
-    console.error('❌ Cloudinary upload error:', error);
-    throw error;
-  }
+    xhr.addEventListener('load', () => {
+      if (xhr.status === 200) {
+        const response = JSON.parse(xhr.responseText);
+        onProgress?.(100);
+        resolve(response.secure_url);
+      } else {
+        reject(new Error(`Upload failed: ${xhr.status}`));
+      }
+    });
+    
+    xhr.addEventListener('error', () => reject(new Error('Network error')));
+    xhr.addEventListener('timeout', () => reject(new Error('Upload timeout')));
+    
+    xhr.timeout = 60000;
+    xhr.open('POST', url);
+    xhr.send(formData);
+  });
 };
 
 /**
@@ -92,8 +63,6 @@ export const uploadVideoToCloudinary = async (
   file: File,
   onProgress?: (progress: number) => void
 ): Promise<string> => {
-  console.log('🎥 Uploading video to Cloudinary:', file.name);
-  
   const formData = new FormData();
   formData.append('file', file);
   formData.append('upload_preset', CLOUDINARY_UPLOAD_PRESET);
@@ -108,25 +77,22 @@ export const uploadVideoToCloudinary = async (
     
     xhr.upload.addEventListener('progress', (e) => {
       if (e.lengthComputable) {
-        const percentComplete = Math.round((e.loaded / e.total) * 100);
-        onProgress?.(percentComplete);
+        onProgress?.(Math.round((e.loaded / e.total) * 100));
       }
     });
     
     xhr.addEventListener('load', () => {
       if (xhr.status === 200) {
-        const response = JSON.parse(xhr.responseText);
-        console.log('✅ Video upload complete:', response.secure_url);
-        resolve(response.secure_url);
+        resolve(JSON.parse(xhr.responseText).secure_url);
       } else {
-        reject(new Error(`Video upload failed: ${xhr.status}`));
+        reject(new Error(`Upload failed: ${xhr.status}`));
       }
     });
     
     xhr.addEventListener('error', () => reject(new Error('Network error')));
     xhr.addEventListener('timeout', () => reject(new Error('Upload timeout')));
     
-    xhr.timeout = 120000; // 2 minutes for videos
+    xhr.timeout = 120000;
     xhr.open('POST', url);
     xhr.send(formData);
   });
@@ -139,8 +105,6 @@ export const uploadFileToCloudinary = async (
   file: File,
   onProgress?: (progress: number) => void
 ): Promise<string> => {
-  console.log('📎 Uploading file to Cloudinary:', file.name);
-  
   const formData = new FormData();
   formData.append('file', file);
   formData.append('upload_preset', CLOUDINARY_UPLOAD_PRESET);
@@ -155,25 +119,104 @@ export const uploadFileToCloudinary = async (
     
     xhr.upload.addEventListener('progress', (e) => {
       if (e.lengthComputable) {
-        const percentComplete = Math.round((e.loaded / e.total) * 100);
-        onProgress?.(percentComplete);
+        onProgress?.(Math.round((e.loaded / e.total) * 100));
       }
     });
     
     xhr.addEventListener('load', () => {
       if (xhr.status === 200) {
-        const response = JSON.parse(xhr.responseText);
-        console.log('✅ File upload complete:', response.secure_url);
-        resolve(response.secure_url);
+        resolve(JSON.parse(xhr.responseText).secure_url);
       } else {
-        reject(new Error(`File upload failed: ${xhr.status}`));
+        reject(new Error(`Upload failed: ${xhr.status}`));
       }
     });
     
     xhr.addEventListener('error', () => reject(new Error('Network error')));
     xhr.addEventListener('timeout', () => reject(new Error('Upload timeout')));
     
-    xhr.timeout = 90000; // 90 seconds for files
+    xhr.timeout = 90000;
+    xhr.open('POST', url);
+    xhr.send(formData);
+  });
+};
+
+/**
+ * Upload community post image to Cloudinary
+ */
+export const uploadCommunityPostToCloudinary = async (
+  file: File,
+  onProgress?: (progress: number) => void
+): Promise<string> => {
+  const formData = new FormData();
+  formData.append('file', file);
+  formData.append('upload_preset', 'community_posts');
+  formData.append('cloud_name', CLOUDINARY_CLOUD_NAME);
+  formData.append('folder', 'community_posts');
+  
+  const url = `https://api.cloudinary.com/v1_1/${CLOUDINARY_CLOUD_NAME}/image/upload`;
+  
+  return new Promise((resolve, reject) => {
+    const xhr = new XMLHttpRequest();
+    
+    xhr.upload.addEventListener('progress', (e) => {
+      if (e.lengthComputable) {
+        onProgress?.(Math.round((e.loaded / e.total) * 100));
+      }
+    });
+    
+    xhr.addEventListener('load', () => {
+      if (xhr.status === 200) {
+        resolve(JSON.parse(xhr.responseText).secure_url);
+      } else {
+        reject(new Error(`Upload failed: ${xhr.status}`));
+      }
+    });
+    
+    xhr.addEventListener('error', () => reject(new Error('Network error')));
+    xhr.addEventListener('timeout', () => reject(new Error('Upload timeout')));
+    
+    xhr.timeout = 90000;
+    xhr.open('POST', url);
+    xhr.send(formData);
+  });
+};
+
+/**
+ * Upload user avatar to Cloudinary
+ */
+export const uploadAvatarToCloudinary = async (
+  file: File,
+  onProgress?: (progress: number) => void
+): Promise<string> => {
+  const formData = new FormData();
+  formData.append('file', file);
+  formData.append('upload_preset', 'avatars');
+  formData.append('cloud_name', CLOUDINARY_CLOUD_NAME);
+  formData.append('folder', 'users_avatars');
+  
+  const url = `https://api.cloudinary.com/v1_1/${CLOUDINARY_CLOUD_NAME}/image/upload`;
+  
+  return new Promise((resolve, reject) => {
+    const xhr = new XMLHttpRequest();
+    
+    xhr.upload.addEventListener('progress', (e) => {
+      if (e.lengthComputable) {
+        onProgress?.(Math.round((e.loaded / e.total) * 100));
+      }
+    });
+    
+    xhr.addEventListener('load', () => {
+      if (xhr.status === 200) {
+        resolve(JSON.parse(xhr.responseText).secure_url);
+      } else {
+        reject(new Error(`Upload failed: ${xhr.status}`));
+      }
+    });
+    
+    xhr.addEventListener('error', () => reject(new Error('Network error')));
+    xhr.addEventListener('timeout', () => reject(new Error('Upload timeout')));
+    
+    xhr.timeout = 60000;
     xhr.open('POST', url);
     xhr.send(formData);
   });

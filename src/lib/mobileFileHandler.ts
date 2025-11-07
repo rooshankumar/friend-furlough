@@ -81,12 +81,6 @@ export class MobileFileHandler {
                       type: file.type,
                       lastModified: Date.now()
                     });
-                    console.log('📱 Image compressed:', {
-                      original: `${(file.size / 1024 / 1024).toFixed(2)}MB`,
-                      compressed: `${(compressedFile.size / 1024 / 1024).toFixed(2)}MB`,
-                      dimensions: `${width}x${height}`,
-                      quality: newQuality
-                    });
                     resolve(compressedFile);
                   } else {
                     resolve(file);
@@ -96,11 +90,6 @@ export class MobileFileHandler {
                 const compressedFile = new File([blob], file.name, {
                   type: file.type,
                   lastModified: Date.now()
-                });
-                console.log('📱 Image compressed:', {
-                  original: `${(file.size / 1024 / 1024).toFixed(2)}MB`,
-                  compressed: `${(compressedFile.size / 1024 / 1024).toFixed(2)}MB`,
-                  dimensions: `${width}x${height}`
                 });
                 resolve(compressedFile);
               }
@@ -159,11 +148,6 @@ export class MobileFileHandler {
    * Prepare file for upload with mobile optimizations
    */
   async prepareFileForUpload(file: File): Promise<File> {
-    console.log('📱 Preparing file for mobile upload:', {
-      name: file.name,
-      size: `${(file.size / 1024 / 1024).toFixed(2)}MB`,
-      type: file.type
-    });
 
     // Validate file
     const validation = this.validateFile(file);
@@ -175,7 +159,6 @@ export class MobileFileHandler {
     if (file.type.startsWith('image/')) {
       try {
         const compressed = await this.compressImage(file, 2);
-        console.log('📱 Image compressed successfully');
         return compressed;
       } catch (error) {
         console.warn('Compression failed, using original:', error);
@@ -201,7 +184,6 @@ export class MobileFileHandler {
 
     for (let attempt = 1; attempt <= retries; attempt++) {
       try {
-        console.log(`📱 Upload attempt ${attempt}/${retries}`);
         
         // Add delay between retries on mobile
         if (attempt > 1) {

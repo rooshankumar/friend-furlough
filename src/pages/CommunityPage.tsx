@@ -1072,7 +1072,7 @@ const CommunityPage = () => {
                               if (post.user_id) navigate(`/profile/${post.user_id}`);
                             }}
                           >
-                            {post.profiles?.name || 'Anonymous'}
+                            {post.user_id === user?.id ? (user?.user_metadata?.name || user?.email?.split('@')[0] || 'You') : (post.profiles?.name || 'Anonymous')}
                           </h4>
                           {post.profiles?.country_flag && (
                             <span className="text-sm">{post.profiles.country_flag}</span>

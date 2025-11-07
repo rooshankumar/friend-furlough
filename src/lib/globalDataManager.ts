@@ -46,7 +46,6 @@ class GlobalDataManager {
     // Handle storage events (data changes from other tabs)
     window.addEventListener('storage', (event) => {
       if (event.key === 'data_updated') {
-        console.log('📱 Data updated in another tab: Syncing...');
         this.refreshAllData('cross_tab_sync');
       }
     });

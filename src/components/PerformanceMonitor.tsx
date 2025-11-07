@@ -23,7 +23,6 @@ export const PerformanceMonitor: React.FC = () => {
       
       // Only log if it takes more than 100ms
       if (loadTime > 100) {
-        console.log(`📊 Page load time for ${location.pathname}: ${Math.round(loadTime)}ms`);
         
         // Warn if page takes more than 1 second
         if (loadTime > 1000) {
@@ -71,7 +70,6 @@ export const PerformanceMonitor: React.FC = () => {
               const entries = list.getEntries();
               const lastEntry = entries[entries.length - 1];
               if (lastEntry && lastEntry.startTime > 2500) { // LCP > 2.5s is poor
-                console.warn(`🐌 Poor LCP detected: ${Math.round(lastEntry.startTime)}ms`);
               }
             });
             lcpObserver.observe({ entryTypes: ['largest-contentful-paint'] });

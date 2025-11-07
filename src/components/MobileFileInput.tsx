@@ -53,19 +53,8 @@ const MobileFileInput: React.FC<MobileFileInputProps> = ({
   
   const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
+    if (!file) return;
     
-    console.log('📱 Mobile file selected:', file ? {
-      name: file.name,
-      size: `${(file.size / 1024 / 1024).toFixed(2)}MB`,
-      type: file.type
-    } : 'NO FILE');
-    
-    if (!file) {
-      console.warn('⚠️ No file selected');
-      return;
-    }
-    
-    // Validate file size
     const maxBytes = maxSizeMB * 1024 * 1024;
     if (file.size > maxBytes) {
       toast({
@@ -73,14 +62,10 @@ const MobileFileInput: React.FC<MobileFileInputProps> = ({
         description: `Maximum size: ${maxSizeMB}MB (current: ${(file.size / 1024 / 1024).toFixed(2)}MB)`,
         variant: "destructive"
       });
-      // Reset input
-      if (fileInputRef.current) {
-        fileInputRef.current.value = '';
-      }
+      if (fileInputRef.current) fileInputRef.current.value = '';
       return;
     }
     
-    // Validate file type
     const acceptedTypes = accept.split(',').map(t => t.trim());
     const isValidType = acceptedTypes.some(type => {
       if (type.includes('*')) {
@@ -96,10 +81,7 @@ const MobileFileInput: React.FC<MobileFileInputProps> = ({
         description: `Accepted types: ${accept}`,
         variant: "destructive"
       });
-      // Reset input
-      if (fileInputRef.current) {
-        fileInputRef.current.value = '';
-      }
+      if (fileInputRef.current) fileInputRef.current.value = '';
       return;
     }
     
@@ -108,9 +90,6 @@ const MobileFileInput: React.FC<MobileFileInputProps> = ({
     setUploadProgress(10);
     
     try {
-      console.log('📤 Starting mobile upload:', file.name);
-      
-      // Simulate progress
       const progressInterval = setInterval(() => {
         setUploadProgress(prev => {
           if (prev >= 90) {
@@ -121,22 +100,17 @@ const MobileFileInput: React.FC<MobileFileInputProps> = ({
         });
       }, 200);
       
-      // Call parent handler (may be async)
       await Promise.resolve(onFileSelect(file));
       
       clearInterval(progressInterval);
       setUploadProgress(100);
-      console.log('✅ Mobile upload successful');
       
-      // Reset after short delay
       setTimeout(() => {
         setSelectedFileName('');
         setUploadProgress(0);
         setIsPickerLoading(false);
       }, 1000);
-      
     } catch (error: any) {
-      console.error('❌ Mobile upload failed:', error);
       toast({
         title: "Upload failed",
         description: error.message || 'Please try again',
@@ -146,10 +120,7 @@ const MobileFileInput: React.FC<MobileFileInputProps> = ({
       setIsPickerLoading(false);
       setSelectedFileName('');
     } finally {
-      // Reset input to allow selecting the same file again
-      if (fileInputRef.current) {
-        fileInputRef.current.value = '';
-      }
+      if (fileInputRef.current) fileInputRef.current.value = '';
     }
   };
   

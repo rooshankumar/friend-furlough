@@ -29,14 +29,6 @@ class MobileUploadHelper {
     this.isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
     this.isLowEndDevice = this.detectLowEndDevice();
     this.isPWA = window.matchMedia('(display-mode: standalone)').matches;
-    
-    console.log('📱 Mobile Upload Helper initialized:', {
-      isMobile: this.isMobile,
-      isLowEndDevice: this.isLowEndDevice,
-      isPWA: this.isPWA,
-      deviceMemory: (navigator as any).deviceMemory || 'unknown',
-      hardwareConcurrency: navigator.hardwareConcurrency || 'unknown'
-    });
   }
   
   static getInstance(): MobileUploadHelper {
@@ -60,14 +52,6 @@ class MobileUploadHelper {
       maxSizeMB = this.isLowEndDevice ? 5 : 10,
       allowedTypes = ['image/', 'video/', 'audio/', 'application/pdf', 'text/']
     } = options;
-    
-    console.log('📱 Validating file for mobile:', {
-      name: file.name,
-      size: `${(file.size / 1024 / 1024).toFixed(2)}MB`,
-      type: file.type,
-      maxAllowed: `${maxSizeMB}MB`,
-      isLowEndDevice: this.isLowEndDevice
-    });
     
     // Check file size
     const maxBytes = maxSizeMB * 1024 * 1024;
@@ -158,12 +142,6 @@ class MobileUploadHelper {
     const validFiles: File[] = [];
     const errors: string[] = [];
     
-    console.log('📱 Processing file selection:', {
-      fileCount: fileArray.length,
-      isMobile: this.isMobile,
-      isLowEndDevice: this.isLowEndDevice
-    });
-    
     for (const file of fileArray) {
       const validation = this.validateFile(file, options);
       
@@ -173,12 +151,6 @@ class MobileUploadHelper {
         errors.push(`${file.name}: ${validation.error}`);
       }
     }
-    
-    console.log('📱 File selection results:', {
-      validFiles: validFiles.length,
-      errors: errors.length,
-      validFileNames: validFiles.map(f => f.name)
-    });
     
     return { validFiles, errors };
   }
@@ -210,7 +182,6 @@ class MobileUploadHelper {
     
     for (let attempt = 1; attempt <= actualRetries; attempt++) {
       try {
-        console.log(`📱 Upload attempt ${attempt}/${actualRetries} for ${file.name}`);
         
         // Add delay between retries on mobile
         if (attempt > 1) {

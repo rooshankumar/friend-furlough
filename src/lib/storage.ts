@@ -1,5 +1,5 @@
 import { supabase } from '@/integrations/supabase/client';
-import { uploadToCloudinary, uploadVideoToCloudinary, uploadFileToCloudinary } from './cloudinaryUpload';
+import { uploadToCloudinary, uploadVideoToCloudinary, uploadFileToCloudinary, uploadCommunityPostToCloudinary, uploadAvatarToCloudinary } from './cloudinaryUpload';
 
 const SUPABASE_BUCKET = 'chat_files';
 const UPLOAD_TIMEOUT = 30000; // 30 seconds (faster failure detection)
@@ -20,10 +20,6 @@ const compressImage = async (
 ): Promise<File> => {
   // Skip compression for small files (under 500KB)
   if (file.size < 500 * 1024) {
-    console.log(
-      '📸 File small enough, skipping compression:',
-      (file.size / 1024).toFixed(2) + 'KB'
-    );
     return file;
   }
 
@@ -65,11 +61,6 @@ const compressImage = async (
               const compressedFile = new File([blob], file.name, {
                 type: 'image/jpeg',
                 lastModified: Date.now(),
-              });
-              console.log('📸 Image compressed:', {
-                before: (file.size / 1024).toFixed(2) + 'KB',
-                after: (compressedFile.size / 1024).toFixed(2) + 'KB',
-                saved: ((1 - compressedFile.size / file.size) * 100).toFixed(1) + '%',
               });
               resolve(compressedFile);
             } else {
@@ -116,15 +107,6 @@ const validateMobileFile = (
   if (!allowedTypes.some((type) => file.type.startsWith(type))) {
     throw new Error('File type not supported');
   }
-
-  console.log('📱 Mobile file validation passed:', {
-    name: file.name,
-    size: `${(file.size / 1024 / 1024).toFixed(2)}MB`,
-    type: file.type,
-    isMobile,
-    isLowEndDevice,
-    maxAllowed: `${actualMaxSize}MB`,
-  });
 };
 
 /**
@@ -135,16 +117,9 @@ export const uploadChatAttachment = async (
   conversationId: string,
   onProgress?: (progress: number) => void
 ): Promise<string> => {
-  console.log(
-    '📤 Uploading:',
-    file.name,
-    `(${(file.size / 1024 / 1024).toFixed(2)}MB)`
-  );
-
   try {
     onProgress?.(5);
 
-    // Validate file
     validateMobileFile(file, 20, [
       'image/',
       'video/',
@@ -155,31 +130,17 @@ export const uploadChatAttachment = async (
 
     onProgress?.(10);
 
-    // ✅ USE CLOUDINARY (fast and reliable)
     if (USE_CLOUDINARY) {
-      console.log('☁️ Using Cloudinary for upload');
-      
-      // Determine file type and use appropriate uploader
       if (file.type.startsWith('image/')) {
-        console.log('📸 Uploading image to Cloudinary');
-        const url = await uploadToCloudinary(file, onProgress);
-        console.log('✅ Cloudinary upload complete:', url);
-        return url;
+        return await uploadToCloudinary(file, onProgress);
       } else if (file.type.startsWith('video/')) {
-        console.log('🎥 Uploading video to Cloudinary');
-        const url = await uploadVideoToCloudinary(file, onProgress);
-        console.log('✅ Cloudinary video upload complete:', url);
-        return url;
+        return await uploadVideoToCloudinary(file, onProgress);
       } else {
-        console.log('📎 Uploading file to Cloudinary');
-        const url = await uploadFileToCloudinary(file, onProgress);
-        console.log('✅ Cloudinary file upload complete:', url);
-        return url;
+        return await uploadFileToCloudinary(file, onProgress);
       }
     }
 
-    // Fallback to Supabase (if Cloudinary is disabled)
-    console.log('⚠️ Using Supabase storage (fallback)');
+    // Fallback to Supabase
     const fileName = `${conversationId}/${Date.now()}_${file.name}`;
     onProgress?.(30);
 
@@ -191,7 +152,7 @@ export const uploadChatAttachment = async (
       });
 
     if (error) throw error;
-    if (!data || !data.path) throw new Error('Upload failed - no path returned');
+    if (!data || !data.path) throw new Error('Upload failed');
 
     onProgress?.(70);
 
@@ -200,10 +161,8 @@ export const uploadChatAttachment = async (
       .getPublicUrl(data.path);
 
     onProgress?.(100);
-    console.log('✅ Supabase upload complete:', urlData.publicUrl);
     return urlData.publicUrl;
   } catch (error: any) {
-    console.error('❌ Upload failed:', error.message);
     
     // Fallback to smaller retry or base64 only for very small files
     if (file.size < 100 * 1024) {
@@ -211,7 +170,6 @@ export const uploadChatAttachment = async (
       try {
         const base64 = await fileToBase64(file);
         onProgress?.(100);
-        console.log('✅ File converted to base64 (fallback)');
         return base64;
       } catch (base64Error) {
         console.error('❌ Base64 conversion failed:', base64Error);
@@ -257,7 +215,7 @@ async function fileToBase64(file: File): Promise<string> {
 }
 
 /**
- * ✅ FIXED: Upload avatar with proper mobile support
+ * ✅ CLOUDINARY: Upload avatar (fast and reliable)
  */
 export const uploadAvatar = async (
   file: File,
@@ -266,13 +224,16 @@ export const uploadAvatar = async (
   try {
     validateMobileFile(file, 5, ['image/']);
 
-    const compressedFile = await compressImage(file, 800, 0.9);
+    // Use Cloudinary for avatars
+    if (USE_CLOUDINARY) {
+      return await uploadAvatarToCloudinary(file);
+    }
 
+    // Fallback to Supabase
+    const compressedFile = await compressImage(file, 800, 0.9);
     const fileExt = 'jpg';
     const fileName = `${Date.now()}.${fileExt}`;
     const filePath = `${userId}/${fileName}`;
-
-    const abortController = new AbortController();
 
     const { error: uploadError } = await supabase.storage
       .from('avatars')
@@ -289,7 +250,6 @@ export const uploadAvatar = async (
       .from('avatars')
       .getPublicUrl(filePath);
 
-    console.log('✅ Avatar uploaded:', data.publicUrl);
     return data.publicUrl;
   } catch (error) {
     console.error('❌ Avatar upload error:', error);
@@ -298,54 +258,36 @@ export const uploadAvatar = async (
 };
 
 /**
- * ✅ FIXED: Upload post image with proper timeout handling
+ * ✅ CLOUDINARY: Upload community post image (fast and reliable)
  */
 export const uploadPostImage = async (
   file: File,
   userId: string,
   onProgress?: (progress: number) => void
 ): Promise<string> => {
-  console.log('📤 Starting post image upload:', file.name);
-
-  const abortController = new AbortController();
-  let uploadTimeout: NodeJS.Timeout;
-
   try {
     onProgress?.(10);
 
+    // Use Cloudinary for community posts
+    if (USE_CLOUDINARY) {
+      return await uploadCommunityPostToCloudinary(file, onProgress);
+    }
+
+    // Fallback to Supabase
     const compressedFile = await compressImage(file, 1200, 0.85);
     onProgress?.(40);
 
     const fileName = `${userId}/${Date.now()}_${file.name}`;
     onProgress?.(50);
 
-    const isMobile = /Android|webOS|iPhone|iPad|iPod/i.test(
-      navigator.userAgent
-    );
-    const timeout = isMobile ? 60000 : 120000;
+    const { data, error } = await supabase.storage
+      .from('community-posts')
+      .upload(fileName, compressedFile, {
+        cacheControl: '3600',
+        upsert: false,
+      });
 
-    const timeoutPromise = new Promise<never>((_, reject) => {
-      uploadTimeout = setTimeout(() => {
-        abortController.abort();
-        reject(new Error('Upload timeout'));
-      }, timeout);
-    });
-
-    const uploadPromise = (async () => {
-      const { data, error } = await supabase.storage
-        .from('community-posts')
-        .upload(fileName, compressedFile, {
-          cacheControl: '3600',
-          upsert: false,
-        });
-
-      if (error) throw error;
-      return data;
-    })();
-
-    const data = await Promise.race([uploadPromise, timeoutPromise]);
-    clearTimeout(uploadTimeout!);
-
+    if (error) throw error;
     onProgress?.(90);
 
     const { data: urlData } = supabase.storage
@@ -353,12 +295,8 @@ export const uploadPostImage = async (
       .getPublicUrl(data.path);
 
     onProgress?.(100);
-    console.log('✅ Post image uploaded:', urlData.publicUrl);
     return urlData.publicUrl;
   } catch (error) {
-    clearTimeout(uploadTimeout!);
-    abortController.abort();
-    console.error('❌ Post image upload error:', error);
     throw error;
   }
 };
@@ -384,8 +322,6 @@ export const uploadVoiceMessage = async (
     const blobType = audioBlob.type || 'audio/webm';
     let fileExt = 'webm';
 
-    console.log('Voice message blob type:', blobType, 'size:', audioBlob.size);
-
     if (blobType.includes('wav')) fileExt = 'wav';
     else if (blobType.includes('mp3')) fileExt = 'mp3';
     else if (blobType.includes('ogg')) fileExt = 'ogg';
@@ -408,7 +344,6 @@ export const uploadVoiceMessage = async (
 
     const { data } = supabase.storage.from('voicemail').getPublicUrl(filePath);
 
-    console.log('✅ Voice message uploaded:', data.publicUrl);
     return data.publicUrl;
   } catch (error) {
     console.error('❌ Voice message upload error:', error);

@@ -1,0 +1,1070 @@
+[10:00:23 AM] LOG: 📡 Loading conversations for user: 36242f98-fa4a-477c-8878-63fbc2e8a6fa
+[10:00:23 AM] LOG: 🚀 Master optimization initialized
+[10:00:23 AM] LOG: 📡 Setting up real-time subscriptions
+[10:00:23 AM] LOG: 📊 Page load time for /explore: 207ms
+[10:00:23 AM] LOG: 🔐 Auth state changed: SIGNED_IN 36242f98-fa4a-477c-8878-63fbc2e8a6fa
+[10:00:23 AM] LOG: ⏰ Scheduling token refresh in 2424s
+[10:00:23 AM] WARN: 🐌 Poor LCP detected: 9016ms
+[10:00:23 AM] LOG: 📭 No outbox items to process
+[10:00:23 AM] LOG: 🔐 Auth state changed: INITIAL_SESSION 36242f98-fa4a-477c-8878-63fbc2e8a6fa
+[10:00:24 AM] LOG: 📊 User participants: {
+  "data": [
+    {
+      "conversation_id": "8ab15db7-3148-4426-b90c-acdd429d225a",
+      "unread_count": 0,
+      "conversations": {
+        "id": "8ab15db7-3148-4426-b90c-acdd429d225a",
+        "language": null,
+        "created_at": "2025-10-06T04:14:39.415215+00:00",
+        "updated_at": "2025-11-06T09:15:45.59114+00:00",
+        "is_language_exchange": true
+      }
+    },
+    {
+      "conversation_id": "906570ec-db04-4aaf-8bf4-69144ce3f75a",
+      "unread_count": 0,
+      "conversations": {
+        "id": "906570ec-db04-4aaf-8bf4-69144ce3f75a",
+        "language": null,
+        "created_at": "2025-10-08T16:02:01.829639+00:00",
+        "updated_at": "2025-11-03T06:15:38.900185+00:00",
+        "is_language_exchange": true
+      }
+    },
+    {
+      "conversation_id": "409b3cba-1472-472e-8aa7-97736cee4dd8",
+      "unread_count": 0,
+      "conversations": {
+        "id": "409b3cba-1472-472e-8aa7-97736cee4dd8",
+        "language": null,
+        "created_at": "2025-11-05T09:45:53.351026+00:00",
+        "updated_at": "2025-11-05T09:45:53.351026+00:00",
+        "is_language_exchange": true
+      }
+    },
+    {
+      "conversation_id": "f2c59e5a-5c4f-46f2-a876-0923a26035aa",
+      "unread_count": 0,
+      "conversations": {
+        "id": "f2c59e5a-5c4f-46f2-a876-0923a26035aa",
+        "language": null,
+        "created_at": "2025-11-05T09:45:50.470975+00:00",
+        "updated_at": "2025-11-05T09:45:50.470975+00:00",
+        "is_language_exchange": true
+      }
+    },
+    {
+      "conversation_id": "342d8788-ce0e-40af-a09f-51cfddac70a1",
+      "unread_count": 0,
+      "conversations": {
+        "id": "342d8788-ce0e-40af-a09f-51cfddac70a1",
+        "language": null,
+        "created_at": "2025-10-06T04:13:51.877502+00:00",
+        "updated_at": "2025-11-06T16:48:42.772911+00:00",
+        "is_language_exchange": true
+      }
+    },
+    {
+      "conversation_id": "90377b96-fdf8-4371-b655-aa913252839f",
+      "unread_count": 0,
+      "conversations": {
+        "id": "90377b96-fdf8-4371-b655-aa913252839f",
+        "language": null,
+        "created_at": "2025-11-05T07:28:15.790277+00:00",
+        "updated_at": "2025-11-07T04:22:30.727804+00:00",
+        "is_language_exchange": true
+      }
+    },
+    {
+      "conversation_id": "0dd90727-522a-470c-a4fb-2bb6ab61b826",
+      "unread_count": 0,
+      "conversations": {
+        "id": "0dd90727-522a-470c-a4fb-2bb6ab61b826",
+        "language": null,
+        "created_at": "2025-10-06T15:56:35.098511+00:00",
+        "updated_at": "2025-10-09T17:19:08.191155+00:00",
+        "is_language_exchange": true
+      }
+    },
+    {
+      "conversation_id": "db140b1d-40ba-4914-ada2-85c6c26526bc",
+      "unread_count": 0,
+      "conversations": {
+        "id": "db140b1d-40ba-4914-ada2-85c6c26526bc",
+        "language": null,
+        "created_at": "2025-11-04T12:49:43.122154+00:00",
+        "updated_at": "2025-11-06T11:49:00.574894+00:00",
+        "is_language_exchange": true
+      }
+    },
+    {
+      "conversation_id": "3fbd0335-23fa-4b9d-8aa0-a0ff19be1d29",
+      "unread_count": 0,
+      "conversations": {
+        "id": "3fbd0335-23fa-4b9d-8aa0-a0ff19be1d29",
+        "language": null,
+        "created_at": "2025-10-08T03:30:43.619296+00:00",
+        "updated_at": "2025-11-06T18:20:49.732835+00:00",
+        "is_language_exchange": true
+      }
+    }
+  ]
+}
+[10:00:24 AM] LOG: 🔍 Fetching participants for conversation IDs: [
+  "8ab15db7-3148-4426-b90c-acdd429d225a",
+  "906570ec-db04-4aaf-8bf4-69144ce3f75a",
+  "409b3cba-1472-472e-8aa7-97736cee4dd8",
+  "f2c59e5a-5c4f-46f2-a876-0923a26035aa",
+  "342d8788-ce0e-40af-a09f-51cfddac70a1",
+  "90377b96-fdf8-4371-b655-aa913252839f",
+  "0dd90727-522a-470c-a4fb-2bb6ab61b826",
+  "db140b1d-40ba-4914-ada2-85c6c26526bc",
+  "3fbd0335-23fa-4b9d-8aa0-a0ff19be1d29"
+]
+[10:00:24 AM] LOG: 📡 Setting up real-time subscriptions
+[10:00:24 AM] LOG: 🔍 Connection test results: true, true, true (3/3 passed)
+[10:00:24 AM] LOG: 👥 All participants fetched: [
+  {
+    "conversation_id": "8ab15db7-3148-4426-b90c-acdd429d225a",
+    "user_id": "36242f98-fa4a-477c-8878-63fbc2e8a6fa",
+    "profiles": {
+      "id": "36242f98-fa4a-477c-8878-63fbc2e8a6fa",
+      "name": "Your ADMIN",
+      "online": true,
+      "last_seen": "2025-11-03T06:19:48.119+00:00",
+      "avatar_url": "https://bblrxervgwkphkctdghe.supabase.co/storage/v1/object/public/avatars/36242f98-fa4a-477c-8878-63fbc2e8a6fa/1762447815478.jpg",
+      "country_flag": "🇺🇸"
+    }
+  },
+  {
+    "conversation_id": "906570ec-db04-4aaf-8bf4-69144ce3f75a",
+    "user_id": "36242f98-fa4a-477c-8878-63fbc2e8a6fa",
+    "profiles": {
+      "id": "36242f98-fa4a-477c-8878-63fbc2e8a6fa",
+      "name": "Your ADMIN",
+      "online": true,
+      "last_seen": "2025-11-03T06:19:48.119+00:00",
+      "avatar_url": "https://bblrxervgwkphkctdghe.supabase.co/storage/v1/object/public/avatars/36242f98-fa4a-477c-8878-63fbc2e8a6fa/1762447815478.jpg",
+      "country_flag": "🇺🇸"
+    }
+  },
+  {
+    "conversation_id": "f2c59e5a-5c4f-46f2-a876-0923a26035aa",
+    "user_id": "3e62b618-c747-442c-95d6-1aba3eab2b25",
+    "profiles": {
+      "id": "3e62b618-c747-442c-95d6-1aba3eab2b25",
+      "name": "Mimie",
+      "online": false,
+      "last_seen": "2025-11-04T17:49:31.104124+00:00",
+      "avatar_url": null,
+      "country_flag": null
+    }
+  },
+  {
+    "conversation_id": "409b3cba-1472-472e-8aa7-97736cee4dd8",
+    "user_id": "36242f98-fa4a-477c-8878-63fbc2e8a6fa",
+    "profiles": {
+      "id": "36242f98-fa4a-477c-8878-63fbc2e8a6fa",
+      "name": "Your ADMIN",
+      "online": true,
+      "last_seen": "2025-11-03T06:19:48.119+00:00",
+      "avatar_url": "https://bblrxervgwkphkctdghe.supabase.co/storage/v1/object/public/avatars/36242f98-fa4a-477c-8878-63fbc2e8a6fa/1762447815478.jpg",
+      "country_flag": "🇺🇸"
+    }
+  },
+  {
+    "conversation_id": "409b3cba-1472-472e-8aa7-97736cee4dd8",
+    "user_id": "3e62b618-c747-442c-95d6-1aba3eab2b25",
+    "profiles": {
+      "id": "3e62b618-c747-442c-95d6-1aba3eab2b25",
+      "name": "Mimie",
+      "online": false,
+      "last_seen": "2025-11-04T17:49:31.104124+00:00",
+      "avatar_url": null,
+      "country_flag": null
+    }
+  },
+  {
+    "conversation_id": "f2c59e5a-5c4f-46f2-a876-0923a26035aa",
+    "user_id": "36242f98-fa4a-477c-8878-63fbc2e8a6fa",
+    "profiles": {
+      "id": "36242f98-fa4a-477c-8878-63fbc2e8a6fa",
+      "name": "Your ADMIN",
+      "online": true,
+      "last_seen": "2025-11-03T06:19:48.119+00:00",
+      "avatar_url": "https://bblrxervgwkphkctdghe.supabase.co/storage/v1/object/public/avatars/36242f98-fa4a-477c-8878-63fbc2e8a6fa/1762447815478.jpg",
+      "country_flag": "🇺🇸"
+    }
+  },
+  {
+    "conversation_id": "342d8788-ce0e-40af-a09f-51cfddac70a1",
+    "user_id": "36242f98-fa4a-477c-8878-63fbc2e8a6fa",
+    "profiles": {
+      "id": "36242f98-fa4a-477c-8878-63fbc2e8a6fa",
+      "name": "Your ADMIN",
+      "online": true,
+      "last_seen": "2025-11-03T06:19:48.119+00:00",
+      "avatar_url": "https://bblrxervgwkphkctdghe.supabase.co/storage/v1/object/public/avatars/36242f98-fa4a-477c-8878-63fbc2e8a6fa/1762447815478.jpg",
+      "country_flag": "🇺🇸"
+    }
+  },
+  {
+    "conversation_id": "906570ec-db04-4aaf-8bf4-69144ce3f75a",
+    "user_id": "e213c255-5950-4b12-aada-7f681b369824",
+    "profiles": {
+      "id": "e213c255-5950-4b12-aada-7f681b369824",
+      "name": "Best Friend",
+      "online": false,
+      "last_seen": "2025-10-08T10:52:08.257448+00:00",
+      "avatar_url": "https://bblrxervgwkphkctdghe.supabase.co/storage/v1/object/public/avatars/e213c255-5950-4b12-aada-7f681b369824/1760001029334.jpg",
+      "country_flag": "🇨🇳"
+    }
+  },
+  {
+    "conversation_id": "90377b96-fdf8-4371-b655-aa913252839f",
+    "user_id": "36242f98-fa4a-477c-8878-63fbc2e8a6fa",
+    "profiles": {
+      "id": "36242f98-fa4a-477c-8878-63fbc2e8a6fa",
+      "name": "Your ADMIN",
+      "online": true,
+      "last_seen": "2025-11-03T06:19:48.119+00:00",
+      "avatar_url": "https://bblrxervgwkphkctdghe.supabase.co/storage/v1/object/public/avatars/36242f98-fa4a-477c-8878-63fbc2e8a6fa/1762447815478.jpg",
+      "country_flag": "🇺🇸"
+    }
+  },
+  {
+    "conversation_id": "90377b96-fdf8-4371-b655-aa913252839f",
+    "user_id": "ece4c62d-f220-42c2-b27e-7ef43f7f415b",
+    "profiles": {
+      "id": "ece4c62d-f220-42c2-b27e-7ef43f7f415b",
+      "name": "Roshan Kumar",
+      "online": true,
+      "last_seen": "2025-11-03T06:58:32.862+00:00",
+      "avatar_url": "https://bblrxervgwkphkctdghe.supabase.co/storage/v1/object/public/avatars/ece4c62d-f220-42c2-b27e-7ef43f7f415b/1762157668655.jpg",
+      "country_flag": "🇧🇷"
+    }
+  },
+  {
+    "conversation_id": "0dd90727-522a-470c-a4fb-2bb6ab61b826",
+    "user_id": "e11fa128-683d-4e06-aba8-465f4c270977",
+    "profiles": {
+      "id": "e11fa128-683d-4e06-aba8-465f4c270977",
+      "name": "Vaibhav",
+      "online": false,
+      "last_seen": "2025-10-06T15:49:51.25442+00:00",
+      "avatar_url": "https://lh3.googleusercontent.com/a/ACg8ocJauTMIUC5HWVW68nYMGu5kvt-2RWemGExetI8JHp9L45x6iw=s96-c",
+      "country_flag": null
+    }
+  },
+  {
+    "conversation_id": "0dd90727-522a-470c-a4fb-2bb6ab61b826",
+    "user_id": "36242f98-fa4a-477c-8878-63fbc2e8a6fa",
+    "profiles": {
+      "id": "36242f98-fa4a-477c-8878-63fbc2e8a6fa",
+      "name": "Your ADMIN",
+      "online": true,
+      "last_seen": "2025-11-03T06:19:48.119+00:00",
+      "avatar_url": "https://bblrxervgwkphkctdghe.supabase.co/storage/v1/object/public/avatars/36242f98-fa4a-477c-8878-63fbc2e8a6fa/1762447815478.jpg",
+      "country_flag": "🇺🇸"
+    }
+  },
+  {
+    "conversation_id": "8ab15db7-3148-4426-b90c-acdd429d225a",
+    "user_id": "c9456497-d9fb-4004-96e9-3793ee52c43a",
+    "profiles": {
+      "id": "c9456497-d9fb-4004-96e9-3793ee52c43a",
+      "name": "Your ADMIN ",
+      "online": true,
+      "last_seen": "2025-11-03T06:19:47.272+00:00",
+      "avatar_url": "https://bblrxervgwkphkctdghe.supabase.co/storage/v1/object/public/avatars/c9456497-d9fb-4004-96e9-3793ee52c43a/1759999598748.jpg",
+      "country_flag": "🇦🇺"
+    }
+  },
+  {
+    "conversation_id": "db140b1d-40ba-4914-ada2-85c6c26526bc",
+    "user_id": "36242f98-fa4a-477c-8878-63fbc2e8a6fa",
+    "profiles": {
+      "id": "36242f98-fa4a-477c-8878-63fbc2e8a6fa",
+      "name": "Your ADMIN",
+      "online": true,
+      "last_seen": "2025-11-03T06:19:48.119+00:00",
+      "avatar_url": "https://bblrxervgwkphkctdghe.supabase.co/storage/v1/object/public/avatars/36242f98-fa4a-477c-8878-63fbc2e8a6fa/1762447815478.jpg",
+      "country_flag": "🇺🇸"
+    }
+  },
+  {
+    "conversation_id": "db140b1d-40ba-4914-ada2-85c6c26526bc",
+    "user_id": "316c6997-3d6b-4b16-8e35-e913cbf8f482",
+    "profiles": {
+      "id": "316c6997-3d6b-4b16-8e35-e913cbf8f482",
+      "name": "roshLingua",
+      "online": false,
+      "last_seen": "2025-11-03T11:50:53.676969+00:00",
+      "avatar_url": "https://lh3.googleusercontent.com/a/ACg8ocKU6yDPytjTfzkOAfyp2fXSeX7TIahxjsJehbMCYM35i3cMqB0=s96-c",
+      "country_flag": "🇺🇸"
+    }
+  },
+  {
+    "conversation_id": "342d8788-ce0e-40af-a09f-51cfddac70a1",
+    "user_id": "ece4c62d-f220-42c2-b27e-7ef43f7f415b",
+    "profiles": {
+      "id": "ece4c62d-f220-42c2-b27e-7ef43f7f415b",
+      "name": "Roshan Kumar",
+      "online": true,
+      "last_seen": "2025-11-03T06:58:32.862+00:00",
+      "avatar_url": "https://bblrxervgwkphkctdghe.supabase.co/storage/v1/object/public/avatars/ece4c62d-f220-42c2-b27e-7ef43f7f415b/1762157668655.jpg",
+      "country_flag": "🇧🇷"
+    }
+  },
+  {
+    "conversation_id": "3fbd0335-23fa-4b9d-8aa0-a0ff19be1d29",
+    "user_id": "36242f98-fa4a-477c-8878-63fbc2e8a6fa",
+    "profiles": {
+      "id": "36242f98-fa4a-477c-8878-63fbc2e8a6fa",
+      "name": "Your ADMIN",
+      "online": true,
+      "last_seen": "2025-11-03T06:19:48.119+00:00",
+      "avatar_url": "https://bblrxervgwkphkctdghe.supabase.co/storage/v1/object/public/avatars/36242f98-fa4a-477c-8878-63fbc2e8a6fa/1762447815478.jpg",
+      "country_flag": "🇺🇸"
+    }
+  },
+  {
+    "conversation_id": "3fbd0335-23fa-4b9d-8aa0-a0ff19be1d29",
+    "user_id": "2a6e80f2-3043-4abb-9b72-23770c0b7b22",
+    "profiles": {
+      "id": "2a6e80f2-3043-4abb-9b72-23770c0b7b22",
+      "name": "Aryan Kumar",
+      "online": false,
+      "last_seen": "2025-10-07T05:11:30.586437+00:00",
+      "avatar_url": "https://lh3.googleusercontent.com/a/ACg8ocJIV1E2UfoSCxuj5WqHlcRq75OmUG_Gb_HsesRGsDp_RnIt3KM=s96-c",
+      "country_flag": "🇨🇦"
+    }
+  }
+]
+[10:00:24 AM] LOG: 👥 Total participants count: 18
+[10:00:24 AM] LOG: 👥 Expected count (2 per conversation): 18
+[10:00:24 AM] LOG: 👥 First participant sample: {
+  "conversation_id": "8ab15db7-3148-4426-b90c-acdd429d225a",
+  "user_id": "36242f98-fa4a-477c-8878-63fbc2e8a6fa",
+  "profiles": {
+    "id": "36242f98-fa4a-477c-8878-63fbc2e8a6fa",
+    "name": "Your ADMIN",
+    "online": true,
+    "last_seen": "2025-11-03T06:19:48.119+00:00",
+    "avatar_url": "https://bblrxervgwkphkctdghe.supabase.co/storage/v1/object/public/avatars/36242f98-fa4a-477c-8878-63fbc2e8a6fa/1762447815478.jpg",
+    "country_flag": "🇺🇸"
+  }
+}
+[10:00:24 AM] WARN: 🐌 Poor LCP detected: 10348ms
+[10:00:25 AM] LOG: 👥 Participants grouped by conversation: {
+  "8ab15db7-3148-4426-b90c-acdd429d225a": [
+    {
+      "user_id": "36242f98-fa4a-477c-8878-63fbc2e8a6fa",
+      "profiles": {
+        "id": "36242f98-fa4a-477c-8878-63fbc2e8a6fa",
+        "name": "Your ADMIN",
+        "online": true,
+        "last_seen": "2025-11-03T06:19:48.119+00:00",
+        "avatar_url": "https://bblrxervgwkphkctdghe.supabase.co/storage/v1/object/public/avatars/36242f98-fa4a-477c-8878-63fbc2e8a6fa/1762447815478.jpg",
+        "country_flag": "🇺🇸"
+      }
+    },
+    {
+      "user_id": "c9456497-d9fb-4004-96e9-3793ee52c43a",
+      "profiles": {
+        "id": "c9456497-d9fb-4004-96e9-3793ee52c43a",
+        "name": "Your ADMIN ",
+        "online": true,
+        "last_seen": "2025-11-03T06:19:47.272+00:00",
+        "avatar_url": "https://bblrxervgwkphkctdghe.supabase.co/storage/v1/object/public/avatars/c9456497-d9fb-4004-96e9-3793ee52c43a/1759999598748.jpg",
+        "country_flag": "🇦🇺"
+      }
+    }
+  ],
+  "906570ec-db04-4aaf-8bf4-69144ce3f75a": [
+    {
+      "user_id": "36242f98-fa4a-477c-8878-63fbc2e8a6fa",
+      "profiles": {
+        "id": "36242f98-fa4a-477c-8878-63fbc2e8a6fa",
+        "name": "Your ADMIN",
+        "online": true,
+        "last_seen": "2025-11-03T06:19:48.119+00:00",
+        "avatar_url": "https://bblrxervgwkphkctdghe.supabase.co/storage/v1/object/public/avatars/36242f98-fa4a-477c-8878-63fbc2e8a6fa/1762447815478.jpg",
+        "country_flag": "🇺🇸"
+      }
+    },
+    {
+      "user_id": "e213c255-5950-4b12-aada-7f681b369824",
+      "profiles": {
+        "id": "e213c255-5950-4b12-aada-7f681b369824",
+        "name": "Best Friend",
+        "online": false,
+        "last_seen": "2025-10-08T10:52:08.257448+00:00",
+        "avatar_url": "https://bblrxervgwkphkctdghe.supabase.co/storage/v1/object/public/avatars/e213c255-5950-4b12-aada-7f681b369824/1760001029334.jpg",
+        "country_flag": "🇨🇳"
+      }
+    }
+  ],
+  "f2c59e5a-5c4f-46f2-a876-0923a26035aa": [
+    {
+      "user_id": "3e62b618-c747-442c-95d6-1aba3eab2b25",
+      "profiles": {
+        "id": "3e62b618-c747-442c-95d6-1aba3eab2b25",
+        "name": "Mimie",
+        "online": false,
+        "last_seen": "2025-11-04T17:49:31.104124+00:00",
+        "avatar_url": null,
+        "country_flag": null
+      }
+    },
+    {
+      "user_id": "36242f98-fa4a-477c-8878-63fbc2e8a6fa",
+      "profiles": {
+        "id": "36242f98-fa4a-477c-8878-63fbc2e8a6fa",
+        "name": "Your ADMIN",
+        "online": true,
+        "last_seen": "2025-11-03T06:19:48.119+00:00",
+        "avatar_url": "https://bblrxervgwkphkctdghe.supabase.co/storage/v1/object/public/avatars/36242f98-fa4a-477c-8878-63fbc2e8a6fa/1762447815478.jpg",
+        "country_flag": "🇺🇸"
+      }
+    }
+  ],
+  "409b3cba-1472-472e-8aa7-97736cee4dd8": [
+    {
+      "user_id": "36242f98-fa4a-477c-8878-63fbc2e8a6fa",
+      "profiles": {
+        "id": "36242f98-fa4a-477c-8878-63fbc2e8a6fa",
+        "name": "Your ADMIN",
+        "online": true,
+        "last_seen": "2025-11-03T06:19:48.119+00:00",
+        "avatar_url": "https://bblrxervgwkphkctdghe.supabase.co/storage/v1/object/public/avatars/36242f98-fa4a-477c-8878-63fbc2e8a6fa/1762447815478.jpg",
+        "country_flag": "🇺🇸"
+      }
+    },
+    {
+      "user_id": "3e62b618-c747-442c-95d6-1aba3eab2b25",
+      "profiles": {
+        "id": "3e62b618-c747-442c-95d6-1aba3eab2b25",
+        "name": "Mimie",
+        "online": false,
+        "last_seen": "2025-11-04T17:49:31.104124+00:00",
+        "avatar_url": null,
+        "country_flag": null
+      }
+    }
+  ],
+  "342d8788-ce0e-40af-a09f-51cfddac70a1": [
+    {
+      "user_id": "36242f98-fa4a-477c-8878-63fbc2e8a6fa",
+      "profiles": {
+        "id": "36242f98-fa4a-477c-8878-63fbc2e8a6fa",
+        "name": "Your ADMIN",
+        "online": true,
+        "last_seen": "2025-11-03T06:19:48.119+00:00",
+        "avatar_url": "https://bblrxervgwkphkctdghe.supabase.co/storage/v1/object/public/avatars/36242f98-fa4a-477c-8878-63fbc2e8a6fa/1762447815478.jpg",
+        "country_flag": "🇺🇸"
+      }
+    },
+    {
+      "user_id": "ece4c62d-f220-42c2-b27e-7ef43f7f415b",
+      "profiles": {
+        "id": "ece4c62d-f220-42c2-b27e-7ef43f7f415b",
+        "name": "Roshan Kumar",
+        "online": true,
+        "last_seen": "2025-11-03T06:58:32.862+00:00",
+        "avatar_url": "https://bblrxervgwkphkctdghe.supabase.co/storage/v1/object/public/avatars/ece4c62d-f220-42c2-b27e-7ef43f7f415b/1762157668655.jpg",
+        "country_flag": "🇧🇷"
+      }
+    }
+  ],
+  "90377b96-fdf8-4371-b655-aa913252839f": [
+    {
+      "user_id": "36242f98-fa4a-477c-8878-63fbc2e8a6fa",
+      "profiles": {
+        "id": "36242f98-fa4a-477c-8878-63fbc2e8a6fa",
+        "name": "Your ADMIN",
+        "online": true,
+        "last_seen": "2025-11-03T06:19:48.119+00:00",
+        "avatar_url": "https://bblrxervgwkphkctdghe.supabase.co/storage/v1/object/public/avatars/36242f98-fa4a-477c-8878-63fbc2e8a6fa/1762447815478.jpg",
+        "country_flag": "🇺🇸"
+      }
+    },
+    {
+      "user_id": "ece4c62d-f220-42c2-b27e-7ef43f7f415b",
+      "profiles": {
+        "id": "ece4c62d-f220-42c2-b27e-7ef43f7f415b",
+        "name": "Roshan Kumar",
+        "online": true,
+        "last_seen": "2025-11-03T06:58:32.862+00:00",
+        "avatar_url": "https://bblrxervgwkphkctdghe.supabase.co/storage/v1/object/public/avatars/ece4c62d-f220-42c2-b27e-7ef43f7f415b/1762157668655.jpg",
+        "country_flag": "🇧🇷"
+      }
+    }
+  ],
+  "0dd90727-522a-470c-a4fb-2bb6ab61b826": [
+    {
+      "user_id": "e11fa128-683d-4e06-aba8-465f4c270977",
+      "profiles": {
+        "id": "e11fa128-683d-4e06-aba8-465f4c270977",
+        "name": "Vaibhav",
+        "online": false,
+        "last_seen": "2025-10-06T15:49:51.25442+00:00",
+        "avatar_url": "https://lh3.googleusercontent.com/a/ACg8ocJauTMIUC5HWVW68nYMGu5kvt-2RWemGExetI8JHp9L45x6iw=s96-c",
+        "country_flag": null
+      }
+    },
+    {
+      "user_id": "36242f98-fa4a-477c-8878-63fbc2e8a6fa",
+      "profiles": {
+        "id": "36242f98-fa4a-477c-8878-63fbc2e8a6fa",
+        "name": "Your ADMIN",
+        "online": true,
+        "last_seen": "2025-11-03T06:19:48.119+00:00",
+        "avatar_url": "https://bblrxervgwkphkctdghe.supabase.co/storage/v1/object/public/avatars/36242f98-fa4a-477c-8878-63fbc2e8a6fa/1762447815478.jpg",
+        "country_flag": "🇺🇸"
+      }
+    }
+  ],
+  "db140b1d-40ba-4914-ada2-85c6c26526bc": [
+    {
+      "user_id": "36242f98-fa4a-477c-8878-63fbc2e8a6fa",
+      "profiles": {
+        "id": "36242f98-fa4a-477c-8878-63fbc2e8a6fa",
+        "name": "Your ADMIN",
+        "online": true,
+        "last_seen": "2025-11-03T06:19:48.119+00:00",
+        "avatar_url": "https://bblrxervgwkphkctdghe.supabase.co/storage/v1/object/public/avatars/36242f98-fa4a-477c-8878-63fbc2e8a6fa/1762447815478.jpg",
+        "country_flag": "🇺🇸"
+      }
+    },
+    {
+      "user_id": "316c6997-3d6b-4b16-8e35-e913cbf8f482",
+      "profiles": {
+        "id": "316c6997-3d6b-4b16-8e35-e913cbf8f482",
+        "name": "roshLingua",
+        "online": false,
+        "last_seen": "2025-11-03T11:50:53.676969+00:00",
+        "avatar_url": "https://lh3.googleusercontent.com/a/ACg8ocKU6yDPytjTfzkOAfyp2fXSeX7TIahxjsJehbMCYM35i3cMqB0=s96-c",
+        "country_flag": "🇺🇸"
+      }
+    }
+  ],
+  "3fbd0335-23fa-4b9d-8aa0-a0ff19be1d29": [
+    {
+      "user_id": "36242f98-fa4a-477c-8878-63fbc2e8a6fa",
+      "profiles": {
+        "id": "36242f98-fa4a-477c-8878-63fbc2e8a6fa",
+        "name": "Your ADMIN",
+        "online": true,
+        "last_seen": "2025-11-03T06:19:48.119+00:00",
+        "avatar_url": "https://bblrxervgwkphkctdghe.supabase.co/storage/v1/object/public/avatars/36242f98-fa4a-477c-8878-63fbc2e8a6fa/1762447815478.jpg",
+        "country_flag": "🇺🇸"
+      }
+    },
+    {
+      "user_id": "2a6e80f2-3043-4abb-9b72-23770c0b7b22",
+      "profiles": {
+        "id": "2a6e80f2-3043-4abb-9b72-23770c0b7b22",
+        "name": "Aryan Kumar",
+        "online": false,
+        "last_seen": "2025-10-07T05:11:30.586437+00:00",
+        "avatar_url": "https://lh3.googleusercontent.com/a/ACg8ocJIV1E2UfoSCxuj5WqHlcRq75OmUG_Gb_HsesRGsDp_RnIt3KM=s96-c",
+        "country_flag": "🇨🇦"
+      }
+    }
+  ]
+}
+[10:00:25 AM] LOG: 💬 Final conversations with details: [
+  {
+    "id": "90377b96-fdf8-4371-b655-aa913252839f",
+    "created_at": "2025-11-05T07:28:15.790277+00:00",
+    "updated_at": "2025-11-07T04:22:30.727804+00:00",
+    "is_language_exchange": true,
+    "language": null,
+    "participants": [
+      {
+        "user_id": "36242f98-fa4a-477c-8878-63fbc2e8a6fa",
+        "profiles": {
+          "id": "36242f98-fa4a-477c-8878-63fbc2e8a6fa",
+          "name": "Your ADMIN",
+          "online": true,
+          "last_seen": "2025-11-03T06:19:48.119+00:00",
+          "avatar_url": "https://bblrxervgwkphkctdghe.supabase.co/storage/v1/object/public/avatars/36242f98-fa4a-477c-8878-63fbc2e8a6fa/1762447815478.jpg",
+          "country_flag": "🇺🇸"
+        }
+      },
+      {
+        "user_id": "ece4c62d-f220-42c2-b27e-7ef43f7f415b",
+        "profiles": {
+          "id": "ece4c62d-f220-42c2-b27e-7ef43f7f415b",
+          "name": "Roshan Kumar",
+          "online": true,
+          "last_seen": "2025-11-03T06:58:32.862+00:00",
+          "avatar_url": "https://bblrxervgwkphkctdghe.supabase.co/storage/v1/object/public/avatars/ece4c62d-f220-42c2-b27e-7ef43f7f415b/1762157668655.jpg",
+          "country_flag": "🇧🇷"
+        }
+      }
+    ],
+    "lastMessage": {
+      "id": "27ec9f65-651e-4ef2-98b7-2309820c2b3a",
+      "conversation_id": "90377b96-fdf8-4371-b655-aa913252839f",
+      "sender_id": "36242f98-fa4a-477c-8878-63fbc2e8a6fa",
+      "content": "Hii",
+      "type": "text",
+      "language": null,
+      "translation": null,
+      "media_url": null,
+      "created_at": "2025-11-07T04:22:30.727804+00:00",
+      "client_id": "1762489348966_hjkwzaxi",
+      "reply_to_message_id": null
+    },
+    "unreadCount": 0
+  },
+  {
+    "id": "3fbd0335-23fa-4b9d-8aa0-a0ff19be1d29",
+    "created_at": "2025-10-08T03:30:43.619296+00:00",
+    "updated_at": "2025-11-06T18:20:49.732835+00:00",
+    "is_language_exchange": true,
+    "language": null,
+    "participants": [
+      {
+        "user_id": "36242f98-fa4a-477c-8878-63fbc2e8a6fa",
+        "profiles": {
+          "id": "36242f98-fa4a-477c-8878-63fbc2e8a6fa",
+          "name": "Your ADMIN",
+          "online": true,
+          "last_seen": "2025-11-03T06:19:48.119+00:00",
+          "avatar_url": "https://bblrxervgwkphkctdghe.supabase.co/storage/v1/object/public/avatars/36242f98-fa4a-477c-8878-63fbc2e8a6fa/1762447815478.jpg",
+          "country_flag": "🇺🇸"
+        }
+      },
+      {
+        "user_id": "2a6e80f2-3043-4abb-9b72-23770c0b7b22",
+        "profiles": {
+          "id": "2a6e80f2-3043-4abb-9b72-23770c0b7b22",
+          "name": "Aryan Kumar",
+          "online": false,
+          "last_seen": "2025-10-07T05:11:30.586437+00:00",
+          "avatar_url": "https://lh3.googleusercontent.com/a/ACg8ocJIV1E2UfoSCxuj5WqHlcRq75OmUG_Gb_HsesRGsDp_RnIt3KM=s96-c",
+          "country_flag": "🇨🇦"
+        }
+      }
+    ],
+    "lastMessage": {
+      "id": "98032a7a-a0ff-4814-bcb0-cbe2182eecb9",
+      "conversation_id": "3fbd0335-23fa-4b9d-8aa0-a0ff19be1d29",
+      "sender_id": "36242f98-fa4a-477c-8878-63fbc2e8a6fa",
+      "content": "❤️",
+      "type": "text",
+      "language": null,
+      "translation": null,
+      "media_url": null,
+      "created_at": "2025-11-06T18:20:49.732835+00:00",
+      "client_id": "1762453248532_74swt8f8",
+      "reply_to_message_id": null
+    },
+    "unreadCount": 0
+  },
+  {
+    "id": "342d8788-ce0e-40af-a09f-51cfddac70a1",
+    "created_at": "2025-10-06T04:13:51.877502+00:00",
+    "updated_at": "2025-11-06T16:48:42.772911+00:00",
+    "is_language_exchange": true,
+    "language": null,
+    "participants": [
+      {
+        "user_id": "36242f98-fa4a-477c-8878-63fbc2e8a6fa",
+        "profiles": {
+          "id": "36242f98-fa4a-477c-8878-63fbc2e8a6fa",
+          "name": "Your ADMIN",
+          "online": true,
+          "last_seen": "2025-11-03T06:19:48.119+00:00",
+          "avatar_url": "https://bblrxervgwkphkctdghe.supabase.co/storage/v1/object/public/avatars/36242f98-fa4a-477c-8878-63fbc2e8a6fa/1762447815478.jpg",
+          "country_flag": "🇺🇸"
+        }
+      },
+      {
+        "user_id": "ece4c62d-f220-42c2-b27e-7ef43f7f415b",
+        "profiles": {
+          "id": "ece4c62d-f220-42c2-b27e-7ef43f7f415b",
+          "name": "Roshan Kumar",
+          "online": true,
+          "last_seen": "2025-11-03T06:58:32.862+00:00",
+          "avatar_url": "https://bblrxervgwkphkctdghe.supabase.co/storage/v1/object/public/avatars/ece4c62d-f220-42c2-b27e-7ef43f7f415b/1762157668655.jpg",
+          "country_flag": "🇧🇷"
+        }
+      }
+    ],
+    "lastMessage": {
+      "id": "d33f02e9-58a8-4091-9ff3-16f8feb0f19b",
+      "conversation_id": "342d8788-ce0e-40af-a09f-51cfddac70a1",
+      "sender_id": "36242f98-fa4a-477c-8878-63fbc2e8a6fa",
+      "content": "whats up",
+      "type": "text",
+      "language": null,
+      "translation": null,
+      "media_url": null,
+      "created_at": "2025-11-06T16:48:42.772911+00:00",
+      "client_id": "1762447721423_7n67iitm",
+      "reply_to_message_id": null
+    },
+    "unreadCount": 0
+  },
+  {
+    "id": "db140b1d-40ba-4914-ada2-85c6c26526bc",
+    "created_at": "2025-11-04T12:49:43.122154+00:00",
+    "updated_at": "2025-11-06T11:49:00.574894+00:00",
+    "is_language_exchange": true,
+    "language": null,
+    "participants": [
+      {
+        "user_id": "36242f98-fa4a-477c-8878-63fbc2e8a6fa",
+        "profiles": {
+          "id": "36242f98-fa4a-477c-8878-63fbc2e8a6fa",
+          "name": "Your ADMIN",
+          "online": true,
+          "last_seen": "2025-11-03T06:19:48.119+00:00",
+          "avatar_url": "https://bblrxervgwkphkctdghe.supabase.co/storage/v1/object/public/avatars/36242f98-fa4a-477c-8878-63fbc2e8a6fa/1762447815478.jpg",
+          "country_flag": "🇺🇸"
+        }
+      },
+      {
+        "user_id": "316c6997-3d6b-4b16-8e35-e913cbf8f482",
+        "profiles": {
+          "id": "316c6997-3d6b-4b16-8e35-e913cbf8f482",
+          "name": "roshLingua",
+          "online": false,
+          "last_seen": "2025-11-03T11:50:53.676969+00:00",
+          "avatar_url": "https://lh3.googleusercontent.com/a/ACg8ocKU6yDPytjTfzkOAfyp2fXSeX7TIahxjsJehbMCYM35i3cMqB0=s96-c",
+          "country_flag": "🇺🇸"
+        }
+      }
+    ],
+    "lastMessage": {
+      "id": "6fb8d148-ddcb-4b8b-8a3b-0ae7ed4fb84e",
+      "conversation_id": "db140b1d-40ba-4914-ada2-85c6c26526bc",
+      "sender_id": "36242f98-fa4a-477c-8878-63fbc2e8a6fa",
+      "content": "hii",
+      "type": "text",
+      "language": null,
+      "translation": null,
+      "media_url": null,
+      "created_at": "2025-11-06T11:49:00.574894+00:00",
+      "client_id": "1762429739294_1u5r9mmx",
+      "reply_to_message_id": null
+    },
+    "unreadCount": 0
+  },
+  {
+    "id": "8ab15db7-3148-4426-b90c-acdd429d225a",
+    "created_at": "2025-10-06T04:14:39.415215+00:00",
+    "updated_at": "2025-11-06T09:15:45.59114+00:00",
+    "is_language_exchange": true,
+    "language": null,
+    "participants": [
+      {
+        "user_id": "36242f98-fa4a-477c-8878-63fbc2e8a6fa",
+        "profiles": {
+          "id": "36242f98-fa4a-477c-8878-63fbc2e8a6fa",
+          "name": "Your ADMIN",
+          "online": true,
+          "last_seen": "2025-11-03T06:19:48.119+00:00",
+          "avatar_url": "https://bblrxervgwkphkctdghe.supabase.co/storage/v1/object/public/avatars/36242f98-fa4a-477c-8878-63fbc2e8a6fa/1762447815478.jpg",
+          "country_flag": "🇺🇸"
+        }
+      },
+      {
+        "user_id": "c9456497-d9fb-4004-96e9-3793ee52c43a",
+        "profiles": {
+          "id": "c9456497-d9fb-4004-96e9-3793ee52c43a",
+          "name": "Your ADMIN ",
+          "online": true,
+          "last_seen": "2025-11-03T06:19:47.272+00:00",
+          "avatar_url": "https://bblrxervgwkphkctdghe.supabase.co/storage/v1/object/public/avatars/c9456497-d9fb-4004-96e9-3793ee52c43a/1759999598748.jpg",
+          "country_flag": "🇦🇺"
+        }
+      }
+    ],
+    "lastMessage": {
+      "id": "f8b260a2-950b-482e-80fd-93db667f7d5f",
+      "conversation_id": "8ab15db7-3148-4426-b90c-acdd429d225a",
+      "sender_id": "36242f98-fa4a-477c-8878-63fbc2e8a6fa",
+      "content": "Hii",
+      "type": "text",
+      "language": null,
+      "translation": null,
+      "media_url": null,
+      "created_at": "2025-11-06T09:15:45.59114+00:00",
+      "client_id": "1762420544294_h8i7id55",
+      "reply_to_message_id": null
+    },
+    "unreadCount": 0
+  },
+  {
+    "id": "409b3cba-1472-472e-8aa7-97736cee4dd8",
+    "created_at": "2025-11-05T09:45:53.351026+00:00",
+    "updated_at": "2025-11-05T09:45:53.351026+00:00",
+    "is_language_exchange": true,
+    "language": null,
+    "participants": [
+      {
+        "user_id": "36242f98-fa4a-477c-8878-63fbc2e8a6fa",
+        "profiles": {
+          "id": "36242f98-fa4a-477c-8878-63fbc2e8a6fa",
+          "name": "Your ADMIN",
+          "online": true,
+          "last_seen": "2025-11-03T06:19:48.119+00:00",
+          "avatar_url": "https://bblrxervgwkphkctdghe.supabase.co/storage/v1/object/public/avatars/36242f98-fa4a-477c-8878-63fbc2e8a6fa/1762447815478.jpg",
+          "country_flag": "🇺🇸"
+        }
+      },
+      {
+        "user_id": "3e62b618-c747-442c-95d6-1aba3eab2b25",
+        "profiles": {
+          "id": "3e62b618-c747-442c-95d6-1aba3eab2b25",
+          "name": "Mimie",
+          "online": false,
+          "last_seen": "2025-11-04T17:49:31.104124+00:00",
+          "avatar_url": null,
+          "country_flag": null
+        }
+      }
+    ],
+    "unreadCount": 0
+  },
+  {
+    "id": "f2c59e5a-5c4f-46f2-a876-0923a26035aa",
+    "created_at": "2025-11-05T09:45:50.470975+00:00",
+    "updated_at": "2025-11-05T09:45:50.470975+00:00",
+    "is_language_exchange": true,
+    "language": null,
+    "participants": [
+      {
+        "user_id": "3e62b618-c747-442c-95d6-1aba3eab2b25",
+        "profiles": {
+          "id": "3e62b618-c747-442c-95d6-1aba3eab2b25",
+          "name": "Mimie",
+          "online": false,
+          "last_seen": "2025-11-04T17:49:31.104124+00:00",
+          "avatar_url": null,
+          "country_flag": null
+        }
+      },
+      {
+        "user_id": "36242f98-fa4a-477c-8878-63fbc2e8a6fa",
+        "profiles": {
+          "id": "36242f98-fa4a-477c-8878-63fbc2e8a6fa",
+          "name": "Your ADMIN",
+          "online": true,
+          "last_seen": "2025-11-03T06:19:48.119+00:00",
+          "avatar_url": "https://bblrxervgwkphkctdghe.supabase.co/storage/v1/object/public/avatars/36242f98-fa4a-477c-8878-63fbc2e8a6fa/1762447815478.jpg",
+          "country_flag": "🇺🇸"
+        }
+      }
+    ],
+    "unreadCount": 0
+  },
+  {
+    "id": "906570ec-db04-4aaf-8bf4-69144ce3f75a",
+    "created_at": "2025-10-08T16:02:01.829639+00:00",
+    "updated_at": "2025-11-03T06:15:38.900185+00:00",
+    "is_language_exchange": true,
+    "language": null,
+    "participants": [
+      {
+        "user_id": "36242f98-fa4a-477c-8878-63fbc2e8a6fa",
+        "profiles": {
+          "id": "36242f98-fa4a-477c-8878-63fbc2e8a6fa",
+          "name": "Your ADMIN",
+          "online": true,
+          "last_seen": "2025-11-03T06:19:48.119+00:00",
+          "avatar_url": "https://bblrxervgwkphkctdghe.supabase.co/storage/v1/object/public/avatars/36242f98-fa4a-477c-8878-63fbc2e8a6fa/1762447815478.jpg",
+          "country_flag": "🇺🇸"
+        }
+      },
+      {
+        "user_id": "e213c255-5950-4b12-aada-7f681b369824",
+        "profiles": {
+          "id": "e213c255-5950-4b12-aada-7f681b369824",
+          "name": "Best Friend",
+          "online": false,
+          "last_seen": "2025-10-08T10:52:08.257448+00:00",
+          "avatar_url": "https://bblrxervgwkphkctdghe.supabase.co/storage/v1/object/public/avatars/e213c255-5950-4b12-aada-7f681b369824/1760001029334.jpg",
+          "country_flag": "🇨🇳"
+        }
+      }
+    ],
+    "lastMessage": {
+      "id": "49089417-8b1f-4914-bd72-55a48b1231c1",
+      "conversation_id": "906570ec-db04-4aaf-8bf4-69144ce3f75a",
+      "sender_id": "36242f98-fa4a-477c-8878-63fbc2e8a6fa",
+      "content": "Hello",
+      "type": "text",
+      "language": null,
+      "translation": null,
+      "media_url": null,
+      "created_at": "2025-11-03T06:15:38.900185+00:00",
+      "client_id": null,
+      "reply_to_message_id": null
+    },
+    "unreadCount": 0
+  },
+  {
+    "id": "0dd90727-522a-470c-a4fb-2bb6ab61b826",
+    "created_at": "2025-10-06T15:56:35.098511+00:00",
+    "updated_at": "2025-10-09T17:19:08.191155+00:00",
+    "is_language_exchange": true,
+    "language": null,
+    "participants": [
+      {
+        "user_id": "e11fa128-683d-4e06-aba8-465f4c270977",
+        "profiles": {
+          "id": "e11fa128-683d-4e06-aba8-465f4c270977",
+          "name": "Vaibhav",
+          "online": false,
+          "last_seen": "2025-10-06T15:49:51.25442+00:00",
+          "avatar_url": "https://lh3.googleusercontent.com/a/ACg8ocJauTMIUC5HWVW68nYMGu5kvt-2RWemGExetI8JHp9L45x6iw=s96-c",
+          "country_flag": null
+        }
+      },
+      {
+        "user_id": "36242f98-fa4a-477c-8878-63fbc2e8a6fa",
+        "profiles": {
+          "id": "36242f98-fa4a-477c-8878-63fbc2e8a6fa",
+          "name": "Your ADMIN",
+          "online": true,
+          "last_seen": "2025-11-03T06:19:48.119+00:00",
+          "avatar_url": "https://bblrxervgwkphkctdghe.supabase.co/storage/v1/object/public/avatars/36242f98-fa4a-477c-8878-63fbc2e8a6fa/1762447815478.jpg",
+          "country_flag": "🇺🇸"
+        }
+      }
+    ],
+    "lastMessage": {
+      "id": "539e5b08-13ef-4c11-9997-8165c251ed53",
+      "conversation_id": "0dd90727-522a-470c-a4fb-2bb6ab61b826",
+      "sender_id": "36242f98-fa4a-477c-8878-63fbc2e8a6fa",
+      "content": "Good day",
+      "type": "text",
+      "language": null,
+      "translation": null,
+      "media_url": null,
+      "created_at": "2025-10-09T17:19:08.191155+00:00",
+      "client_id": null,
+      "reply_to_message_id": null
+    },
+    "unreadCount": 0
+  }
+]
+[10:00:25 AM] LOG: 💬 First conversation sample: {
+  "id": "90377b96-fdf8-4371-b655-aa913252839f",
+  "created_at": "2025-11-05T07:28:15.790277+00:00",
+  "updated_at": "2025-11-07T04:22:30.727804+00:00",
+  "is_language_exchange": true,
+  "language": null,
+  "participants": [
+    {
+      "user_id": "36242f98-fa4a-477c-8878-63fbc2e8a6fa",
+      "profiles": {
+        "id": "36242f98-fa4a-477c-8878-63fbc2e8a6fa",
+        "name": "Your ADMIN",
+        "online": true,
+        "last_seen": "2025-11-03T06:19:48.119+00:00",
+        "avatar_url": "https://bblrxervgwkphkctdghe.supabase.co/storage/v1/object/public/avatars/36242f98-fa4a-477c-8878-63fbc2e8a6fa/1762447815478.jpg",
+        "country_flag": "🇺🇸"
+      }
+    },
+    {
+      "user_id": "ece4c62d-f220-42c2-b27e-7ef43f7f415b",
+      "profiles": {
+        "id": "ece4c62d-f220-42c2-b27e-7ef43f7f415b",
+        "name": "Roshan Kumar",
+        "online": true,
+        "last_seen": "2025-11-03T06:58:32.862+00:00",
+        "avatar_url": "https://bblrxervgwkphkctdghe.supabase.co/storage/v1/object/public/avatars/ece4c62d-f220-42c2-b27e-7ef43f7f415b/1762157668655.jpg",
+        "country_flag": "🇧🇷"
+      }
+    }
+  ],
+  "lastMessage": {
+    "id": "27ec9f65-651e-4ef2-98b7-2309820c2b3a",
+    "conversation_id": "90377b96-fdf8-4371-b655-aa913252839f",
+    "sender_id": "36242f98-fa4a-477c-8878-63fbc2e8a6fa",
+    "content": "Hii",
+    "type": "text",
+    "language": null,
+    "translation": null,
+    "media_url": null,
+    "created_at": "2025-11-07T04:22:30.727804+00:00",
+    "client_id": "1762489348966_hjkwzaxi",
+    "reply_to_message_id": null
+  },
+  "unreadCount": 0
+}
+[10:00:37 AM] LOG: Subscribing to messages for conversation: 342d8788-ce0e-40af-a09f-51cfddac70a1
+[10:00:37 AM] LOG: Subscription status: SUBSCRIBED at 10:00:37 AM
+[10:00:40 AM] LOG: 🎯 App lost focus
+[10:00:45 AM] LOG: 🎯 App gained focus, checking connection...
+[10:00:45 AM] LOG: 📎 Sending attachment: {
+  "conversationId": "342d8788-ce0e-40af-a09f-51cfddac70a1",
+  "senderId": "36242f98-fa4a-477c-8878-63fbc2e8a6fa",
+  "fileName": "screenshot (25).png",
+  "fileSize": "0.87MB"
+}
+[10:00:45 AM] LOG: 📨 Sending placeholder message first...
+[10:00:45 AM] LOG: 🔄 Attempting full reconnection...
+[10:00:45 AM] LOG: 🔍 Connection test results: true, true, true (3/3 passed)
+[10:00:46 AM] LOG: ✅ Placeholder message sent: e002e7fa-cbcf-4d9a-a808-375fe8bbc564
+[10:00:46 AM] LOG: 🔐 Auth state changed: TOKEN_REFRESHED 36242f98-fa4a-477c-8878-63fbc2e8a6fa
+[10:00:46 AM] LOG: 🔄 Token refreshed successfully
+[10:00:46 AM] LOG: ⏰ Scheduling token refresh in 3540s
+[10:00:46 AM] LOG: ✅ Auth session refreshed
+[10:00:46 AM] LOG: 📤 Starting background upload...
+[10:00:46 AM] LOG: 📎 Uploading chat attachment: screenshot (25).png 910432
+[10:00:46 AM] LOG: 📊 Upload progress: 5%
+[10:00:46 AM] LOG: 📤 Upload progress: 5%
+[10:00:46 AM] LOG: 📊 Upload progress: 10%
+[10:00:46 AM] LOG: 📤 Upload progress: 10% - Starting compression
+[10:00:46 AM] LOG: ✅ Realtime reconnected
+[10:00:46 AM] LOG: 🔄 Supabase reconnected, resubscribing to active channels...
+[10:00:46 AM] LOG: 🔄 Resubscribing to conversation: messages
+[10:00:47 AM] LOG: 📱 Image compressed: {
+  "original": "0.87MB",
+  "compressed": "0.82MB",
+  "dimensions": "1200x675"
+}
+[10:00:47 AM] LOG: ✅ Image compressed: 0.82MB
+[10:00:47 AM] LOG: 📊 Upload progress: 30%
+[10:00:47 AM] LOG: 📤 Upload progress: 30% - Preparing upload
+[10:00:47 AM] LOG: 📊 Upload progress: 40%
+[10:00:47 AM] LOG: 📤 Upload progress: 40% - Starting Supabase upload
+[10:00:48 AM] LOG: Subscribing to messages for conversation: messages
+[10:00:48 AM] LOG: Unsubscribing from previous channel
+[10:00:48 AM] LOG: Subscription status: SUBSCRIBED at 10:00:48 AM
+[10:00:48 AM] ERROR: ❌ Supabase upload error: {
+  "name": "StorageApiError",
+  "message": "Bucket not found",
+  "status": 400,
+  "statusCode": "404"
+}
+[10:00:48 AM] ERROR: ❌ Upload failed: Bucket not found
+[10:00:48 AM] LOG: 📊 Upload progress: 0%
+[10:00:48 AM] ERROR: ❌ Background upload failed: {
+  "name": "StorageApiError",
+  "message": "Bucket not found",
+  "status": 400,
+  "statusCode": "404"
+}
+[10:00:53 AM] LOG: 🔍 Connection test results: true, true, true (3/3 passed)
+[10:00:58 AM] LOG: 🎯 App lost focus
+[10:01:03 AM] LOG: 🎯 App gained focus, checking connection...
+[10:01:03 AM] LOG: 🔄 Attempting full reconnection...
+[10:01:03 AM] LOG: 🔍 Connection test results: true, true, true (3/3 passed)
+[10:01:04 AM] LOG: 🔐 Auth state changed: TOKEN_REFRESHED 36242f98-fa4a-477c-8878-63fbc2e8a6fa
+[10:01:04 AM] LOG: 🔄 Token refreshed successfully
+[10:01:04 AM] LOG: ⏰ Scheduling token refresh in 3540s
+[10:01:04 AM] LOG: ✅ Auth session refreshed
+[10:01:04 AM] LOG: ✅ Realtime reconnected
+[10:01:04 AM] LOG: 🔄 Supabase reconnected, resubscribing to active channels...
+[10:01:04 AM] LOG: 🔄 Resubscribing to conversation: messages
+[10:01:06 AM] LOG: Subscribing to messages for conversation: messages
+[10:01:06 AM] LOG: Unsubscribing from previous channel

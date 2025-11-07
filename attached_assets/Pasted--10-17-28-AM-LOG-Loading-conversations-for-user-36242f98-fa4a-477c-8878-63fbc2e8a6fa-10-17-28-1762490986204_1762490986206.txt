@@ -1,0 +1,540 @@
+[10:17:28 AM] LOG: 📡 Loading conversations for user: 36242f98-fa4a-477c-8878-63fbc2e8a6fa
+[10:17:28 AM] LOG: 🚀 Master optimization initialized
+[10:17:28 AM] LOG: 📡 Setting up real-time subscriptions
+[10:17:28 AM] LOG: ✅ Service Worker registered
+[10:17:28 AM] LOG: 🔐 Auth state changed: SIGNED_IN 36242f98-fa4a-477c-8878-63fbc2e8a6fa
+[10:17:28 AM] LOG: ⏰ Scheduling token refresh in 763s
+[10:17:28 AM] LOG: 📭 No outbox items to process
+[10:17:28 AM] LOG: 🔐 Auth state changed: INITIAL_SESSION 36242f98-fa4a-477c-8878-63fbc2e8a6fa
+[10:17:28 AM] LOG: 📡 Loading conversations for user: 36242f98-fa4a-477c-8878-63fbc2e8a6fa
+[10:17:28 AM] LOG: 📊 User participants: {
+  "data": [
+    {
+      "conversation_id": "8ab15db7-3148-4426-b90c-acdd429d225a",
+      "unread_count": 0,
+      "conversations": {
+        "id": "8ab15db7-3148-4426-b90c-acdd429d225a",
+        "language": null,
+        "created_at": "2025-10-06T04:14:39.415215+00:00",
+        "updated_at": "2025-11-06T09:15:45.59114+00:00",
+        "is_language_exchange": true
+      }
+    },
+    {
+      "conversation_id": "906570ec-db04-4aaf-8bf4-69144ce3f75a",
+      "unread_count": 0,
+      "conversations": {
+        "id": "906570ec-db04-4aaf-8bf4-69144ce3f75a",
+        "language": null,
+        "created_at": "2025-10-08T16:02:01.829639+00:00",
+        "updated_at": "2025-11-03T06:15:38.900185+00:00",
+        "is_language_exchange": true
+      }
+    },
+    {
+      "conversation_id": "409b3cba-1472-472e-8aa7-97736cee4dd8",
+      "unread_count": 0,
+      "conversations": {
+        "id": "409b3cba-1472-472e-8aa7-97736cee4dd8",
+        "language": null,
+        "created_at": "2025-11-05T09:45:53.351026+00:00",
+        "updated_at": "2025-11-05T09:45:53.351026+00:00",
+        "is_language_exchange": true
+      }
+    },
+    {
+      "conversation_id": "f2c59e5a-5c4f-46f2-a876-0923a26035aa",
+      "unread_count": 0,
+      "conversations": {
+        "id": "f2c59e5a-5c4f-46f2-a876-0923a26035aa",
+        "language": null,
+        "created_at": "2025-11-05T09:45:50.470975+00:00",
+        "updated_at": "2025-11-05T09:45:50.470975+00:00",
+        "is_language_exchange": true
+      }
+    },
+    {
+      "conversation_id": "90377b96-fdf8-4371-b655-aa913252839f",
+      "unread_count": 0,
+      "conversations": {
+        "id": "90377b96-fdf8-4371-b655-aa913252839f",
+        "language": null,
+        "created_at": "2025-11-05T07:28:15.790277+00:00",
+        "updated_at": "2025-11-07T04:22:30.727804+00:00",
+        "is_language_exchange": true
+      }
+    },
+    {
+      "conversation_id": "342d8788-ce0e-40af-a09f-51cfddac70a1",
+      "unread_count": 0,
+      "conversations": {
+        "id": "342d8788-ce0e-40af-a09f-51cfddac70a1",
+        "language": null,
+        "created_at": "2025-10-06T04:13:51.877502+00:00",
+        "updated_at": "2025-11-07T04:39:01.904184+00:00",
+        "is_language_exchange": true
+      }
+    },
+    {
+      "conversation_id": "3fbd0335-23fa-4b9d-8aa0-a0ff19be1d29",
+      "unread_count": 0,
+      "conversations": {
+        "id": "3fbd0335-23fa-4b9d-8aa0-a0ff19be1d29",
+        "language": null,
+        "created_at": "2025-10-08T03:30:43.619296+00:00",
+        "updated_at": "2025-11-06T18:20:49.732835+00:00",
+        "is_language_exchange": true
+      }
+    },
+    {
+      "conversation_id": "0dd90727-522a-470c-a4fb-2bb6ab61b826",
+      "unread_count": 0,
+      "conversations": {
+        "id": "0dd90727-522a-470c-a4fb-2bb6ab61b826",
+        "language": null,
+        "created_at": "2025-10-06T15:56:35.098511+00:00",
+        "updated_at": "2025-10-09T17:19:08.191155+00:00",
+        "is_language_exchange": true
+      }
+    },
+    {
+      "conversation_id": "db140b1d-40ba-4914-ada2-85c6c26526bc",
+      "unread_count": 0,
+      "conversations": {
+        "id": "db140b1d-40ba-4914-ada2-85c6c26526bc",
+        "language": null,
+        "created_at": "2025-11-04T12:49:43.122154+00:00",
+        "updated_at": "2025-11-06T11:49:00.574894+00:00",
+        "is_language_exchange": true
+      }
+    }
+  ]
+}
+[10:17:28 AM] LOG: 🔍 Fetching participants for conversation IDs: [
+  "8ab15db7-3148-4426-b90c-acdd429d225a",
+  "906570ec-db04-4aaf-8bf4-69144ce3f75a",
+  "409b3cba-1472-472e-8aa7-97736cee4dd8",
+  "f2c59e5a-5c4f-46f2-a876-0923a26035aa",
+  "90377b96-fdf8-4371-b655-aa913252839f",
+  "342d8788-ce0e-40af-a09f-51cfddac70a1",
+  "3fbd0335-23fa-4b9d-8aa0-a0ff19be1d29",
+  "0dd90727-522a-470c-a4fb-2bb6ab61b826",
+  "db140b1d-40ba-4914-ada2-85c6c26526bc"
+]
+[10:17:29 AM] LOG: 📡 Setting up real-time subscriptions
+[10:17:29 AM] LOG: 👥 All participants fetched: [
+  {
+    "conversation_id": "8ab15db7-3148-4426-b90c-acdd429d225a",
+    "user_id": "36242f98-fa4a-477c-8878-63fbc2e8a6fa",
+    "profiles": {
+      "id": "36242f98-fa4a-477c-8878-63fbc2e8a6fa",
+      "name": "Your ADMIN",
+      "online": true,
+      "last_seen": "2025-11-03T06:19:48.119+00:00",
+      "avatar_url": "https://bblrxervgwkphkctdghe.supabase.co/storage/v1/object/public/avatars/36242f98-fa4a-477c-8878-63fbc2e8a6fa/1762447815478.jpg",
+      "country_flag": "🇺🇸"
+    }
+  },
+  {
+    "conversation_id": "906570ec-db04-4aaf-8bf4-69144ce3f75a",
+    "user_id": "36242f98-fa4a-477c-8878-63fbc2e8a6fa",
+    "profiles": {
+      "id": "36242f98-fa4a-477c-8878-63fbc2e8a6fa",
+      "name": "Your ADMIN",
+      "online": true,
+      "last_seen": "2025-11-03T06:19:48.119+00:00",
+      "avatar_url": "https://bblrxervgwkphkctdghe.supabase.co/storage/v1/object/public/avatars/36242f98-fa4a-477c-8878-63fbc2e8a6fa/1762447815478.jpg",
+      "country_flag": "🇺🇸"
+    }
+  },
+  {
+    "conversation_id": "f2c59e5a-5c4f-46f2-a876-0923a26035aa",
+    "user_id": "3e62b618-c747-442c-95d6-1aba3eab2b25",
+    "profiles": {
+      "id": "3e62b618-c747-442c-95d6-1aba3eab2b25",
+      "name": "Mimie",
+      "online": false,
+      "last_seen": "2025-11-04T17:49:31.104124+00:00",
+      "avatar_url": null,
+      "country_flag": null
+    }
+  },
+  {
+    "conversation_id": "409b3cba-1472-472e-8aa7-97736cee4dd8",
+    "user_id": "36242f98-fa4a-477c-8878-63fbc2e8a6fa",
+    "profiles": {
+      "id": "36242f98-fa4a-477c-8878-63fbc2e8a6fa",
+      "name": "Your ADMIN",
+      "online": true,
+      "last_seen": "2025-11-03T06:19:48.119+00:00",
+      "avatar_url": "https://bblrxervgwkphkctdghe.supabase.co/storage/v1/object/public/avatars/36242f98-fa4a-477c-8878-63fbc2e8a6fa/1762447815478.jpg",
+      "country_flag": "🇺🇸"
+    }
+  },
+  {
+    "conversation_id": "409b3cba-1472-472e-8aa7-97736cee4dd8",
+    "user_id": "3e62b618-c747-442c-95d6-1aba3eab2b25",
+    "profiles": {
+      "id": "3e62b618-c747-442c-95d6-1aba3eab2b25",
+      "name": "Mimie",
+      "online": false,
+      "last_seen": "2025-11-04T17:49:31.104124+00:00",
+      "avatar_url": null,
+      "country_flag": null
+    }
+  },
+  {
+    "conversation_id": "f2c59e5a-5c4f-46f2-a876-0923a26035aa",
+    "user_id": "36242f98-fa4a-477c-8878-63fbc2e8a6fa",
+    "profiles": {
+      "id": "36242f98-fa4a-477c-8878-63fbc2e8a6fa",
+      "name": "Your ADMIN",
+      "online": true,
+      "last_seen": "2025-11-03T06:19:48.119+00:00",
+      "avatar_url": "https://bblrxervgwkphkctdghe.supabase.co/storage/v1/object/public/avatars/36242f98-fa4a-477c-8878-63fbc2e8a6fa/1762447815478.jpg",
+      "country_flag": "🇺🇸"
+    }
+  },
+  {
+    "conversation_id": "906570ec-db04-4aaf-8bf4-69144ce3f75a",
+    "user_id": "e213c255-5950-4b12-aada-7f681b369824",
+    "profiles": {
+      "id": "e213c255-5950-4b12-aada-7f681b369824",
+      "name": "Best Friend",
+      "online": false,
+      "last_seen": "2025-10-08T10:52:08.257448+00:00",
+      "avatar_url": "https://bblrxervgwkphkctdghe.supabase.co/storage/v1/object/public/avatars/e213c255-5950-4b12-aada-7f681b369824/1760001029334.jpg",
+      "country_flag": "🇨🇳"
+    }
+  },
+  {
+    "conversation_id": "90377b96-fdf8-4371-b655-aa913252839f",
+    "user_id": "ece4c62d-f220-42c2-b27e-7ef43f7f415b",
+    "profiles": {
+      "id": "ece4c62d-f220-42c2-b27e-7ef43f7f415b",
+      "name": "Roshan Kumar",
+      "online": true,
+      "last_seen": "2025-11-03T06:58:32.862+00:00",
+      "avatar_url": "https://bblrxervgwkphkctdghe.supabase.co/storage/v1/object/public/avatars/ece4c62d-f220-42c2-b27e-7ef43f7f415b/1762157668655.jpg",
+      "country_flag": "🇧🇷"
+    }
+  },
+  {
+    "conversation_id": "0dd90727-522a-470c-a4fb-2bb6ab61b826",
+    "user_id": "e11fa128-683d-4e06-aba8-465f4c270977",
+    "profiles": {
+      "id": "e11fa128-683d-4e06-aba8-465f4c270977",
+      "name": "Vaibhav",
+      "online": false,
+      "last_seen": "2025-10-06T15:49:51.25442+00:00",
+      "avatar_url": "https://lh3.googleusercontent.com/a/ACg8ocJauTMIUC5HWVW68nYMGu5kvt-2RWemGExetI8JHp9L45x6iw=s96-c",
+      "country_flag": null
+    }
+  },
+  {
+    "conversation_id": "342d8788-ce0e-40af-a09f-51cfddac70a1",
+    "user_id": "ece4c62d-f220-42c2-b27e-7ef43f7f415b",
+    "profiles": {
+      "id": "ece4c62d-f220-42c2-b27e-7ef43f7f415b",
+      "name": "Roshan Kumar",
+      "online": true,
+      "last_seen": "2025-11-03T06:58:32.862+00:00",
+      "avatar_url": "https://bblrxervgwkphkctdghe.supabase.co/storage/v1/object/public/avatars/ece4c62d-f220-42c2-b27e-7ef43f7f415b/1762157668655.jpg",
+      "country_flag": "🇧🇷"
+    }
+  },
+  {
+    "conversation_id": "90377b96-fdf8-4371-b655-aa913252839f",
+    "user_id": "36242f98-fa4a-477c-8878-63fbc2e8a6fa",
+    "profiles": {
+      "id": "36242f98-fa4a-477c-8878-63fbc2e8a6fa",
+      "name": "Your ADMIN",
+      "online": true,
+      "last_seen": "2025-11-03T06:19:48.119+00:00",
+      "avatar_url": "https://bblrxervgwkphkctdghe.supabase.co/storage/v1/object/public/avatars/36242f98-fa4a-477c-8878-63fbc2e8a6fa/1762447815478.jpg",
+      "country_flag": "🇺🇸"
+    }
+  },
+  {
+    "conversation_id": "342d8788-ce0e-40af-a09f-51cfddac70a1",
+    "user_id": "36242f98-fa4a-477c-8878-63fbc2e8a6fa",
+    "profiles": {
+      "id": "36242f98-fa4a-477c-8878-63fbc2e8a6fa",
+      "name": "Your ADMIN",
+      "online": true,
+      "last_seen": "2025-11-03T06:19:48.119+00:00",
+      "avatar_url": "https://bblrxervgwkphkctdghe.supabase.co/storage/v1/object/public/avatars/36242f98-fa4a-477c-8878-63fbc2e8a6fa/1762447815478.jpg",
+      "country_flag": "🇺🇸"
+    }
+  },
+  {
+    "conversation_id": "3fbd0335-23fa-4b9d-8aa0-a0ff19be1d29",
+    "user_id": "36242f98-fa4a-477c-8878-63fbc2e8a6fa",
+    "profiles": {
+      "id": "36242f98-fa4a-477c-8878-63fbc2e8a6fa",
+      "name": "Your ADMIN",
+      "online": true,
+      "last_seen": "2025-11-03T06:19:48.119+00:00",
+      "avatar_url": "https://bblrxervgwkphkctdghe.supabase.co/storage/v1/object/public/avatars/36242f98-fa4a-477c-8878-63fbc2e8a6fa/1762447815478.jpg",
+      "country_flag": "🇺🇸"
+    }
+  },
+  {
+    "conversation_id": "0dd90727-522a-470c-a4fb-2bb6ab61b826",
+    "user_id": "36242f98-fa4a-477c-8878-63fbc2e8a6fa",
+    "profiles": {
+      "id": "36242f98-fa4a-477c-8878-63fbc2e8a6fa",
+      "name": "Your ADMIN",
+      "online": true,
+      "last_seen": "2025-11-03T06:19:48.119+00:00",
+      "avatar_url": "https://bblrxervgwkphkctdghe.supabase.co/storage/v1/object/public/avatars/36242f98-fa4a-477c-8878-63fbc2e8a6fa/1762447815478.jpg",
+      "country_flag": "🇺🇸"
+    }
+  },
+  {
+    "conversation_id": "8ab15db7-3148-4426-b90c-acdd429d225a",
+    "user_id": "c9456497-d9fb-4004-96e9-3793ee52c43a",
+    "profiles": {
+      "id": "c9456497-d9fb-4004-96e9-3793ee52c43a",
+      "name": "Your ADMIN ",
+      "online": true,
+      "last_seen": "2025-11-03T06:19:47.272+00:00",
+      "avatar_url": "https://bblrxervgwkphkctdghe.supabase.co/storage/v1/object/public/avatars/c9456497-d9fb-4004-96e9-3793ee52c43a/1759999598748.jpg",
+      "country_flag": "🇦🇺"
+    }
+  },
+  {
+    "conversation_id": "db140b1d-40ba-4914-ada2-85c6c26526bc",
+    "user_id": "36242f98-fa4a-477c-8878-63fbc2e8a6fa",
+    "profiles": {
+      "id": "36242f98-fa4a-477c-8878-63fbc2e8a6fa",
+      "name": "Your ADMIN",
+      "online": true,
+      "last_seen": "2025-11-03T06:19:48.119+00:00",
+      "avatar_url": "https://bblrxervgwkphkctdghe.supabase.co/storage/v1/object/public/avatars/36242f98-fa4a-477c-8878-63fbc2e8a6fa/1762447815478.jpg",
+      "country_flag": "🇺🇸"
+    }
+  },
+  {
+    "conversation_id": "db140b1d-40ba-4914-ada2-85c6c26526bc",
+    "user_id": "316c6997-3d6b-4b16-8e35-e913cbf8f482",
+    "profiles": {
+      "id": "316c6997-3d6b-4b16-8e35-e913cbf8f482",
+      "name": "roshLingua",
+      "online": false,
+      "last_seen": "2025-11-03T11:50:53.676969+00:00",
+      "avatar_url": "https://lh3.googleusercontent.com/a/ACg8ocKU6yDPytjTfzkOAfyp2fXSeX7TIahxjsJehbMCYM35i3cMqB0=s96-c",
+      "country_flag": "🇺🇸"
+    }
+  },
+  {
+    "conversation_id": "3fbd0335-23fa-4b9d-8aa0-a0ff19be1d29",
+    "user_id": "2a6e80f2-3043-4abb-9b72-23770c0b7b22",
+    "profiles": {
+      "id": "2a6e80f2-3043-4abb-9b72-23770c0b7b22",
+      "name": "Aryan Kumar",
+      "online": false,
+      "last_seen": "2025-10-07T05:11:30.586437+00:00",
+      "avatar_url": "https://lh3.googleusercontent.com/a/ACg8ocJIV1E2UfoSCxuj5WqHlcRq75OmUG_Gb_HsesRGsDp_RnIt3KM=s96-c",
+      "country_flag": "🇨🇦"
+    }
+  }
+]
+[10:17:29 AM] LOG: 👥 Total participants count: 18
+[10:17:29 AM] LOG: 👥 Expected count (2 per conversation): 18
+[10:17:29 AM] LOG: 👥 First participant sample: {
+  "conversation_id": "8ab15db7-3148-4426-b90c-acdd429d225a",
+  "user_id": "36242f98-fa4a-477c-8878-63fbc2e8a6fa",
+  "profiles": {
+    "id": "36242f98-fa4a-477c-8878-63fbc2e8a6fa",
+    "name": "Your ADMIN",
+    "online": true,
+    "last_seen": "2025-11-03T06:19:48.119+00:00",
+    "avatar_url": "https://bblrxervgwkphkctdghe.supabase.co/storage/v1/object/public/avatars/36242f98-fa4a-477c-8878-63fbc2e8a6fa/1762447815478.jpg",
+    "country_flag": "🇺🇸"
+  }
+}
+[10:17:29 AM] LOG: 📊 User participants: {
+  "data": [
+    {
+      "conversation_id": "8ab15db7-3148-4426-b90c-acdd429d225a",
+      "unread_count": 0,
+      "conversations": {
+        "id": "8ab15db7-3148-4426-b90c-acdd429d225a",
+        "language": null,
+        "created_at": "2025-10-06T04:14:39.415215+00:00",
+        "updated_at": "2025-11-06T09:15:45.59114+00:00",
+        "is_language_exchange": true
+      }
+    },
+    {
+      "conversation_id": "906570ec-db04-4aaf-8bf4-69144ce3f75a",
+      "unread_count": 0,
+      "conversations": {
+        "id": "906570ec-db04-4aaf-8bf4-69144ce3f75a",
+        "language": null,
+        "created_at": "2025-10-08T16:02:01.829639+00:00",
+        "updated_at": "2025-11-03T06:15:38.900185+00:00",
+        "is_language_exchange": true
+      }
+    },
+    {
+      "conversation_id": "409b3cba-1472-472e-8aa7-97736cee4dd8",
+      "unread_count": 0,
+      "conversations": {
+        "id": "409b3cba-1472-472e-8aa7-97736cee4dd8",
+        "language": null,
+        "created_at": "2025-11-05T09:45:53.351026+00:00",
+        "updated_at": "2025-11-05T09:45:53.351026+00:00",
+        "is_language_exchange": true
+      }
+    },
+    {
+      "conversation_id": "f2c59e5a-5c4f-46f2-a876-0923a26035aa",
+      "unread_count": 0,
+      "conversations": {
+        "id": "f2c59e5a-5c4f-46f2-a876-0923a26035aa",
+        "language": null,
+        "created_at": "2025-11-05T09:45:50.470975+00:00",
+        "updated_at": "2025-11-05T09:45:50.470975+00:00",
+        "is_language_exchange": true
+      }
+    },
+    {
+      "conversation_id": "90377b96-fdf8-4371-b655-aa913252839f",
+      "unread_count": 0,
+      "conversations": {
+        "id": "90377b96-fdf8-4371-b655-aa913252839f",
+        "language": null,
+        "created_at": "2025-11-05T07:28:15.790277+00:00",
+        "updated_at": "2025-11-07T04:22:30.727804+00:00",
+        "is_language_exchange": true
+      }
+    },
+    {
+      "conversation_id": "342d8788-ce0e-40af-a09f-51cfddac70a1",
+      "unread_count": 0,
+      "conversations": {
+        "id": "342d8788-ce0e-40af-a09f-51cfddac70a1",
+        "language": null,
+        "created_at": "2025-10-06T04:13:51.877502+00:00",
+        "updated_at": "2025-11-07T04:39:01.904184+00:00",
+        "is_language_exchange": true
+      }
+    },
+    {
+      "conversation_id": "3fbd0335-23fa-4b9d-8aa0-a0ff19be1d29",
+      "unread_count": 0,
+      "conversations": {
+        "id": "3fbd0335-23fa-4b9d-8aa0-a0ff19be1d29",
+        "language": null,
+        "created_at": "2025-10-08T03:30:43.619296+00:00",
+        "updated_at": "2025-11-06T18:20:49.732835+00:00",
+        "is_language_exchange": true
+      }
+    },
+    {
+      "conversation_id": "0dd90727-522a-470c-a4fb-2bb6ab61b826",
+      "unread_count": 0,
+      "conversations": {
+        "id": "0dd90727-522a-470c-a4fb-2bb6ab61b826",
+        "language": null,
+        "created_at": "2025-10-06T15:56:35.098511+00:00",
+        "updated_at": "2025-10-09T17:19:08.191155+00:00",
+        "is_language_exchange": true
+      }
+    },
+    {
+      "conversation_id": "db140b1d-40ba-4914-ada2-85c6c26526bc",
+      "unread_count": 0,
+      "conversations": {
+        "id": "db140b1d-40ba-4914-ada2-85c6c26526bc",
+        "language": null,
+        "created_at": "2025-11-04T12:49:43.122154+00:00",
+        "updated_at": "2025-11-06T11:49:00.574894+00:00",
+        "is_language_exchange": true
+      }
+    }
+  ]
+}
+[10:17:29 AM] LOG: 🔍 Fetching participants for conversation IDs: [
+  "8ab15db7-3148-4426-b90c-acdd429d225a",
+  "906570ec-db04-4aaf-8bf4-69144ce3f75a",
+  "409b3cba-1472-472e-8aa7-97736cee4dd8",
+  "f2c59e5a-5c4f-46f2-a876-0923a26035aa",
+  "90377b96-fdf8-4371-b655-aa913252839f",
+  "342d8788-ce0e-40af-a09f-51cfddac70a1",
+  "3fbd0335-23fa-4b9d-8aa0-a0ff19be1d29",
+  "0dd90727-522a-470c-a4fb-2bb6ab61b826",
+  "db140b1d-40ba-4914-ada2-85c6c26526bc"
+]
+[10:17:29 AM] LOG: 👥 All participants fetched: [
+  {
+    "conversation_id": "8ab15db7-3148-4426-b90c-acdd429d225a",
+    "user_id": "36242f98-fa4a-477c-8878-63fbc2e8a6fa",
+    "profiles": {
+      "id": "36242f98-fa4a-477c-8878-63fbc2e8a6fa",
+      "name": "Your ADMIN",
+      "online": true,
+      "last_seen": "2025-11-03T06:19:48.119+00:00",
+      "avatar_url": "https://bblrxervgwkphkctdghe.supabase.co/storage/v1/object/public/avatars/36242f98-fa4a-477c-8878-63fbc2e8a6fa/1762447815478.jpg",
+      "country_flag": "🇺🇸"
+    }
+  },
+  {
+    "conversation_id": "906570ec-db04-4aaf-8bf4-69144ce3f75a",
+    "user_id": "36242f98-fa4a-477c-8878-63fbc2e8a6fa",
+    "profiles": {
+      "id": "36242f98-fa4a-477c-8878-63fbc2e8a6fa",
+      "name": "Your ADMIN",
+      "online": true,
+      "last_seen": "2025-11-03T06:19:48.119+00:00",
+      "avatar_url": "https://bblrxervgwkphkctdghe.supabase.co/storage/v1/object/public/avatars/36242f98-fa4a-477c-8878-63fbc2e8a6fa/1762447815478.jpg",
+      "country_flag": "🇺🇸"
+    }
+  },
+  {
+    "conversation_id": "f2c59e5a-5c4f-46f2-a876-0923a26035aa",
+    "user_id": "3e62b618-c747-442c-95d6-1aba3eab2b25",
+    "profiles": {
+      "id": "3e62b618-c747-442c-95d6-1aba3eab2b25",
+      "name": "Mimie",
+      "online": false,
+      "last_seen": "2025-11-04T17:49:31.104124+00:00",
+      "avatar_url": null,
+      "country_flag": null
+    }
+  },
+  {
+    "conversation_id": "409b3cba-1472-472e-8aa7-97736cee4dd8",
+    "user_id": "36242f98-fa4a-477c-8878-63fbc2e8a6fa",
+    "profiles": {
+      "id": "36242f98-fa4a-477c-8878-63fbc2e8a6fa",
+      "name": "Your ADMIN",
+      "online": true,
+      "last_seen": "2025-11-03T06:19:48.119+00:00",
+      "avatar_url": "https://bblrxervgwkphkctdghe.supabase.co/storage/v1/object/public/avatars/36242f98-fa4a-477c-8878-63fbc2e8a6fa/1762447815478.jpg",
+      "country_flag": "🇺🇸"
+    }
+  },
+  {
+    "conversation_id": "409b3cba-1472-472e-8aa7-97736cee4dd8",
+    "user_id": "3e62b618-c747-442c-95d6-1aba3eab2b25",
+    "profiles": {
+      "id": "3e62b618-c747-442c-95d6-1aba3eab2b25",
+      "name": "Mimie",
+      "online": false,
+      "last_seen": "2025-11-04T17:49:31.104124+00:00",
+      "avatar_url": null,
+      "country_flag": null
+    }
+  },
+  {
+    "conversation_id": "f2c59e5a-5c4f-46f2-a876-0923a26035aa",
+    "user_id": "36242f98-fa4a-477c-8878-63fbc2e8a6fa",
+    "profiles": {
+      "id": "36242f98-fa4a-477c-8878-63fbc2e8a6fa",
+      "name": "Your ADMIN",
+      "online": true,
+      "last_seen": "2025-11-03T06:19:48.119+00:00",
+      "avatar_url": "https://bblrxervgwkphkctdghe.supabase.c

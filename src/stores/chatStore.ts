@@ -545,81 +545,24 @@ export const useChatStore = create<ChatState>((set, get) => ({
         }
       }));
       
-      // STEP 2: Save to database with timeout (5 seconds max)
+      // STEP 2: Save to database - SIMPLE! Just save the message with media_url
       console.log('💾 Saving message to database...', { conversationId, senderId, fileName: file.name, mediaUrl });
       
-      const dbSavePromise = (async () => {
-        // Save to attachments table
-        const { data: attachment, error: attachmentError } = await supabase
-          .from('attachments')
-          .insert({
-            conversation_id: conversationId,
-            user_id: senderId,
-            file_name: file.name,
-            file_type: file.type,
-            file_size: file.size,
-            cloudinary_url: mediaUrl
-          })
-          .select()
-          .single();
+      const { data: message, error: messageError } = await supabase
+        .from('messages')
+        .insert({
+          conversation_id: conversationId,
+          sender_id: senderId,
+          content: file.name,
+          type: messageType,
+          media_url: mediaUrl,
+          client_id: clientId
+        })
+        .select()
+        .single();
 
-        if (attachmentError) {
-          console.warn('⚠️ Failed to save attachment metadata:', attachmentError);
-        } else {
-          console.log('✅ Attachment metadata saved!', { id: attachment?.id });
-        }
-
-        // Save message to messages table
-        const { data: message, error: messageError } = await supabase
-          .from('messages')
-          .insert({
-            conversation_id: conversationId,
-            sender_id: senderId,
-            content: file.name,
-            type: messageType,
-            media_url: mediaUrl,
-            client_id: clientId
-          })
-          .select()
-          .single();
-
-        if (messageError) {
-          console.error('❌ Failed to save message:', messageError);
-          throw messageError;
-        }
-
-        console.log('✅ Message saved to database!', { id: message.id });
-        return message;
-      })();
-
-      // Race with timeout
-      const timeoutPromise = new Promise((_, reject) => 
-        setTimeout(() => reject(new Error('Database save timeout after 5s')), 5000)
-      );
-
-      try {
-        const message = await Promise.race([dbSavePromise, timeoutPromise]) as any;
-        
-        // Remove from cache after successful DB save
-        attachmentCache.remove(clientId);
-        console.log('✅ Attachment saved to DB, removed from cache');
-        
-        // Update UI with real database ID
-        set(state => ({
-          messages: {
-            ...state.messages,
-            [conversationId]: state.messages[conversationId].map(msg =>
-              msg.client_id === clientId ? { 
-                ...msg,
-                id: message.id,
-                status: 'delivered',
-                created_at: message.created_at
-              } : msg
-            )
-          }
-        }));
-      } catch (dbError) {
-        console.error('❌ Database save failed or timed out:', dbError);
+      if (messageError) {
+        console.error('❌ Failed to save message:', messageError);
         
         // Increment retry count in cache
         attachmentCache.incrementRetry(clientId);
@@ -638,7 +581,26 @@ export const useChatStore = create<ChatState>((set, get) => ({
             )
           }
         }));
+        return; // Don't throw, just return
       }
+
+      // SUCCESS! Remove from cache and update UI with real database ID
+      attachmentCache.remove(clientId);
+      console.log('✅ Message saved to database! Removed from cache', { id: message.id });
+      
+      set(state => ({
+        messages: {
+          ...state.messages,
+          [conversationId]: state.messages[conversationId].map(msg =>
+            msg.client_id === clientId ? { 
+              ...msg,
+              id: message.id,
+              status: 'delivered',
+              created_at: message.created_at
+            } : msg
+          )
+        }
+      }));
     } catch (error: any) {
       connectionManager.endUpload();
       

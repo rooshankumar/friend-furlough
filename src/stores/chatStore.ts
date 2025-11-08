@@ -494,44 +494,11 @@ export const useChatStore = create<ChatState>((set, get) => ({
     }));
 
     let mediaUrl: string | undefined;
-    let dbMessageId: string | undefined;
     
     try {
-      // STEP 1: Create message record in database FIRST (like community posts)
-      console.log('📝 Creating message record in database first...', { conversationId, senderId, fileName: file.name });
+      // STEP 1: Upload to Cloudinary FIRST (simpler, less DB operations)
+      console.log('☁️ Uploading file to Cloudinary...', { fileName: file.name, size: file.size });
       
-      const { data: dbMessage, error: dbError } = await supabase
-        .from('messages')
-        .insert({
-          conversation_id: conversationId,
-          sender_id: senderId,
-          content: file.name,
-          type: messageType,
-          media_url: null, // Will update after upload
-          client_id: clientId
-        })
-        .select()
-        .single();
-
-      if (dbError) {
-        console.error('❌ Failed to create message record:', dbError);
-        throw dbError;
-      }
-
-      dbMessageId = dbMessage.id;
-      console.log('✅ Message record created in database!', { id: dbMessageId });
-
-      // Update UI with database ID
-      set(state => ({
-        messages: {
-          ...state.messages,
-          [conversationId]: state.messages[conversationId].map(msg =>
-            msg.tempId === tempId ? { ...msg, id: dbMessageId, created_at: dbMessage.created_at } : msg
-          )
-        }
-      }));
-
-      // STEP 2: Upload to Cloudinary
       const { uploadChatAttachment } = await import('@/lib/storage');
       
       mediaUrl = await uploadChatAttachment(file, conversationId, (progress) => {
@@ -539,7 +506,7 @@ export const useChatStore = create<ChatState>((set, get) => ({
           messages: {
             ...state.messages,
             [conversationId]: state.messages[conversationId].map(msg =>
-              msg.id === dbMessageId ? { ...msg, uploadProgress: progress } : msg
+              msg.tempId === tempId ? { ...msg, uploadProgress: progress } : msg
             )
           }
         }));
@@ -549,58 +516,106 @@ export const useChatStore = create<ChatState>((set, get) => ({
       
       console.log('✅ File uploaded to Cloudinary!', { mediaUrl });
       
-      // STEP 3: Save to attachments table
-      console.log('💾 Saving attachment metadata...', { conversationId, senderId, fileName: file.name, mediaUrl });
-      
-      const { data: attachment, error: attachmentError } = await supabase
-        .from('attachments')
-        .insert({
-          conversation_id: conversationId,
-          user_id: senderId,
-          file_name: file.name,
-          file_type: file.type,
-          file_size: file.size,
-          cloudinary_url: mediaUrl
-        })
-        .select()
-        .single();
-
-      if (attachmentError) {
-        console.error('❌ Failed to save attachment metadata:', attachmentError);
-        // Continue anyway - attachment metadata is optional
-      } else {
-        console.log('✅ Attachment metadata saved!', { id: attachment?.id });
-      }
-
-      // STEP 4: Update message with media URL (like community posts)
-      console.log('🔄 Updating message with media URL...', { messageId: dbMessageId, mediaUrl });
-      
-      const { error: updateError } = await supabase
-        .from('messages')
-        .update({ media_url: mediaUrl })
-        .eq('id', dbMessageId);
-
-      if (updateError) {
-        console.error('❌ Failed to update message with media URL:', updateError);
-        throw updateError;
-      }
-
-      console.log('✅ Message updated with media URL successfully!');
-      
-      // Update UI with final state
+      // Update UI immediately with uploaded file
       set(state => ({
         messages: {
           ...state.messages,
           [conversationId]: state.messages[conversationId].map(msg =>
-            msg.id === dbMessageId ? { 
+            msg.tempId === tempId ? { 
               ...msg,
               media_url: mediaUrl,
-              status: 'delivered',
+              status: 'sent',
               uploadProgress: 100
             } : msg
           )
         }
       }));
+      
+      // STEP 2: Save to database with timeout (5 seconds max)
+      console.log('💾 Saving message to database...', { conversationId, senderId, fileName: file.name, mediaUrl });
+      
+      const dbSavePromise = (async () => {
+        // Save to attachments table
+        const { data: attachment, error: attachmentError } = await supabase
+          .from('attachments')
+          .insert({
+            conversation_id: conversationId,
+            user_id: senderId,
+            file_name: file.name,
+            file_type: file.type,
+            file_size: file.size,
+            cloudinary_url: mediaUrl
+          })
+          .select()
+          .single();
+
+        if (attachmentError) {
+          console.warn('⚠️ Failed to save attachment metadata:', attachmentError);
+        } else {
+          console.log('✅ Attachment metadata saved!', { id: attachment?.id });
+        }
+
+        // Save message to messages table
+        const { data: message, error: messageError } = await supabase
+          .from('messages')
+          .insert({
+            conversation_id: conversationId,
+            sender_id: senderId,
+            content: file.name,
+            type: messageType,
+            media_url: mediaUrl,
+            client_id: clientId
+          })
+          .select()
+          .single();
+
+        if (messageError) {
+          console.error('❌ Failed to save message:', messageError);
+          throw messageError;
+        }
+
+        console.log('✅ Message saved to database!', { id: message.id });
+        return message;
+      })();
+
+      // Race with timeout
+      const timeoutPromise = new Promise((_, reject) => 
+        setTimeout(() => reject(new Error('Database save timeout after 5s')), 5000)
+      );
+
+      try {
+        const message = await Promise.race([dbSavePromise, timeoutPromise]) as any;
+        
+        // Update UI with real database ID
+        set(state => ({
+          messages: {
+            ...state.messages,
+            [conversationId]: state.messages[conversationId].map(msg =>
+              msg.client_id === clientId ? { 
+                ...msg,
+                id: message.id,
+                status: 'delivered',
+                created_at: message.created_at
+              } : msg
+            )
+          }
+        }));
+      } catch (dbError) {
+        console.error('❌ Database save failed or timed out:', dbError);
+        // Message is still visible with Cloudinary URL, just won't persist after refresh
+        set(state => ({
+          messages: {
+            ...state.messages,
+            [conversationId]: state.messages[conversationId].map(msg =>
+              msg.client_id === clientId ? { 
+                ...msg,
+                status: 'sent', // Show as sent but might not persist
+                error: 'Database save failed'
+              } : msg
+            )
+          }
+        }));
+      }
     } catch (error: any) {
       connectionManager.endUpload();
       
@@ -609,24 +624,14 @@ export const useChatStore = create<ChatState>((set, get) => ({
         message: error?.message,
         code: error?.code,
         details: error?.details,
-        hint: error?.hint,
-        dbMessageId
+        hint: error?.hint
       });
-
-      // If we created a DB message but upload failed, delete it
-      if (dbMessageId) {
-        console.log('🗑️ Cleaning up failed message from database...', { messageId: dbMessageId });
-        await supabase
-          .from('messages')
-          .delete()
-          .eq('id', dbMessageId);
-      }
 
       set(state => ({
         messages: {
           ...state.messages,
           [conversationId]: state.messages[conversationId].map(msg =>
-            (msg.tempId === tempId || msg.id === dbMessageId) ? { 
+            msg.tempId === tempId ? { 
               ...msg, 
               status: 'failed' as MessageStatus,
               uploadProgress: undefined,

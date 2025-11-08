@@ -494,8 +494,44 @@ export const useChatStore = create<ChatState>((set, get) => ({
     }));
 
     let mediaUrl: string | undefined;
+    let dbMessageId: string | undefined;
     
     try {
+      // STEP 1: Create message record in database FIRST (like community posts)
+      console.log('📝 Creating message record in database first...', { conversationId, senderId, fileName: file.name });
+      
+      const { data: dbMessage, error: dbError } = await supabase
+        .from('messages')
+        .insert({
+          conversation_id: conversationId,
+          sender_id: senderId,
+          content: file.name,
+          type: messageType,
+          media_url: null, // Will update after upload
+          client_id: clientId
+        })
+        .select()
+        .single();
+
+      if (dbError) {
+        console.error('❌ Failed to create message record:', dbError);
+        throw dbError;
+      }
+
+      dbMessageId = dbMessage.id;
+      console.log('✅ Message record created in database!', { id: dbMessageId });
+
+      // Update UI with database ID
+      set(state => ({
+        messages: {
+          ...state.messages,
+          [conversationId]: state.messages[conversationId].map(msg =>
+            msg.tempId === tempId ? { ...msg, id: dbMessageId, created_at: dbMessage.created_at } : msg
+          )
+        }
+      }));
+
+      // STEP 2: Upload to Cloudinary
       const { uploadChatAttachment } = await import('@/lib/storage');
       
       mediaUrl = await uploadChatAttachment(file, conversationId, (progress) => {
@@ -503,7 +539,7 @@ export const useChatStore = create<ChatState>((set, get) => ({
           messages: {
             ...state.messages,
             [conversationId]: state.messages[conversationId].map(msg =>
-              msg.tempId === tempId ? { ...msg, uploadProgress: progress } : msg
+              msg.id === dbMessageId ? { ...msg, uploadProgress: progress } : msg
             )
           }
         }));
@@ -511,86 +547,60 @@ export const useChatStore = create<ChatState>((set, get) => ({
       
       connectionManager.endUpload();
       
-      // Display immediately with Cloudinary URL
+      console.log('✅ File uploaded to Cloudinary!', { mediaUrl });
+      
+      // STEP 3: Save to attachments table
+      console.log('💾 Saving attachment metadata...', { conversationId, senderId, fileName: file.name, mediaUrl });
+      
+      const { data: attachment, error: attachmentError } = await supabase
+        .from('attachments')
+        .insert({
+          conversation_id: conversationId,
+          user_id: senderId,
+          file_name: file.name,
+          file_type: file.type,
+          file_size: file.size,
+          cloudinary_url: mediaUrl
+        })
+        .select()
+        .single();
+
+      if (attachmentError) {
+        console.error('❌ Failed to save attachment metadata:', attachmentError);
+        // Continue anyway - attachment metadata is optional
+      } else {
+        console.log('✅ Attachment metadata saved!', { id: attachment?.id });
+      }
+
+      // STEP 4: Update message with media URL (like community posts)
+      console.log('🔄 Updating message with media URL...', { messageId: dbMessageId, mediaUrl });
+      
+      const { error: updateError } = await supabase
+        .from('messages')
+        .update({ media_url: mediaUrl })
+        .eq('id', dbMessageId);
+
+      if (updateError) {
+        console.error('❌ Failed to update message with media URL:', updateError);
+        throw updateError;
+      }
+
+      console.log('✅ Message updated with media URL successfully!');
+      
+      // Update UI with final state
       set(state => ({
         messages: {
           ...state.messages,
           [conversationId]: state.messages[conversationId].map(msg =>
-            msg.tempId === tempId ? { 
+            msg.id === dbMessageId ? { 
               ...msg,
               media_url: mediaUrl,
-              status: 'sent',
+              status: 'delivered',
               uploadProgress: 100
             } : msg
           )
         }
       }));
-
-      // Save to attachments table and messages table
-      console.log('💾 Saving attachment to database...', { conversationId, senderId, fileName: file.name, mediaUrl });
-      
-      try {
-        // 1. Save to attachments table
-        const { data: attachment, error: attachmentError } = await supabase
-          .from('attachments')
-          .insert({
-            conversation_id: conversationId,
-            user_id: senderId,
-            file_name: file.name,
-            file_type: file.type,
-            file_size: file.size,
-            cloudinary_url: mediaUrl
-          })
-          .select()
-          .single();
-
-        if (attachmentError) {
-          console.error('❌ Failed to save attachment:', attachmentError);
-          throw attachmentError;
-        }
-
-        console.log('✅ Attachment saved to attachments table!', { id: attachment.id });
-
-        // 2. Save message with attachment reference
-        const { data: message, error: messageError } = await supabase
-          .from('messages')
-          .insert({
-            conversation_id: conversationId,
-            sender_id: senderId,
-            content: file.name,
-            type: messageType,
-            media_url: mediaUrl,
-            client_id: clientId
-          })
-          .select()
-          .single();
-
-        if (messageError) {
-          console.error('❌ Failed to save message:', messageError);
-          throw messageError;
-        }
-
-        console.log('✅ Message saved to database successfully!', { id: message.id, created_at: message.created_at });
-        
-        // Update with real database ID
-        set(state => ({
-          messages: {
-            ...state.messages,
-            [conversationId]: state.messages[conversationId].map(msg =>
-              msg.client_id === clientId ? { 
-                ...msg,
-                id: message.id,
-                status: 'delivered',
-                created_at: message.created_at
-              } : msg
-            )
-          }
-        }));
-      } catch (err) {
-        console.error('❌ Error saving attachment to database:', err);
-        // Keep the message visible with the Cloudinary URL even if DB save fails
-        // It will still be displayed but won't persist after refresh
-      }
     } catch (error: any) {
       connectionManager.endUpload();
 

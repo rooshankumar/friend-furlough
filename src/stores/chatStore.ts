@@ -548,18 +548,35 @@ export const useChatStore = create<ChatState>((set, get) => ({
       // STEP 2: Save to database - SIMPLE! Just save the message with media_url
       console.log('💾 Saving message to database...', { conversationId, senderId, fileName: file.name, mediaUrl });
       
-      const { data: message, error: messageError } = await supabase
-        .from('messages')
-        .insert({
-          conversation_id: conversationId,
-          sender_id: senderId,
-          content: file.name,
-          type: messageType,
-          media_url: mediaUrl,
-          client_id: clientId
-        })
-        .select()
-        .single();
+      let message, messageError;
+      try {
+        // Add timeout to prevent hanging
+        const dbPromise = supabase
+          .from('messages')
+          .insert({
+            conversation_id: conversationId,
+            sender_id: senderId,
+            content: file.name,
+            type: messageType,
+            media_url: mediaUrl,
+            client_id: clientId
+          })
+          .select()
+          .single();
+        
+        const timeoutPromise = new Promise<never>((_, reject) => 
+          setTimeout(() => reject(new Error('Database timeout after 10s')), 10000)
+        );
+        
+        const result = await Promise.race([dbPromise, timeoutPromise]);
+        message = result.data;
+        messageError = result.error;
+        
+        console.log('📊 Database response:', { message: !!message, error: !!messageError });
+      } catch (dbException) {
+        console.error('💥 Database exception:', dbException);
+        messageError = dbException;
+      }
 
       if (messageError) {
         console.error('❌ Failed to save message:', messageError);

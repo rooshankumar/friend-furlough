@@ -603,12 +603,30 @@ export const useChatStore = create<ChatState>((set, get) => ({
       }));
     } catch (error: any) {
       connectionManager.endUpload();
+      
+      console.error('❌ Attachment send failed:', error);
+      console.error('❌ Error details:', {
+        message: error?.message,
+        code: error?.code,
+        details: error?.details,
+        hint: error?.hint,
+        dbMessageId
+      });
+
+      // If we created a DB message but upload failed, delete it
+      if (dbMessageId) {
+        console.log('🗑️ Cleaning up failed message from database...', { messageId: dbMessageId });
+        await supabase
+          .from('messages')
+          .delete()
+          .eq('id', dbMessageId);
+      }
 
       set(state => ({
         messages: {
           ...state.messages,
           [conversationId]: state.messages[conversationId].map(msg =>
-            msg.tempId === tempId ? { 
+            (msg.tempId === tempId || msg.id === dbMessageId) ? { 
               ...msg, 
               status: 'failed' as MessageStatus,
               uploadProgress: undefined,
@@ -770,66 +788,6 @@ export const useChatStore = create<ChatState>((set, get) => ({
     }
   },
 
-  markMessageAsRead: async (messageId: string, userId: string) => {
-    try {
-      // Insert or update message read status - use upsert with onConflict
-      const { error } = await supabase
-        .from('message_reads')
-        .upsert({
-          message_id: messageId,
-          user_id: userId,
-          read_at: new Date().toISOString()
-        }, {
-          onConflict: 'message_id,user_id'
-        });
-
-      if (error) {
-        console.error('❌ Error marking message as read:', error);
-        // Don't throw error for duplicate key - it's expected
-        if (error.code !== '23505') {
-          throw error;
-        }
-      }
-
-      // Update message status to 'read' in local state
-      set(state => {
-        const updatedMessages = { ...state.messages };
-        Object.keys(updatedMessages).forEach(conversationId => {
-          updatedMessages[conversationId] = updatedMessages[conversationId].map(msg => 
-            msg.id === messageId ? { ...msg, status: 'read' as MessageStatus } : msg
-          );
-        });
-        return { messages: updatedMessages };
-      });
-
-      console.log('✅ Message marked as read');
-    } catch (error) {
-      console.error('❌ Error marking message as read:', error);
-      // Don't throw for duplicate key errors
-      if (error.code !== '23505') {
-        throw error;
-      }
-    }
-  },
-
-  markAsRead: async (conversationId: string, userId: string) => {
-    try {
-      await supabase
-        .from('conversation_participants')
-        .update({ unread_count: 0 })
-        .eq('conversation_id', conversationId)
-        .eq('user_id', userId);
-
-      set(state => ({
-        conversations: state.conversations.map(conv =>
-          conv.id === conversationId ? { ...conv, unreadCount: 0 } : conv
-        )
-      }));
-    } catch (error) {
-      console.error('Error marking as read:', error);
-    }
-  },
-
   subscribeToMessages: (conversationId: string) => {
     const { activeChannel } = get();
     
@@ -936,6 +894,40 @@ export const useChatStore = create<ChatState>((set, get) => ({
                 await messagesCache.saveMessage({ ...(payload.new as any), status: 'delivered' } as any);
               } catch {}
             })();
+          }
+        }
+      )
+      .on(
+        'postgres_changes',
+        {
+          event: 'UPDATE',
+          schema: 'public',
+          table: 'messages',
+          filter: `conversation_id=eq.${conversationId}`
+        },
+        (payload) => {
+          console.log('Message updated:', payload);
+          if (payload.new && payload.new.conversation_id === conversationId) {
+            set(state => {
+              const existingMessages = state.messages[conversationId] || [];
+              const updated: any = payload.new;
+
+              // Update the message with the new data (especially media_url)
+              const updatedMessages = existingMessages.map((m: any) => {
+                if (m.id === updated.id) {
+                  console.log('✅ Updating message with new data:', { id: updated.id, media_url: updated.media_url });
+                  return { ...m, ...updated, status: 'delivered' };
+                }
+                return m;
+              });
+
+              return {
+                messages: {
+                  ...state.messages,
+                  [conversationId]: updatedMessages
+                }
+              };
+            });
           }
         }
       )

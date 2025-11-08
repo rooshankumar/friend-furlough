@@ -1210,7 +1210,7 @@ const CommunityPage = () => {
                         loading="lazy"
                         decoding="async"
                         className="w-full h-auto max-h-[500px] object-contain cursor-pointer hover:opacity-95 transition-opacity"
-                        onClick={() => navigate(`/post/${post.id}`)}
+                        onClick={() => navigate(`/image-viewer?url=${encodeURIComponent(post.image_url!)}`)}
                         style={{ aspectRatio: 'auto' }}
                       />
                     </div>

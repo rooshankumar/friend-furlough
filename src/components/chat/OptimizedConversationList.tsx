@@ -36,8 +36,7 @@ const ConversationItem = React.memo<ConversationItemProps>(({
   const timeAgo = React.useMemo(() => {
     if (!conversation.lastMessage) return '';
     return formatDistanceToNow(new Date(conversation.lastMessage.created_at), { addSuffix: true })
-      .replace('about ', '')
-      .replace(' ago', '');
+      .replace('about ', '');
   }, [conversation.lastMessage]);
 
   const avatarSize = isDesktop ? 'h-10 w-10' : 'h-12 w-12';
@@ -71,9 +70,21 @@ const ConversationItem = React.memo<ConversationItemProps>(({
                 {timeAgo}
               </span>
             </div>
-            <p className={`text-muted-foreground truncate ${contentSize}`}>
-              {conversation.lastMessage?.content || 'No messages yet'}
-            </p>
+            <div className="flex items-center gap-1">
+              <p className={`text-muted-foreground truncate flex-1 ${contentSize}`}>
+                {conversation.lastMessage?.content || 'No messages yet'}
+              </p>
+              {/* Show recipient avatar if they've read the message (only for messages sent by current user) */}
+              {conversation.lastMessage?.sender_id === currentUserId && 
+               conversation.lastMessage?.status === 'read' && (
+                <Avatar className="h-3.5 w-3.5 flex-shrink-0">
+                  <AvatarImage src={participantProfile?.avatar_url} />
+                  <AvatarFallback className="bg-gradient-cultural text-white text-[8px]">
+                    {participantProfile?.name?.[0] || '?'}
+                  </AvatarFallback>
+                </Avatar>
+              )}
+            </div>
           </div>
           {conversation.unreadCount > 0 && (
             <span className={`flex items-center justify-center rounded-full bg-red-500 text-white font-semibold shadow-sm ${

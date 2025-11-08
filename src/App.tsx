@@ -31,6 +31,7 @@ const SignInPage = React.lazy(() => import("./pages/auth/SignInPage"));
 const WelcomePage = React.lazy(() => import("./pages/onboarding/WelcomePage"));
 const CulturalProfilePage = React.lazy(() => import("./pages/onboarding/CulturalProfilePage"));
 const LearningGoalsPage = React.lazy(() => import("./pages/onboarding/LearningGoalsPage"));
+const ImageViewerPage = React.lazy(() => import("./pages/ImageViewerPage"));
 
 // Optimized QueryClient for fast initial load
 const queryClient = new QueryClient({
@@ -163,6 +164,12 @@ const AppContent = () => {
           <Route path="/events" element={
             <ProtectedRoute>
               <EventsPage />
+            </ProtectedRoute>
+          } />
+
+          <Route path="/image-viewer" element={
+            <ProtectedRoute>
+              <ImageViewerPage />
             </ProtectedRoute>
           } />
 

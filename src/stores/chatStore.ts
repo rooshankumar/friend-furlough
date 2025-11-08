@@ -228,6 +228,8 @@ export const useChatStore = create<ChatState>((set, get) => ({
     try {
       set({ isLoading: true });
 
+      console.log('📥 Loading messages for conversation:', conversationId);
+
       const { data, error } = await supabase
         .from('messages')
         .select(`
@@ -245,9 +247,11 @@ export const useChatStore = create<ChatState>((set, get) => ({
         .limit(limit);
 
       if (error) {
-        console.error('Error loading messages:', error);
+        console.error('❌ Error loading messages:', error);
         throw error;
       }
+
+      console.log(`✅ Loaded ${data?.length || 0} messages from database`);
 
       // Get current user to determine message status
       const { data: { user } } = await supabase.auth.getUser();
@@ -415,6 +419,8 @@ export const useChatStore = create<ChatState>((set, get) => ({
         }));
         throw new Error('Failed to send message: No data returned');
       }
+
+      console.log('✅ Message saved to database successfully!', { id: data.id, content: data.content });
 
       // Replace optimistic message with real message (delivered status)
       set(state => ({

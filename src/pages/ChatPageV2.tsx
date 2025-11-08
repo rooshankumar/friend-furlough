@@ -147,7 +147,8 @@ const EnhancedMessageV2: React.FC<EnhancedMessageV2Props> = ({
                 alt="Shared image"
                 loading="lazy"
                 decoding="async"
-                className="max-w-xs w-full h-auto max-h-64 object-cover rounded-2xl shadow-md"
+                className="max-w-xs w-full h-auto max-h-64 object-cover rounded-2xl shadow-md cursor-pointer hover:opacity-90 transition-opacity"
+                onClick={() => navigate(`/image-viewer?url=${encodeURIComponent(message.media_url!)}`)}
               />
             ) : (
               // Placeholder while uploading
@@ -251,14 +252,6 @@ const EnhancedMessageV2: React.FC<EnhancedMessageV2Props> = ({
                   hour12: false 
                 })}
               </span>
-              {isOwnMessage && (
-                <span className="text-xs">
-                  {message.status === 'sending' && '○'}
-                  {message.status === 'delivered' && '✓'}
-                  {message.status === 'read' && '✓✓'}
-                  {message.status === 'failed' && '✕'}
-                </span>
-              )}
             </div>
           </div>
         )}

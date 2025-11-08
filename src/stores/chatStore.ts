@@ -579,91 +579,30 @@ export const useChatStore = create<ChatState>((set, get) => ({
         }
       }));
       
-      // STEP 2: Save to database - SIMPLE! Just save the message with media_url
-      console.log('💾 Saving message to database...', { conversationId, senderId, fileName: file.name, mediaUrl });
+      // STEP 2: ULTRA SIMPLE - Just use existing sendMessage function!
+      console.log('💾 Using sendMessage to save attachment...', { conversationId, senderId, fileName: file.name, mediaUrl });
       
-      let message, messageError;
       try {
-        // Add timeout to prevent hanging
-        const dbPromise = supabase
-          .from('messages')
-          .insert({
-            conversation_id: conversationId,
-            sender_id: senderId,
-            content: file.name,
-            type: messageType,
-            media_url: mediaUrl,
-            client_id: clientId
-          })
-          .select()
-          .single();
-        
-        const timeoutPromise = new Promise<never>((_, reject) => 
-          setTimeout(() => reject(new Error('Database timeout after 10s')), 10000)
+        // Use the existing sendMessage function that already works
+        const message = await get().sendMessage(
+          conversationId, 
+          senderId, 
+          file.name,        // content
+          mediaUrl,         // mediaUrl 
+          clientId          // clientIdOverride
         );
         
-        const result = await Promise.race([dbPromise, timeoutPromise]);
-        message = result.data;
-        messageError = result.error;
+        console.log('✅ Attachment saved via sendMessage!', { id: message.id });
         
-        console.log('📊 Database response:', { 
-          hasMessage: !!message, 
-          hasError: !!messageError,
-          messageId: message?.id,
-          errorCode: messageError?.code,
-          errorMessage: messageError?.message 
-        });
-      } catch (dbException) {
-        console.error('💥 Database exception:', dbException);
-        console.error('💥 Exception details:', {
-          name: dbException?.name,
-          message: dbException?.message,
-          code: dbException?.code,
-          stack: dbException?.stack
-        });
-        messageError = dbException;
-      }  
-
-      if (messageError) {
-        console.error('❌ Failed to save message:', messageError);
+        // Remove from cache since it's now in database
+        attachmentCache.remove(clientId);
         
-        // Increment retry count in cache
+        return; // Success!
+      } catch (sendError) {
+        console.error('❌ sendMessage failed:', sendError);
+        // Fall back to cache
         attachmentCache.incrementRetry(clientId);
-        console.log('⚠️ DB save failed, attachment cached for retry');
-        
-        // Message is still visible with Cloudinary URL from cache
-        set(state => ({
-          messages: {
-            ...state.messages,
-            [conversationId]: state.messages[conversationId].map(msg =>
-              msg.client_id === clientId ? { 
-                ...msg,
-                status: 'sent', // Show as sent, cached for retry
-                error: 'Saved locally, will retry'
-              } : msg
-            )
-          }
-        }));
-        return; // Don't throw, just return
       }
-
-      // SUCCESS! Remove from cache and update UI with real database ID
-      attachmentCache.remove(clientId);
-      console.log('✅ Message saved to database! Removed from cache', { id: message.id });
-      
-      set(state => ({
-        messages: {
-          ...state.messages,
-          [conversationId]: state.messages[conversationId].map(msg =>
-            msg.client_id === clientId ? { 
-              ...msg,
-              id: message.id,
-              status: 'delivered',
-              created_at: message.created_at
-            } : msg
-          )
-        }
-      }));
     } catch (error: any) {
       connectionManager.endUpload();
       

@@ -434,17 +434,25 @@ export const useChatStore = create<ChatState>((set, get) => ({
 
     try {
       // Send to database with client_id for reconciliation
+      const insertData = {
+        conversation_id: conversationId,
+        sender_id: senderId,
+        content: content || (mediaUrl ? 'Attachment' : ''),
+        type: messageType,
+        media_url: mediaUrl,
+        client_id: clientId,
+        reply_to_message_id: replyToMessageId
+      };
+      
+      console.log('📤 Inserting message to database:', {
+        ...insertData,
+        media_url_length: mediaUrl?.length,
+        media_url_present: !!mediaUrl
+      });
+      
       const { data, error } = await supabase
         .from('messages')
-        .insert({
-          conversation_id: conversationId,
-          sender_id: senderId,
-          content: content || (mediaUrl ? 'Attachment' : ''),
-          type: messageType,
-          media_url: mediaUrl,
-          client_id: clientId,
-          reply_to_message_id: replyToMessageId
-        })
+        .insert(insertData)
         .select()
         .single();
 
@@ -477,15 +485,40 @@ export const useChatStore = create<ChatState>((set, get) => ({
         throw new Error('Failed to send message: No data returned');
       }
 
-      console.log('✅ Message saved to database successfully!', { id: data.id, content: data.content });
+      console.log('✅ Message saved to database successfully!', { 
+        id: data.id, 
+        content: data.content,
+        media_url: data.media_url,
+        type: data.type,
+        has_media_url: !!data.media_url
+      });
+      
+      // CRITICAL: If media_url was provided but not saved, force update it
+      if (mediaUrl && !data.media_url) {
+        console.error('⚠️ CRITICAL: media_url was lost during insert! Fixing...', {
+          provided: mediaUrl,
+          saved: data.media_url
+        });
+        const { error: updateError } = await supabase
+          .from('messages')
+          .update({ media_url: mediaUrl })
+          .eq('id', data.id);
+        if (updateError) {
+          console.error('❌ Failed to fix media_url:', updateError);
+        } else {
+          console.log('🔧 Fixed: Updated message with media_url');
+          data.media_url = mediaUrl; // Update local data object
+        }
+      }
 
-      // Replace optimistic message with real message (delivered status)
+      // CRITICAL: Ensure media_url is preserved when replacing optimistic message
       set(state => ({
         messages: {
           ...state.messages,
           [conversationId]: state.messages[conversationId]?.map(msg => 
             msg.tempId === tempId ? { 
               ...data, 
+              media_url: data.media_url || msg.media_url, // Preserve media_url from optimistic or DB
               status: 'delivered' as MessageStatus 
             } : msg
           ) || []
@@ -580,7 +613,14 @@ export const useChatStore = create<ChatState>((set, get) => ({
       }));
       
       // STEP 2: ULTRA SIMPLE - Just use existing sendMessage function!
-      console.log('💾 Using sendMessage to save attachment...', { conversationId, senderId, fileName: file.name, mediaUrl });
+      console.log('💾 Using sendMessage to save attachment...', { 
+        conversationId, 
+        senderId, 
+        fileName: file.name, 
+        mediaUrl,
+        mediaUrlLength: mediaUrl?.length,
+        mediaUrlType: typeof mediaUrl 
+      });
       
       try {
         // Use the existing sendMessage function that already works
@@ -592,7 +632,26 @@ export const useChatStore = create<ChatState>((set, get) => ({
           clientId          // clientIdOverride
         );
         
-        console.log('✅ Attachment saved via sendMessage!', { id: message.id });
+        console.log('✅ Attachment saved via sendMessage!', { 
+          id: message.id,
+          media_url: message.media_url,
+          type: message.type,
+          has_media_url: !!message.media_url
+        });
+        
+        // CRITICAL: Verify the message was saved with media_url
+        if (!message.media_url) {
+          console.error('⚠️ WARNING: Message saved but media_url is missing!', {
+            messageId: message.id,
+            expectedUrl: mediaUrl
+          });
+          // Force update the message with the correct media_url
+          await supabase
+            .from('messages')
+            .update({ media_url: mediaUrl })
+            .eq('id', message.id);
+          console.log('🔧 Fixed: Updated message with media_url');
+        }
         
         // Remove from cache since it's now in database
         attachmentCache.remove(clientId);

@@ -108,6 +108,18 @@ class AttachmentCache {
   }
 
   /**
+   * Clear ALL localStorage data (complete reset)
+   */
+  clearAll(): void {
+    try {
+      localStorage.clear();
+      console.log('🗑️ Cleared ALL localStorage data');
+    } catch (error) {
+      console.error('Failed to clear localStorage:', error);
+    }
+  }
+
+  /**
    * Get cache size
    */
   size(): number {

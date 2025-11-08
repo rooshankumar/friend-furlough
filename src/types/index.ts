@@ -87,6 +87,23 @@ export interface Comment {
   reactions: PostReaction[];
 }
 
+export interface Attachment {
+  id: string;
+  message_id?: string;
+  conversation_id: string;
+  user_id: string;
+  file_name: string;
+  file_type: string;
+  file_size?: number;
+  cloudinary_url: string;
+  cloudinary_public_id?: string;
+  thumbnail_url?: string;
+  width?: number;
+  height?: number;
+  duration?: number;
+  created_at: string;
+}
+
 export interface CulturalInterest {
   id: string;
   name: string;

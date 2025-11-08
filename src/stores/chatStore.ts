@@ -60,7 +60,7 @@ interface ChatState {
   loadMessages: (conversationId: string, limit?: number, loadMore?: boolean) => Promise<void>;
   loadMoreMessages: (conversationId: string) => Promise<void>;
   sendMessage: (conversationId: string, senderId: string, content: string, mediaUrl?: string, clientIdOverride?: string, replyToMessageId?: string) => Promise<any>;
-  sendAttachment: (conversationId: string, senderId: string, file: File) => Promise<void>;
+  sendAttachment: (conversationId: string, senderId: string, file: File) => Promise<any>;
   sendVoiceMessage: (conversationId: string, senderId: string, audioBlob: Blob) => Promise<void>;
   markMessageAsRead: (messageId: string, userId: string) => Promise<void>;
   markAsRead: (conversationId: string, userId: string) => Promise<void>;
@@ -245,7 +245,6 @@ export const useChatStore = create<ChatState>((set, get) => ({
           content,
           created_at,
           type,
-          media_url,
           reply_to_message_id
         `)
         .eq('conversation_id', conversationId)
@@ -266,6 +265,20 @@ export const useChatStore = create<ChatState>((set, get) => ({
       }
 
       console.log(`✅ Loaded ${data?.length || 0} messages from database`);
+
+      // Fetch attachments for these messages
+      const messageIds = (data || []).map(m => m.id);
+      const { data: attachments } = await supabase
+        .from('attachments')
+        .select('message_id, cloudinary_url')
+        .in('message_id', messageIds);
+      
+      // Create a map of message_id -> cloudinary_url
+      const attachmentMap = new Map(
+        (attachments || []).map(a => [a.message_id, a.cloudinary_url])
+      );
+      
+      console.log(`📎 Loaded ${attachments?.length || 0} attachments for messages`);
 
       // Get current user to determine message status
       const { data: { user } } = await supabase.auth.getUser();
@@ -307,13 +320,14 @@ export const useChatStore = create<ChatState>((set, get) => ({
               sender_name: userMap.get(repliedMessage.sender_id) || 'User',
               sender_id: repliedMessage.sender_id,
               type: repliedMessage.type,
-              media_url: repliedMessage.media_url
+              media_url: attachmentMap.get(repliedMessage.id) // Get from attachments table
             };
           }
         }
 
         return {
           ...message,
+          media_url: attachmentMap.get(message.id), // Get URL from attachments table
           status,
           reply_to
         };
@@ -439,15 +453,13 @@ export const useChatStore = create<ChatState>((set, get) => ({
         sender_id: senderId,
         content: content || (mediaUrl ? 'Attachment' : ''),
         type: messageType,
-        media_url: mediaUrl,
         client_id: clientId,
         reply_to_message_id: replyToMessageId
       };
       
       console.log('📤 Inserting message to database:', {
         ...insertData,
-        media_url_length: mediaUrl?.length,
-        media_url_present: !!mediaUrl
+        note: mediaUrl ? 'Has attachment (stored in attachments table)' : 'Text message'
       });
       
       const { data, error } = await supabase
@@ -488,37 +500,18 @@ export const useChatStore = create<ChatState>((set, get) => ({
       console.log('✅ Message saved to database successfully!', { 
         id: data.id, 
         content: data.content,
-        media_url: data.media_url,
-        type: data.type,
-        has_media_url: !!data.media_url
+        type: data.type
       });
-      
-      // CRITICAL: If media_url was provided but not saved, force update it
-      if (mediaUrl && !data.media_url) {
-        console.error('⚠️ CRITICAL: media_url was lost during insert! Fixing...', {
-          provided: mediaUrl,
-          saved: data.media_url
-        });
-        const { error: updateError } = await supabase
-          .from('messages')
-          .update({ media_url: mediaUrl })
-          .eq('id', data.id);
-        if (updateError) {
-          console.error('❌ Failed to fix media_url:', updateError);
-        } else {
-          console.log('🔧 Fixed: Updated message with media_url');
-          data.media_url = mediaUrl; // Update local data object
-        }
-      }
 
-      // CRITICAL: Ensure media_url is preserved when replacing optimistic message
+      // Note: media_url is now stored in attachments table, not in messages
+      // Preserve media_url from optimistic message for display
       set(state => ({
         messages: {
           ...state.messages,
           [conversationId]: state.messages[conversationId]?.map(msg => 
             msg.tempId === tempId ? { 
               ...data, 
-              media_url: data.media_url || msg.media_url, // Preserve media_url from optimistic or DB
+              media_url: msg.media_url || mediaUrl, // Preserve from optimistic or parameter
               status: 'delivered' as MessageStatus 
             } : msg
           ) || []
@@ -538,7 +531,8 @@ export const useChatStore = create<ChatState>((set, get) => ({
 
     const tempId = `temp_${Date.now()}_${Math.random()}`;
     const clientId = generateClientId();
-    const messageType = file.type.startsWith('image/') ? 'image' : 'file';
+    const messageType = file.type.startsWith('image/') ? 'image' : 
+                       file.type.startsWith('video/') ? 'file' : 'file';
 
     const optimisticMessage: DbMessage = {
       id: tempId,
@@ -561,15 +555,16 @@ export const useChatStore = create<ChatState>((set, get) => ({
       }
     }));
 
-    let mediaUrl: string | undefined;
+    let cloudinaryUrl: string | undefined;
+    let attachmentId: string | undefined;
     
     try {
-      // STEP 1: Upload to Cloudinary FIRST (simpler, less DB operations)
-      console.log('☁️ Uploading file to Cloudinary...', { fileName: file.name, size: file.size });
+      // STEP 1: Upload to Cloudinary
+      console.log('☁️ Uploading file to Cloudinary...', { fileName: file.name, size: file.size, type: file.type });
       
       const { uploadChatAttachment } = await import('@/lib/storage');
       
-      mediaUrl = await uploadChatAttachment(file, conversationId, (progress) => {
+      cloudinaryUrl = await uploadChatAttachment(file, conversationId, (progress) => {
         set(state => ({
           messages: {
             ...state.messages,
@@ -582,86 +577,84 @@ export const useChatStore = create<ChatState>((set, get) => ({
       
       connectionManager.endUpload();
       
-      console.log('✅ File uploaded to Cloudinary!', { mediaUrl });
+      console.log('✅ File uploaded to Cloudinary!', { cloudinaryUrl });
       
-      // Cache the attachment locally (persists across refreshes)
-      attachmentCache.add({
-        conversationId,
-        senderId,
-        fileName: file.name,
-        fileType: file.type,
-        fileSize: file.size,
-        cloudinaryUrl: mediaUrl,
-        clientId,
-        messageType,
-        createdAt: new Date().toISOString()
-      });
+      // STEP 2: Save attachment to attachments table (NEW APPROACH)
+      console.log('💾 Saving attachment to attachments table...');
       
-      // Update UI immediately with uploaded file
+      const { data: attachmentData, error: attachmentError } = await supabase
+        .from('attachments')
+        .insert({
+          conversation_id: conversationId,
+          user_id: senderId,
+          file_name: file.name,
+          file_type: file.type,
+          file_size: file.size,
+          cloudinary_url: cloudinaryUrl,
+        })
+        .select()
+        .single();
+      
+      if (attachmentError) {
+        console.error('❌ Failed to save attachment:', attachmentError);
+        throw new Error(`Failed to save attachment: ${attachmentError.message}`);
+      }
+      
+      attachmentId = attachmentData.id;
+      console.log('✅ Attachment saved to database!', { attachmentId, cloudinaryUrl: attachmentData.cloudinary_url });
+      
+      // STEP 3: Create message with reference to attachment
+      console.log('💾 Creating message with attachment reference...');
+      
+      const { data: messageData, error: messageError } = await supabase
+        .from('messages')
+        .insert({
+          conversation_id: conversationId,
+          sender_id: senderId,
+          content: file.name,
+          type: messageType,
+          client_id: clientId,
+        })
+        .select()
+        .single();
+      
+      if (messageError) {
+        console.error('❌ Failed to create message:', messageError);
+        throw new Error(`Failed to create message: ${messageError.message}`);
+      }
+      
+      console.log('✅ Message created!', { messageId: messageData.id, type: messageData.type });
+      
+      // STEP 4: Link attachment to message
+      const { error: linkError } = await supabase
+        .from('attachments')
+        .update({ message_id: messageData.id })
+        .eq('id', attachmentId);
+      
+      if (linkError) {
+        console.error('⚠️ Failed to link attachment to message:', linkError);
+        // Non-critical error, continue
+      } else {
+        console.log('✅ Attachment linked to message!');
+      }
+      
+      // STEP 5: Update UI with real message (add media_url from attachment)
       set(state => ({
         messages: {
           ...state.messages,
           [conversationId]: state.messages[conversationId].map(msg =>
             msg.tempId === tempId ? { 
-              ...msg,
-              media_url: mediaUrl,
-              status: 'sent',
+              ...messageData,
+              media_url: cloudinaryUrl, // Add URL for display (not in DB anymore)
+              status: 'delivered' as MessageStatus,
               uploadProgress: 100
             } : msg
           )
         }
       }));
       
-      // STEP 2: ULTRA SIMPLE - Just use existing sendMessage function!
-      console.log('💾 Using sendMessage to save attachment...', { 
-        conversationId, 
-        senderId, 
-        fileName: file.name, 
-        mediaUrl,
-        mediaUrlLength: mediaUrl?.length,
-        mediaUrlType: typeof mediaUrl 
-      });
-      
-      try {
-        // Use the existing sendMessage function that already works
-        const message = await get().sendMessage(
-          conversationId, 
-          senderId, 
-          file.name,        // content
-          mediaUrl,         // mediaUrl 
-          clientId          // clientIdOverride
-        );
-        
-        console.log('✅ Attachment saved via sendMessage!', { 
-          id: message.id,
-          media_url: message.media_url,
-          type: message.type,
-          has_media_url: !!message.media_url
-        });
-        
-        // CRITICAL: Verify the message was saved with media_url
-        if (!message.media_url) {
-          console.error('⚠️ WARNING: Message saved but media_url is missing!', {
-            messageId: message.id,
-            expectedUrl: mediaUrl
-          });
-          // Force update the message with the correct media_url
-          await supabase
-            .from('messages')
-            .update({ media_url: mediaUrl })
-            .eq('id', message.id);
-          console.log('🔧 Fixed: Updated message with media_url');
-        }
-        
-        // Remove from cache since it's now in database
-        attachmentCache.remove(clientId);
-        
-        return; // Success!
-      } catch (sendError) {
-        console.error('❌ sendMessage failed:', sendError);
-        // Fall back to cache
-        attachmentCache.incrementRetry(clientId);
-      }
+      console.log('✅ Attachment send complete!');
+      return messageData;
     } catch (error: any) {
       connectionManager.endUpload();
       
@@ -757,7 +750,6 @@ export const useChatStore = create<ChatState>((set, get) => ({
             sender_id: senderId,
             content: 'Voice message',
             type: 'voice',
-            media_url: mediaUrl,
             client_id: clientId
           })
           .select()
@@ -772,8 +764,7 @@ export const useChatStore = create<ChatState>((set, get) => ({
             conversation_id: conversationId,
             sender_id: senderId,
             content: 'Voice message',
-            type: 'voice',
-            media_url: mediaUrl
+            type: 'voice'
           })
           .select()
           .single();
@@ -782,12 +773,12 @@ export const useChatStore = create<ChatState>((set, get) => ({
 
       if (error) throw error;
 
-      // Replace temporary message with real one
+      // Replace temporary message with real one (preserve media_url from optimistic)
       set(state => ({
         messages: {
           ...state.messages,
           [conversationId]: state.messages[conversationId].map(msg =>
-            msg.tempId === tempId ? { ...data, status: 'sent' as MessageStatus } : msg
+            msg.tempId === tempId ? { ...data, media_url: mediaUrl, status: 'sent' as MessageStatus } : msg
           )
         }
       }));

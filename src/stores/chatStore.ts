@@ -526,71 +526,71 @@ export const useChatStore = create<ChatState>((set, get) => ({
         }
       }));
 
-      // Save to attachments table and messages table in background
+      // Save to attachments table and messages table
       console.log('💾 Saving attachment to database...', { conversationId, senderId, fileName: file.name, mediaUrl });
       
-      (async () => {
-        try {
-          // 1. Save to attachments table
-          const { data: attachment, error: attachmentError } = await supabase
-            .from('attachments')
-            .insert({
-              conversation_id: conversationId,
-              user_id: senderId,
-              file_name: file.name,
-              file_type: file.type,
-              file_size: file.size,
-              cloudinary_url: mediaUrl
-            })
-            .select()
-            .single();
+      try {
+        // 1. Save to attachments table
+        const { data: attachment, error: attachmentError } = await supabase
+          .from('attachments')
+          .insert({
+            conversation_id: conversationId,
+            user_id: senderId,
+            file_name: file.name,
+            file_type: file.type,
+            file_size: file.size,
+            cloudinary_url: mediaUrl
+          })
+          .select()
+          .single();
 
-          if (attachmentError) {
-            console.error('❌ Failed to save attachment:', attachmentError);
-            return;
-          }
-
-          console.log('✅ Attachment saved to attachments table!', { id: attachment.id });
-
-          // 2. Save message with attachment reference
-          const { data: message, error: messageError } = await supabase
-            .from('messages')
-            .insert({
-              conversation_id: conversationId,
-              sender_id: senderId,
-              content: file.name,
-              type: messageType,
-              media_url: mediaUrl,
-              client_id: clientId
-            })
-            .select()
-            .single();
-
-          if (messageError) {
-            console.error('❌ Failed to save message:', messageError);
-            return;
-          }
-
-          console.log('✅ Message saved to database successfully!', { id: message.id, created_at: message.created_at });
-          
-          // Update with real database ID when available
-          set(state => ({
-            messages: {
-              ...state.messages,
-              [conversationId]: state.messages[conversationId].map(msg =>
-                msg.client_id === clientId ? { 
-                  ...msg,
-                  id: message.id,
-                  status: 'delivered',
-                  created_at: message.created_at
-                } : msg
-              )
-            }
-          }));
-        } catch (err) {
-          console.error('❌ Error saving attachment:', err);
+        if (attachmentError) {
+          console.error('❌ Failed to save attachment:', attachmentError);
+          throw attachmentError;
         }
-      })();
+
+        console.log('✅ Attachment saved to attachments table!', { id: attachment.id });
+
+        // 2. Save message with attachment reference
+        const { data: message, error: messageError } = await supabase
+          .from('messages')
+          .insert({
+            conversation_id: conversationId,
+            sender_id: senderId,
+            content: file.name,
+            type: messageType,
+            media_url: mediaUrl,
+            client_id: clientId
+          })
+          .select()
+          .single();
+
+        if (messageError) {
+          console.error('❌ Failed to save message:', messageError);
+          throw messageError;
+        }
+
+        console.log('✅ Message saved to database successfully!', { id: message.id, created_at: message.created_at });
+        
+        // Update with real database ID
+        set(state => ({
+          messages: {
+            ...state.messages,
+            [conversationId]: state.messages[conversationId].map(msg =>
+              msg.client_id === clientId ? { 
+                ...msg,
+                id: message.id,
+                status: 'delivered',
+                created_at: message.created_at
+              } : msg
+            )
+          }
+        }));
+      } catch (err) {
+        console.error('❌ Error saving attachment to database:', err);
+        // Keep the message visible with the Cloudinary URL even if DB save fails
+        // It will still be displayed but won't persist after refresh
+      }
     } catch (error: any) {
       connectionManager.endUpload();
 

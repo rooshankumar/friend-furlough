@@ -606,11 +606,23 @@ export const useChatStore = create<ChatState>((set, get) => ({
         message = result.data;
         messageError = result.error;
         
-        console.log('📊 Database response:', { message: !!message, error: !!messageError });
+        console.log('📊 Database response:', { 
+          hasMessage: !!message, 
+          hasError: !!messageError,
+          messageId: message?.id,
+          errorCode: messageError?.code,
+          errorMessage: messageError?.message 
+        });
       } catch (dbException) {
         console.error('💥 Database exception:', dbException);
+        console.error('💥 Exception details:', {
+          name: dbException?.name,
+          message: dbException?.message,
+          code: dbException?.code,
+          stack: dbException?.stack
+        });
         messageError = dbException;
-      }
+      }  
 
       if (messageError) {
         console.error('❌ Failed to save message:', messageError);

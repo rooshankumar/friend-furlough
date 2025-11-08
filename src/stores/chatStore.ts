@@ -117,8 +117,8 @@ export const useChatStore = create<ChatState>((set, get) => ({
         return;
       }
 
-      // Extract conversation IDs
-      const conversationIds = userParticipants.map(up => up.conversation_id);
+      // Extract unique conversation IDs (remove duplicates)
+      const conversationIds = [...new Set(userParticipants.map(up => up.conversation_id))];
 
       // Batch fetch: Get ALL participants for all conversations in one query
       const { data: allParticipants, error: allParticipantsError } = await supabase
@@ -173,20 +173,28 @@ export const useChatStore = create<ChatState>((set, get) => ({
         }
       });
 
-      // Assemble final conversations array
-      const conversationsWithDetails: ConversationWithDetails[] = userParticipants.map(up => {
+      // Assemble final conversations array (deduplicate by conversation_id)
+      const conversationMap = new Map<string, ConversationWithDetails>();
+      userParticipants.forEach(up => {
         const conversation = (up as any).conversations;
-        return {
-          id: conversation.id,
-          created_at: conversation.created_at,
-          updated_at: conversation.updated_at,
-          is_language_exchange: conversation.is_language_exchange,
-          language: conversation.language,
-          participants: participantsByConversation[up.conversation_id] || [],
-          lastMessage: lastMessageByConversation[up.conversation_id],
-          unreadCount: up.unread_count || 0
-        };
+        const convId = conversation.id;
+        
+        // Only add if not already in map (first occurrence wins)
+        if (!conversationMap.has(convId)) {
+          conversationMap.set(convId, {
+            id: convId,
+            created_at: conversation.created_at,
+            updated_at: conversation.updated_at,
+            is_language_exchange: conversation.is_language_exchange,
+            language: conversation.language,
+            participants: participantsByConversation[up.conversation_id] || [],
+            lastMessage: lastMessageByConversation[up.conversation_id],
+            unreadCount: up.unread_count || 0
+          });
+        }
       });
+      
+      const conversationsWithDetails = Array.from(conversationMap.values());
 
       // Filter out permanently deleted conversations
       const deletedConvs = JSON.parse(localStorage.getItem('deletedConversations') || '[]');
@@ -490,27 +498,52 @@ export const useChatStore = create<ChatState>((set, get) => ({
         }
       }));
 
-      // Save to database in background (don't wait)
+      // Save to attachments table and messages table in background
       console.log('💾 Saving attachment to database...', { conversationId, senderId, fileName: file.name, mediaUrl });
-      supabase
-        .from('messages')
-        .insert({
-          conversation_id: conversationId,
-          sender_id: senderId,
-          content: file.name,
-          type: messageType,
-          media_url: mediaUrl,
-          client_id: clientId
-        })
-        .select()
-        .single()
-        .then(({ data, error }) => {
-          if (error) {
-            console.error('❌ Failed to save attachment to database:', error);
+      
+      (async () => {
+        try {
+          // 1. Save to attachments table
+          const { data: attachment, error: attachmentError } = await supabase
+            .from('attachments')
+            .insert({
+              conversation_id: conversationId,
+              user_id: senderId,
+              file_name: file.name,
+              file_type: file.type,
+              file_size: file.size,
+              cloudinary_url: mediaUrl
+            })
+            .select()
+            .single();
+
+          if (attachmentError) {
+            console.error('❌ Failed to save attachment:', attachmentError);
             return;
           }
-          
-          console.log('✅ Attachment saved to database successfully!', { id: data.id, created_at: data.created_at });
+
+          console.log('✅ Attachment saved to attachments table!', { id: attachment.id });
+
+          // 2. Save message with attachment reference
+          const { data: message, error: messageError } = await supabase
+            .from('messages')
+            .insert({
+              conversation_id: conversationId,
+              sender_id: senderId,
+              content: file.name,
+              type: messageType,
+              media_url: mediaUrl,
+              client_id: clientId
+            })
+            .select()
+            .single();
+
+          if (messageError) {
+            console.error('❌ Failed to save message:', messageError);
+            return;
+          }
+
+          console.log('✅ Message saved to database successfully!', { id: message.id, created_at: message.created_at });
           
           // Update with real database ID when available
           set(state => ({
@@ -519,14 +552,17 @@ export const useChatStore = create<ChatState>((set, get) => ({
               [conversationId]: state.messages[conversationId].map(msg =>
                 msg.client_id === clientId ? { 
                   ...msg,
-                  id: data.id,
+                  id: message.id,
                   status: 'delivered',
-                  created_at: data.created_at
+                  created_at: message.created_at
                 } : msg
               )
             }
           }));
-        });
+        } catch (err) {
+          console.error('❌ Error saving attachment:', err);
+        }
+      })();
     } catch (error: any) {
       connectionManager.endUpload();
 
@@ -1079,11 +1115,15 @@ if (typeof window !== 'undefined') {
     // If there was an active channel, resubscribe
     if (activeChannel && activeChannel.topic) {
       const conversationId = activeChannel.topic.split(':')[1];
-      if (conversationId) {
+      // Validate conversationId is a UUID, not "messages"
+      const isValidUUID = conversationId && conversationId.length > 20 && conversationId.includes('-');
+      if (conversationId && isValidUUID) {
         console.log('🔄 Resubscribing to conversation:', conversationId);
         setTimeout(() => {
           state.subscribeToMessages(conversationId);
         }, 1500);
+      } else {
+        console.log('⚠️ Skipping invalid conversation ID:', conversationId);
       }
     }
   });

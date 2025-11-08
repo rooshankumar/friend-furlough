@@ -39,6 +39,30 @@ interface Post {
   };
 }
 
+// Helper function to format relative time
+const getRelativeTime = (dateString: string): string => {
+  const now = new Date();
+  const past = new Date(dateString);
+  const diffInSeconds = Math.floor((now.getTime() - past.getTime()) / 1000);
+  
+  if (diffInSeconds < 60) return 'just now';
+  
+  const diffInMinutes = Math.floor(diffInSeconds / 60);
+  if (diffInMinutes < 60) return `${diffInMinutes} min ago`;
+  
+  const diffInHours = Math.floor(diffInMinutes / 60);
+  if (diffInHours < 24) return `${diffInHours} hour${diffInHours > 1 ? 's' : ''} ago`;
+  
+  const diffInDays = Math.floor(diffInHours / 24);
+  if (diffInDays <= 30) return `${diffInDays} day${diffInDays > 1 ? 's' : ''} ago`;
+  
+  const diffInMonths = Math.floor(diffInDays / 30);
+  if (diffInMonths < 12) return `${diffInMonths} month${diffInMonths > 1 ? 's' : ''} ago`;
+  
+  const diffInYears = Math.floor(diffInDays / 365);
+  return `${diffInYears} year${diffInYears > 1 ? 's' : ''} ago`;
+};
+
 const CommunityPage = () => {
   const { user } = useAuthStore();
   const { toast } = useToast();
@@ -79,6 +103,7 @@ const CommunityPage = () => {
   const [showCreatePost, setShowCreatePost] = useState(false); // Mobile create post modal
   const [hasMore, setHasMore] = useState(true);
   const [isLoadingMore, setIsLoadingMore] = useState(false);
+  const [userProfile, setUserProfile] = useState<any>(null);
   const POSTS_PER_PAGE = 20;
   
   // Pull-to-refresh for posts
@@ -175,7 +200,24 @@ const CommunityPage = () => {
     loadActiveFriends();
     loadCommunityStats();
     loadTrendingHashtags();
-  }, [loadPosts]);
+    
+    // Refresh user profile to get updated avatar from database
+    const refreshUserProfile = async () => {
+      if (user?.id) {
+        const { data: profile } = await supabase
+          .from('profiles')
+          .select('*')
+          .eq('id', user.id)
+          .single();
+        
+        if (profile) {
+          setUserProfile(profile);
+        }
+      }
+    };
+    
+    refreshUserProfile();
+  }, [loadPosts, user?.id]);
 
   // Apply filter when activeFilter changes
   useEffect(() => {
@@ -531,22 +573,54 @@ const CommunityPage = () => {
     try {
       let imageUrl = '';
       
-      if (selectedImages.length > 0) {
-        // Upload with progress tracking
-        imageUrl = await uploadPostImage(selectedImages[0], user.id, (progress) => {
-          setUploadProgress(progress);
-        });
-      }
-
-      const { error } = await supabase
+      // First, create the post
+      const { data: postData, error: postError } = await supabase
         .from('community_posts' as any)
         .insert({
           user_id: user.id,
           content: newPost,
-          image_url: imageUrl || null,
-        });
+          image_url: null, // Will update after upload
+        })
+        .select()
+        .single();
 
-      if (error) throw error;
+      if (postError || !postData) throw postError || new Error('Failed to create post');
+      
+      // Then upload image if exists
+      if (selectedImages.length > 0) {
+        const file = selectedImages[0];
+        
+        // Upload to Cloudinary with progress tracking
+        imageUrl = await uploadPostImage(file, user.id, (progress) => {
+          setUploadProgress(progress);
+        });
+        
+        // Save to community_post_attachments table
+        const { error: attachmentError } = await supabase
+          .from('community_post_attachments' as any)
+          .insert({
+            post_id: (postData as any).id,
+            user_id: user.id,
+            file_name: file.name,
+            file_type: file.type,
+            file_size: file.size,
+            cloudinary_url: imageUrl
+          });
+        
+        if (attachmentError) {
+          console.error('Failed to save attachment:', attachmentError);
+        }
+        
+        // Update post with image URL
+        const { error: updateError } = await supabase
+          .from('community_posts' as any)
+          .update({ image_url: imageUrl })
+          .eq('id', (postData as any).id);
+        
+        if (updateError) {
+          console.error('Failed to update post with image URL:', updateError);
+        }
+      }
 
       toast({
         title: "Post created! ",
@@ -688,11 +762,7 @@ const CommunityPage = () => {
                 Reply
               </button>
               <span className="text-xs text-muted-foreground">
-                {new Date(comment.created_at).toLocaleDateString('en-US', { 
-                  month: 'short', 
-                  day: 'numeric',
-                  hour: 'numeric'
-                })}
+                {getRelativeTime(comment.created_at)}
               </span>
               {comment.replies && comment.replies.length > 0 && (
                 <span className="text-xs text-muted-foreground">
@@ -946,7 +1016,7 @@ const CommunityPage = () => {
           <div className="hidden lg:block p-3">
             <Card className="p-3 bg-card border-border/50 shadow-sm">
               <div className="flex items-center gap-2">
-                <UserAvatar user={user} size="sm" className="flex-shrink-0" />
+                <UserAvatar profile={userProfile || user} size="sm" className="flex-shrink-0" />
                 <Input
                   placeholder="What's on your mind?"
                   value={newPost}
@@ -989,13 +1059,33 @@ const CommunityPage = () => {
                 )}
                 <Button
                   onClick={handleCreatePost}
-                  disabled={isPosting}
+                  disabled={isPosting || (!newPost.trim() && selectedImages.length === 0)}
                   size="sm"
-                  className="h-9 px-3 flex-shrink-0"
+                  className="h-9 px-3 flex-shrink-0 relative"
                 >
-                  {isPosting ? <Loader2 className="h-3 w-3 animate-spin" /> : 'Post'}
+                  {isPosting ? (
+                    <>
+                      <Loader2 className="h-3 w-3 animate-spin mr-1" />
+                      {uploadProgress > 0 && uploadProgress < 100 ? `${Math.round(uploadProgress)}%` : 'Posting...'}
+                    </>
+                  ) : 'Post'}
                 </Button>
               </div>
+              
+              {/* Upload Progress Bar */}
+              {isPosting && uploadProgress > 0 && uploadProgress < 100 && (
+                <div className="mt-2">
+                  <div className="h-1 bg-muted rounded-full overflow-hidden">
+                    <div 
+                      className="h-full bg-gradient-cultural transition-all duration-300"
+                      style={{ width: `${uploadProgress}%` }}
+                    />
+                  </div>
+                  <p className="text-xs text-muted-foreground mt-1 text-center">
+                    Uploading image... {Math.round(uploadProgress)}%
+                  </p>
+                </div>
+              )}
               
               {imagePreviews.length > 0 && (
                 <div className="grid grid-cols-2 gap-2 mt-3">
@@ -1078,11 +1168,7 @@ const CommunityPage = () => {
                             <span className="text-sm">{post.profiles.country_flag}</span>
                           )}
                           <span className="text-xs text-muted-foreground">
-                            • {new Date(post.created_at).toLocaleDateString('en-US', { 
-                              month: 'short', 
-                              day: 'numeric',
-                              hour: 'numeric'
-                            }).replace(',', ' •')}
+                            • {getRelativeTime(post.created_at)}
                           </span>
                         </div>
                         {post.user_id === user?.id && (
@@ -1115,16 +1201,17 @@ const CommunityPage = () => {
                     {renderTextWithHashtags(post.content)}
                   </p>
 
-                  {/* Post Image - Fixed Height */}
+                  {/* Post Image - Responsive with aspect ratio */}
                   {post.image_url && (
-                    <div className="rounded-lg overflow-hidden mb-2 bg-muted">
+                    <div className="rounded-lg overflow-hidden mb-2 bg-muted/30 relative">
                       <img
                         src={post.image_url}
                         alt="Post"
                         loading="lazy"
                         decoding="async"
-                        className="w-full object-cover h-[300px] cursor-pointer hover:opacity-95 transition-opacity"
+                        className="w-full h-auto max-h-[500px] object-contain cursor-pointer hover:opacity-95 transition-opacity"
                         onClick={() => navigate(`/post/${post.id}`)}
+                        style={{ aspectRatio: 'auto' }}
                       />
                     </div>
                   )}
@@ -1369,9 +1456,11 @@ const CommunityPage = () => {
 
                 {/* User Info */}
                 <div className="flex items-center gap-2 mb-4">
-                  <UserAvatar user={user} size="sm" />
+                  <UserAvatar profile={userProfile || user} size="sm" />
                   <div>
-                    <p className="text-sm font-medium">{(user as any)?.name || 'User'}</p>
+                    <p className="text-sm font-medium">
+                      {userProfile?.name || user?.user_metadata?.name || user?.email?.split('@')[0] || 'User'}
+                    </p>
                     <p className="text-xs text-muted-foreground">Public</p>
                   </div>
                 </div>

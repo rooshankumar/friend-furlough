@@ -266,19 +266,23 @@ export const useChatStore = create<ChatState>((set, get) => ({
 
       console.log(`✅ Loaded ${data?.length || 0} messages from database`);
 
-      // Fetch attachments for these messages
+      // Fetch attachments for these messages (or by conversation if message_id is null)
       const messageIds = (data || []).map(m => m.id);
-      const { data: attachments } = await supabase
+      const { data: attachments, error: attachmentsError } = await supabase
         .from('attachments')
         .select('message_id, cloudinary_url')
-        .in('message_id', messageIds);
+        .or(`message_id.in.(${messageIds.join(',')}),and(conversation_id.eq.${conversationId},message_id.is.null)`);
+      
+      if (attachmentsError) {
+        console.error('❌ Error loading attachments:', attachmentsError);
+      }
       
       // Create a map of message_id -> cloudinary_url
       const attachmentMap = new Map(
         (attachments || []).map(a => [a.message_id, a.cloudinary_url])
       );
       
-      console.log(`📎 Loaded ${attachments?.length || 0} attachments for messages`);
+      console.log(`📎 Loaded ${attachments?.length || 0} attachments for messages`, attachments);
 
       // Get current user to determine message status
       const { data: { user } } = await supabase.auth.getUser();
@@ -579,32 +583,8 @@ export const useChatStore = create<ChatState>((set, get) => ({
       
       console.log('✅ File uploaded to Cloudinary!', { cloudinaryUrl });
       
-      // STEP 2: Save attachment to attachments table (NEW APPROACH)
-      console.log('💾 Saving attachment to attachments table...');
-      
-      const { data: attachmentData, error: attachmentError } = await supabase
-        .from('attachments')
-        .insert({
-          conversation_id: conversationId,
-          user_id: senderId,
-          file_name: file.name,
-          file_type: file.type,
-          file_size: file.size,
-          cloudinary_url: cloudinaryUrl,
-        })
-        .select()
-        .single();
-      
-      if (attachmentError) {
-        console.error('❌ Failed to save attachment:', attachmentError);
-        throw new Error(`Failed to save attachment: ${attachmentError.message}`);
-      }
-      
-      attachmentId = attachmentData.id;
-      console.log('✅ Attachment saved to database!', { attachmentId, cloudinaryUrl: attachmentData.cloudinary_url });
-      
-      // STEP 3: Create message with reference to attachment
-      console.log('💾 Creating message with attachment reference...');
+      // STEP 2: Create message FIRST (simpler approach)
+      console.log('💾 Creating message for attachment...');
       
       const { data: messageData, error: messageError } = await supabase
         .from('messages')
@@ -625,17 +605,45 @@ export const useChatStore = create<ChatState>((set, get) => ({
       
       console.log('✅ Message created!', { messageId: messageData.id, type: messageData.type });
       
-      // STEP 4: Link attachment to message
-      const { error: linkError } = await supabase
-        .from('attachments')
-        .update({ message_id: messageData.id })
-        .eq('id', attachmentId);
+      // STEP 3: Save attachment WITH message_id (no update needed!)
+      console.log('💾 Saving attachment to attachments table...', {
+        conversationId,
+        senderId,
+        messageId: messageData.id,
+        fileName: file.name,
+        cloudinaryUrl
+      });
       
-      if (linkError) {
-        console.error('⚠️ Failed to link attachment to message:', linkError);
-        // Non-critical error, continue
+      const { data: attachmentData, error: attachmentError } = await supabase
+        .from('attachments')
+        .insert({
+          message_id: messageData.id,  // Link immediately!
+          conversation_id: conversationId,
+          user_id: senderId,
+          file_name: file.name,
+          file_type: file.type,
+          file_size: file.size,
+          cloudinary_url: cloudinaryUrl,
+        })
+        .select()
+        .single();
+      
+      if (attachmentError) {
+        console.error('❌ Failed to save attachment:', attachmentError);
+        console.error('❌ Attachment error details:', {
+          code: attachmentError.code,
+          message: attachmentError.message,
+          details: attachmentError.details,
+          hint: attachmentError.hint
+        });
+        // Non-critical - message already created, just log the error
+        console.warn('⚠️ Attachment metadata not saved, but message exists');
       } else {
-        console.log('✅ Attachment linked to message!');
+        console.log('✅ Attachment saved and linked!', { 
+          attachmentId: attachmentData.id, 
+          messageId: attachmentData.message_id,
+          cloudinaryUrl: attachmentData.cloudinary_url
+        });
       }
       
       // STEP 5: Update UI with real message (add media_url from attachment)

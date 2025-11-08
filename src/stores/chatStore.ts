@@ -586,26 +586,60 @@ export const useChatStore = create<ChatState>((set, get) => ({
       // STEP 2: Create message FIRST (simpler approach)
       console.log('💾 Creating message for attachment...');
       
-      const { data: messageData, error: messageError } = await supabase
-        .from('messages')
-        .insert({
-          conversation_id: conversationId,
-          sender_id: senderId,
-          content: file.name,
-          type: messageType,
-          client_id: clientId,
-        })
-        .select()
-        .single();
+      // Try with client_id first, fallback without it if column doesn't exist
+      let messageData: any = null;
+      let messageError: any = null;
+      
+      try {
+        const result = await supabase
+          .from('messages')
+          .insert({
+            conversation_id: conversationId,
+            sender_id: senderId,
+            content: file.name,
+            type: messageType,
+            client_id: clientId,
+          })
+          .select()
+          .single();
+        messageData = result.data;
+        messageError = result.error;
+      } catch (e: any) {
+        messageError = e;
+      }
+      
+      // Fallback: try without client_id if it failed
+      if (messageError && (messageError.code === '42703' || messageError.message?.includes('client_id'))) {
+        console.warn('⚠️ client_id column missing, retrying without it...');
+        const fallback = await supabase
+          .from('messages')
+          .insert({
+            conversation_id: conversationId,
+            sender_id: senderId,
+            content: file.name,
+            type: messageType,
+          })
+          .select()
+          .single();
+        messageData = fallback.data;
+        messageError = fallback.error;
+      }
       
       if (messageError) {
         console.error('❌ Failed to create message:', messageError);
+        console.error('❌ Full error:', JSON.stringify(messageError, null, 2));
         throw new Error(`Failed to create message: ${messageError.message}`);
+      }
+      
+      if (!messageData) {
+        console.error('❌ No message data returned from insert');
+        throw new Error('Failed to create message: No data returned');
       }
       
       console.log('✅ Message created!', { messageId: messageData.id, type: messageData.type });
       
       // STEP 3: Save attachment WITH message_id (no update needed!)
+      // Use a timeout to prevent hanging - if it takes too long, skip it
       console.log('💾 Saving attachment to attachments table...', {
         conversationId,
         senderId,
@@ -614,36 +648,43 @@ export const useChatStore = create<ChatState>((set, get) => ({
         cloudinaryUrl
       });
       
-      const { data: attachmentData, error: attachmentError } = await supabase
-        .from('attachments')
-        .insert({
-          message_id: messageData.id,  // Link immediately!
-          conversation_id: conversationId,
-          user_id: senderId,
-          file_name: file.name,
-          file_type: file.type,
-          file_size: file.size,
-          cloudinary_url: cloudinaryUrl,
-        })
-        .select()
-        .single();
-      
-      if (attachmentError) {
-        console.error('❌ Failed to save attachment:', attachmentError);
-        console.error('❌ Attachment error details:', {
-          code: attachmentError.code,
-          message: attachmentError.message,
-          details: attachmentError.details,
-          hint: attachmentError.hint
-        });
-        // Non-critical - message already created, just log the error
-        console.warn('⚠️ Attachment metadata not saved, but message exists');
-      } else {
-        console.log('✅ Attachment saved and linked!', { 
-          attachmentId: attachmentData.id, 
-          messageId: attachmentData.message_id,
-          cloudinaryUrl: attachmentData.cloudinary_url
-        });
+      try {
+        const attachmentPromise = supabase
+          .from('attachments')
+          .insert({
+            message_id: messageData.id,
+            conversation_id: conversationId,
+            user_id: senderId,
+            file_name: file.name,
+            file_type: file.type,
+            file_size: file.size,
+            cloudinary_url: cloudinaryUrl,
+          })
+          .select()
+          .single();
+        
+        // 5 second timeout - if it takes longer, skip it
+        const timeoutPromise = new Promise((_, reject) => 
+          setTimeout(() => reject(new Error('Attachment save timeout')), 5000)
+        );
+        
+        const { data: attachmentData, error: attachmentError } = await Promise.race([
+          attachmentPromise,
+          timeoutPromise
+        ]).catch(err => ({ data: null, error: err })) as any;
+        
+        if (attachmentError) {
+          console.error('❌ Failed to save attachment metadata:', attachmentError);
+          console.warn('⚠️ Skipping attachment metadata - message already created with URL');
+        } else {
+          console.log('✅ Attachment metadata saved!', { 
+            attachmentId: attachmentData?.id,
+            messageId: attachmentData?.message_id
+          });
+        }
+      } catch (err) {
+        console.error('❌ Attachment save error:', err);
+        console.warn('⚠️ Continuing without attachment metadata');
       }
       
       // STEP 5: Update UI with real message (add media_url from attachment)

@@ -3,6 +3,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { connectionManager, supabaseWrapper } from '@/lib/connectionManager';
 import { outbox, OutboxItem } from '@/lib/db/outbox';
 import { messagesCache } from '@/lib/db/messagesCache';
+import { attachmentCache } from '@/lib/attachmentCache';
 import { toast } from 'sonner';
 
 type MessageStatus = 'sending' | 'sent' | 'delivered' | 'read' | 'failed';
@@ -516,6 +517,19 @@ export const useChatStore = create<ChatState>((set, get) => ({
       
       console.log('✅ File uploaded to Cloudinary!', { mediaUrl });
       
+      // Cache the attachment locally (persists across refreshes)
+      attachmentCache.add({
+        conversationId,
+        senderId,
+        fileName: file.name,
+        fileType: file.type,
+        fileSize: file.size,
+        cloudinaryUrl: mediaUrl,
+        clientId,
+        messageType,
+        createdAt: new Date().toISOString()
+      });
+      
       // Update UI immediately with uploaded file
       set(state => ({
         messages: {
@@ -586,6 +600,10 @@ export const useChatStore = create<ChatState>((set, get) => ({
       try {
         const message = await Promise.race([dbSavePromise, timeoutPromise]) as any;
         
+        // Remove from cache after successful DB save
+        attachmentCache.remove(clientId);
+        console.log('✅ Attachment saved to DB, removed from cache');
+        
         // Update UI with real database ID
         set(state => ({
           messages: {
@@ -602,15 +620,20 @@ export const useChatStore = create<ChatState>((set, get) => ({
         }));
       } catch (dbError) {
         console.error('❌ Database save failed or timed out:', dbError);
-        // Message is still visible with Cloudinary URL, just won't persist after refresh
+        
+        // Increment retry count in cache
+        attachmentCache.incrementRetry(clientId);
+        console.log('⚠️ DB save failed, attachment cached for retry');
+        
+        // Message is still visible with Cloudinary URL from cache
         set(state => ({
           messages: {
             ...state.messages,
             [conversationId]: state.messages[conversationId].map(msg =>
               msg.client_id === clientId ? { 
                 ...msg,
-                status: 'sent', // Show as sent but might not persist
-                error: 'Database save failed'
+                status: 'sent', // Show as sent, cached for retry
+                error: 'Saved locally, will retry'
               } : msg
             )
           }

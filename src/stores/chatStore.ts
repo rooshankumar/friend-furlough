@@ -322,12 +322,46 @@ export const useChatStore = create<ChatState>((set, get) => ({
       // Reverse to get chronological order (oldest to newest)
       const sortedMessages = messagesWithStatus.reverse();
 
+      // Load cached attachments for this conversation
+      const cachedAttachments = attachmentCache.getByConversation(conversationId);
+      console.log(`📦 Found ${cachedAttachments.length} cached attachments for conversation`);
+      
+      // Convert cached attachments to messages
+      const cachedMessages: DbMessage[] = cachedAttachments.map(cached => ({
+        id: cached.clientId, // Use clientId as temp ID
+        conversation_id: cached.conversationId,
+        sender_id: cached.senderId,
+        content: cached.fileName,
+        created_at: cached.createdAt,
+        type: cached.messageType,
+        media_url: cached.cloudinaryUrl,
+        status: 'sent' as MessageStatus,
+        client_id: cached.clientId,
+        error: cached.retryCount > 0 ? `Retry ${cached.retryCount}/3` : undefined
+      }));
+
+      // Merge cached messages with database messages (avoid duplicates by client_id)
+      const allMessages = loadMore 
+        ? [...sortedMessages, ...existingMessages]
+        : sortedMessages;
+      
+      // Add cached messages that aren't in the database yet
+      cachedMessages.forEach(cached => {
+        const exists = allMessages.some(msg => (msg as any).client_id === cached.client_id);
+        if (!exists) {
+          allMessages.push(cached);
+        }
+      });
+
+      // Sort by created_at
+      allMessages.sort((a, b) => 
+        new Date(a.created_at).getTime() - new Date(b.created_at).getTime()
+      );
+
       set(state => ({
         messages: {
           ...state.messages,
-          [conversationId]: loadMore 
-            ? [...sortedMessages, ...existingMessages] // Prepend old messages
-            : sortedMessages // Replace with initial messages
+          [conversationId]: allMessages
         },
         isLoading: false
       }));

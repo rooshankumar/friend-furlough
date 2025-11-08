@@ -56,7 +56,8 @@ interface ChatState {
 
   // Actions
   loadConversations: (userId: string) => Promise<void>;
-  loadMessages: (conversationId: string, limit?: number) => Promise<void>;
+  loadMessages: (conversationId: string, limit?: number, loadMore?: boolean) => Promise<void>;
+  loadMoreMessages: (conversationId: string) => Promise<void>;
   sendMessage: (conversationId: string, senderId: string, content: string, mediaUrl?: string, clientIdOverride?: string, replyToMessageId?: string) => Promise<any>;
   sendAttachment: (conversationId: string, senderId: string, file: File) => Promise<void>;
   sendVoiceMessage: (conversationId: string, senderId: string, audioBlob: Blob) => Promise<void>;
@@ -224,13 +225,17 @@ export const useChatStore = create<ChatState>((set, get) => ({
       }
     }));
   },
-  loadMessages: async (conversationId: string, limit: number = 50) => {
+  loadMessages: async (conversationId: string, limit: number = 50, loadMore: boolean = false) => {
     try {
-      set({ isLoading: true });
+      set({ isLoading: !loadMore }); // Don't show loading spinner when loading more
 
-      console.log('📥 Loading messages for conversation:', conversationId);
+      console.log('📥 Loading messages for conversation:', conversationId, loadMore ? '(loading more)' : '(initial)');
 
-      const { data, error } = await supabase
+      const state = get();
+      const existingMessages = state.messages[conversationId] || [];
+      
+      // For loading more, get messages older than the oldest current message
+      let query = supabase
         .from('messages')
         .select(`
           id,
@@ -243,8 +248,16 @@ export const useChatStore = create<ChatState>((set, get) => ({
           reply_to_message_id
         `)
         .eq('conversation_id', conversationId)
-        .order('created_at', { ascending: true })
+        .order('created_at', { ascending: false }) // Get newest first
         .limit(limit);
+
+      // If loading more, get messages older than the oldest we have
+      if (loadMore && existingMessages.length > 0) {
+        const oldestMessage = existingMessages[0]; // First message is oldest
+        query = query.lt('created_at', oldestMessage.created_at);
+      }
+
+      const { data, error } = await query;
 
       if (error) {
         console.error('❌ Error loading messages:', error);
@@ -305,10 +318,15 @@ export const useChatStore = create<ChatState>((set, get) => ({
         };
       });
 
+      // Reverse to get chronological order (oldest to newest)
+      const sortedMessages = messagesWithStatus.reverse();
+
       set(state => ({
         messages: {
           ...state.messages,
-          [conversationId]: messagesWithStatus
+          [conversationId]: loadMore 
+            ? [...sortedMessages, ...existingMessages] // Prepend old messages
+            : sortedMessages // Replace with initial messages
         },
         isLoading: false
       }));
@@ -317,6 +335,10 @@ export const useChatStore = create<ChatState>((set, get) => ({
       set({ isLoading: false });
       throw error;
     }
+  },
+
+  loadMoreMessages: async (conversationId: string) => {
+    await get().loadMessages(conversationId, 50, true);
   },
 
   sendMessage: async (conversationId: string, senderId: string, content: string, mediaUrl?: string, clientIdOverride?: string, replyToMessageId?: string) => {

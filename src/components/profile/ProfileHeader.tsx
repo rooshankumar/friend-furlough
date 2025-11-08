@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import UserAvatar from '@/components/UserAvatar';
 import { CulturalBadge } from '@/components/CulturalBadge';
 import { 
@@ -19,7 +20,9 @@ import {
   Camera,
   Loader2,
   Flag,
-  Ban
+  Ban,
+  Upload,
+  Eye
 } from 'lucide-react';
 import { User } from '@/types';
 import { useToast } from '@/hooks/use-toast';
@@ -53,6 +56,7 @@ export const ProfileHeader: React.FC<ProfileHeaderProps> = ({
 }) => {
   const navigate = useNavigate();
   const { toast } = useToast();
+  const [showAvatarDialog, setShowAvatarDialog] = useState(false);
 
   const handleReport = () => {
     toast({
@@ -92,12 +96,17 @@ export const ProfileHeader: React.FC<ProfileHeaderProps> = ({
           {/* Avatar Section - Compact */}
           <div className="flex flex-col sm:flex-row md:flex-col items-center sm:items-start md:items-center gap-3 sm:gap-4 md:gap-3">
             <div className="relative flex-shrink-0">
-              <UserAvatar 
-                profile={profileUser}
-                user={isOwnProfile ? user : undefined}
-                className="h-20 w-20 md:h-24 md:w-24 border-4 border-white shadow-lg"
-                fallbackClassName="text-xl md:text-2xl"
-              />
+              <div 
+                className="cursor-pointer"
+                onClick={() => isOwnProfile && setShowAvatarDialog(true)}
+              >
+                <UserAvatar 
+                  profile={profileUser}
+                  user={isOwnProfile ? user : undefined}
+                  className="h-28 w-28 md:h-32 md:w-32 border-4 border-white shadow-lg"
+                  fallbackClassName="text-2xl md:text-3xl"
+                />
+              </div>
               {isOwnProfile && (
                 <label htmlFor="avatar-upload">
                   <Button 
@@ -265,6 +274,65 @@ export const ProfileHeader: React.FC<ProfileHeaderProps> = ({
           </div>
         </div>
       </div>
+
+      {/* Avatar Options Dialog */}
+      <Dialog open={showAvatarDialog} onOpenChange={setShowAvatarDialog}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Profile Photo</DialogTitle>
+          </DialogHeader>
+          <div className="flex flex-col gap-3">
+            <Button
+              variant="outline"
+              className="w-full justify-start h-auto py-4"
+              onClick={() => {
+                navigate(`/image-viewer?url=${encodeURIComponent(profileUser.avatar_url || profileUser.profilePhoto || '')}`);
+                setShowAvatarDialog(false);
+              }}
+            >
+              <Eye className="h-5 w-5 mr-3" />
+              <div className="text-left">
+                <div className="font-medium">View Full Photo</div>
+                <div className="text-xs text-muted-foreground">See your profile picture</div>
+              </div>
+            </Button>
+            
+            <label htmlFor="avatar-upload-dialog">
+              <Button
+                variant="outline"
+                className="w-full justify-start h-auto py-4"
+                asChild
+                disabled={isUploading}
+              >
+                <span>
+                  {isUploading ? (
+                    <Loader2 className="h-5 w-5 mr-3 animate-spin" />
+                  ) : (
+                    <Upload className="h-5 w-5 mr-3" />
+                  )}
+                  <div className="text-left">
+                    <div className="font-medium">Upload New Photo</div>
+                    <div className="text-xs text-muted-foreground">Change your profile picture</div>
+                  </div>
+                </span>
+              </Button>
+              <input
+                id="avatar-upload-dialog"
+                type="file"
+                accept="image/jpeg,image/jpg,image/png,image/gif,image/webp"
+                className="hidden"
+                onChange={(e) => {
+                  onAvatarUpload(e);
+                  setShowAvatarDialog(false);
+                }}
+                style={{ display: 'none' }}
+              />
+            </label>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };
+
+export default ProfileHeader;

@@ -323,38 +323,40 @@ export const ProfileFriends: React.FC<ProfileFriendsProps> = ({
   }
 
   return (
-    <div className="bg-card rounded-xl border border-border/50 shadow-sm p-4 md:p-5">
-      <div className="flex items-center justify-between mb-4">
-        <div className="flex items-center gap-2">
-          <Users className="h-4 w-4 text-primary" />
-          <h3 className="text-sm font-semibold text-foreground">Friends</h3>
-          <span className="text-xs text-muted-foreground">({friendsCount})</span>
+    <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+      {/* Friends Section */}
+      <Card className="overflow-hidden border-border/50">
+        <div className="p-4 md:p-5 flex items-center justify-between border-b border-border/50">
+          <div className="flex items-center gap-2">
+            <Users className="h-4 w-4 text-primary" />
+            <h3 className="text-sm font-semibold text-foreground">Friends</h3>
+            <span className="text-xs text-muted-foreground">({friendsCount})</span>
+          </div>
+          
+          <div className="flex items-center gap-2">
+            {isOwnProfile && (
+              <Button 
+                variant="ghost" 
+                size="sm"
+                className="h-7 px-2"
+                onClick={loadFriendsData}
+                disabled={loading}
+              >
+                <RefreshCw className={`h-3.5 w-3.5 ${loading ? 'animate-spin' : ''}`} />
+              </Button>
+            )}
+            {friends.length > 8 && (
+              <Button 
+                variant="ghost" 
+                size="sm"
+                className="h-7 text-xs"
+                onClick={() => navigate('/friends')}
+              >
+                View All →
+              </Button>
+            )}
+          </div>
         </div>
-        
-        <div className="flex items-center gap-2">
-          {isOwnProfile && (
-            <Button 
-              variant="ghost" 
-              size="sm"
-              className="h-7 px-2"
-              onClick={loadFriendsData}
-              disabled={loading}
-            >
-              <RefreshCw className={`h-3.5 w-3.5 ${loading ? 'animate-spin' : ''}`} />
-            </Button>
-          )}
-          {friends.length > 8 && (
-            <Button 
-              variant="ghost" 
-              size="sm"
-              className="h-7 text-xs"
-              onClick={() => navigate('/friends')}
-            >
-              View All →
-            </Button>
-          )}
-        </div>
-      </div>
 
       {/* Compact Horizontal Friends Row */}
       {friends.length === 0 ? (
@@ -439,6 +441,77 @@ export const ProfileFriends: React.FC<ProfileFriendsProps> = ({
             </div>
           )}
         </>
+      )}
+      </Card>
+
+      {/* Friend Requests Section - Only for own profile */}
+      {isOwnProfile && receivedRequests.length > 0 && (
+        <Card className="overflow-hidden border-border/50">
+          <div className="p-4 md:p-5 flex items-center justify-between border-b border-border/50">
+            <div className="flex items-center gap-2">
+              <Bell className="h-4 w-4 text-primary" />
+              <h3 className="text-sm font-semibold text-foreground">Friend Requests</h3>
+              <span className="text-xs text-muted-foreground">({receivedRequests.length})</span>
+            </div>
+          </div>
+
+          <div className="p-4 md:p-5 space-y-3">
+            {receivedRequests.slice(0, 4).map((request) => (
+              <div key={request.id} className="flex items-center justify-between p-3 rounded-lg border border-border/50 hover:bg-muted/30 transition-colors">
+                <div className="flex items-center gap-3 flex-1 min-w-0">
+                  <div 
+                    className="cursor-pointer flex-shrink-0"
+                    onClick={() => navigate(`/profile/${request.sender_id}`)}
+                  >
+                    <UserAvatar 
+                      profile={request.sender_profile}
+                      className="w-12 h-12"
+                    />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <h4 
+                      className="font-medium text-sm cursor-pointer hover:text-primary truncate"
+                      onClick={() => navigate(`/profile/${request.sender_id}`)}
+                    >
+                      {request.sender_profile?.name}
+                    </h4>
+                    <p className="text-xs text-muted-foreground">
+                      {request.sender_profile?.country_flag} {request.sender_profile?.country}
+                    </p>
+                  </div>
+                </div>
+                <div className="flex items-center gap-2 flex-shrink-0">
+                  <Button 
+                    size="sm"
+                    className="h-8 px-3 text-xs"
+                    onClick={() => handleAcceptRequest(request.id, request.sender_profile?.name || '')}
+                  >
+                    <Check className="h-3 w-3 mr-1" />
+                    Accept
+                  </Button>
+                  <Button 
+                    variant="outline" 
+                    size="sm"
+                    className="h-8 w-8 p-0"
+                    onClick={() => handleRejectRequest(request.id, request.sender_profile?.name || '')}
+                  >
+                    <X className="h-3 w-3" />
+                  </Button>
+                </div>
+              </div>
+            ))}
+            {receivedRequests.length > 4 && (
+              <Button 
+                variant="ghost" 
+                size="sm"
+                className="w-full h-7 text-xs"
+                onClick={() => navigate('/friends')}
+              >
+                View All Requests →
+              </Button>
+            )}
+          </div>
+        </Card>
       )}
 
       {/* Keep the tabs for own profile but make them collapsible */}

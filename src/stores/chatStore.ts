@@ -788,6 +788,56 @@ export const useChatStore = create<ChatState>((set, get) => ({
     }
   },
 
+  markMessageAsRead: async (messageId: string, userId: string) => {
+    try {
+      // Insert read receipt
+      await supabase
+        .from('message_reads')
+        .insert({
+          message_id: messageId,
+          user_id: userId,
+          read_at: new Date().toISOString()
+        });
+
+      // Update message status in local state
+      set(state => {
+        const updatedMessages = { ...state.messages };
+        Object.keys(updatedMessages).forEach(conversationId => {
+          updatedMessages[conversationId] = updatedMessages[conversationId].map(msg =>
+            msg.id === messageId ? { ...msg, status: 'read' as MessageStatus } : msg
+          );
+        });
+        return { messages: updatedMessages };
+      });
+
+      console.log('✅ Message marked as read');
+    } catch (error) {
+      console.error('❌ Error marking message as read:', error);
+      // Don't throw for duplicate key errors
+      if (error.code !== '23505') {
+        throw error;
+      }
+    }
+  },
+
+  markAsRead: async (conversationId: string, userId: string) => {
+    try {
+      await supabase
+        .from('conversation_participants')
+        .update({ unread_count: 0 })
+        .eq('conversation_id', conversationId)
+        .eq('user_id', userId);
+
+      set(state => ({
+        conversations: state.conversations.map(conv =>
+          conv.id === conversationId ? { ...conv, unreadCount: 0 } : conv
+        )
+      }));
+    } catch (error) {
+      console.error('Error marking as read:', error);
+    }
+  },
+
   subscribeToMessages: (conversationId: string) => {
     const { activeChannel } = get();
     

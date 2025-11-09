@@ -225,44 +225,44 @@ const CulturalProfilePage = () => {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-background via-card-cultural to-background">
-      <div className="container mx-auto px-4 py-4 md:py-8">
+      <div className="container mx-auto px-3 py-3">
         {/* Header */}
-        <div className="max-w-2xl mx-auto">
-          <div className="flex items-center justify-between mb-8">
+        <div className="max-w-lg mx-auto">
+          <div className="flex items-center justify-between mb-3">
             <div className="flex items-center space-x-2">
-              <Globe className="h-6 w-6 text-primary" />
-              <h1 className="text-2xl font-bold text-primary">roshLingua</h1>
+              <Globe className="h-5 w-5 text-primary" />
+              <h1 className="text-lg font-bold text-primary">roshLingua</h1>
             </div>
-            <div className="text-sm text-muted-foreground">
+            <div className="text-xs text-muted-foreground">
               Step 2 of 3
             </div>
           </div>
 
-          <Progress value={66} className="mb-8" />
+          <Progress value={66} className="mb-4" />
 
           <Card className="card-cultural">
-            <CardHeader className="text-center px-4 md:px-6">
-              <CardTitle className="text-xl md:text-2xl">Share Your Cultural Background</CardTitle>
-              <CardDescription className="text-sm">
-                Help others learn about your culture and find perfect language exchange partners
+            <CardHeader className="text-center px-3 py-3">
+              <CardTitle className="text-lg">Your Cultural Profile</CardTitle>
+              <CardDescription className="text-xs">
+                Tell us about yourself
               </CardDescription>
             </CardHeader>
 
-            <CardContent className="px-4 md:px-6">
+            <CardContent className="px-3 py-3">
               <Form {...form}>
-                <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4 md:space-y-6">
-                  {/* Profile Photo Section */}
+                <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-3">
+                  {/* Profile Photo Section - Compact */}
                   <div className="text-center">
-                    <div className="relative w-24 h-24 mx-auto mb-4">
+                    <div className="relative w-16 h-16 mx-auto mb-2">
                       {avatarPreview ? (
                         <img
                           src={avatarPreview}
                           alt="Profile"
-                          className="w-24 h-24 rounded-full object-cover border-2 border-primary"
+                          className="w-16 h-16 rounded-full object-cover border-2 border-primary"
                         />
                       ) : (
-                        <div className="w-24 h-24 bg-muted rounded-full flex items-center justify-center">
-                          <Camera className="h-8 w-8 text-muted-foreground" />
+                        <div className="w-16 h-16 bg-muted rounded-full flex items-center justify-center">
+                          <Camera className="h-6 w-6 text-muted-foreground" />
                         </div>
                       )}
                     </div>
@@ -294,13 +294,11 @@ const CulturalProfilePage = () => {
                       type="button"
                       onClick={() => document.getElementById('avatar-upload')?.click()}
                       disabled={isUploading}
+                      className="h-7 text-xs"
                     >
-                      <Upload className="mr-2 h-4 w-4" />
-                      {avatarPreview ? 'Change Photo' : 'Upload Photo'}
+                      <Upload className="mr-1 h-3 w-3" />
+                      {avatarPreview ? 'Change' : 'Add Photo'}
                     </Button>
-                    <p className="text-xs text-muted-foreground mt-2">
-                      Optional: Add a photo to help others connect with you
-                    </p>
                   </div>
 
                   {/* Country Selection */}
@@ -309,7 +307,7 @@ const CulturalProfilePage = () => {
                     name="country"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>Country of Origin</FormLabel>
+                        <FormLabel className="text-sm">Country</FormLabel>
                         <FormControl>
                           <CountrySelector
                             value={field.value}
@@ -317,12 +315,9 @@ const CulturalProfilePage = () => {
                               field.onChange(countryCode);
                               setSelectedCountry(country);
                             }}
-                            placeholder="Select your country..."
+                            placeholder="Select country..."
                           />
                         </FormControl>
-                        <FormDescription>
-                          This helps others learn about your cultural background
-                        </FormDescription>
                         <FormMessage />
                       </FormItem>
                     )}
@@ -334,9 +329,9 @@ const CulturalProfilePage = () => {
                     name="city"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>City</FormLabel>
+                        <FormLabel className="text-sm">City</FormLabel>
                         <FormControl>
-                          <Input placeholder="Enter your city" {...field} />
+                          <Input placeholder="Your city" {...field} className="h-9" />
                         </FormControl>
                         <FormMessage />
                       </FormItem>
@@ -349,84 +344,81 @@ const CulturalProfilePage = () => {
                     name="nativeLanguages"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>Native Language(s)</FormLabel>
+                        <FormLabel className="text-sm">Native Language(s)</FormLabel>
                         <FormControl>
                           <LanguageSelector
                             selectedLanguages={field.value}
                             onLanguagesChange={field.onChange}
                             type="native"
-                            placeholder="Add your native languages..."
+                            placeholder="Add languages..."
                             maxSelection={3}
                           />
                         </FormControl>
-                        <FormDescription>
-                          Languages you speak fluently or grew up speaking
-                        </FormDescription>
                         <FormMessage />
                       </FormItem>
                     )}
                   />
 
-                  {/* Age */}
-                  <FormField
-                    control={form.control}
-                    name="age"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Age</FormLabel>
-                        <FormControl>
-                          <Input
-                            type="number"
-                            placeholder="Enter your age"
-                            {...field}
-                            value={field.value || ''}
-                            onChange={(e) => {
-                              const val = e.target.value;
-                              field.onChange(val === '' ? undefined : parseInt(val) || undefined);
-                            }}
-                          />
-                        </FormControl>
-                        <FormDescription>
-                          Helps find age-appropriate cultural exchange partners
-                        </FormDescription>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-
-                  {/* Gender */}
-                  <FormField
-                    control={form.control}
-                    name="gender"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Gender</FormLabel>
-                        <Select onValueChange={field.onChange} defaultValue={field.value}>
+                  {/* Age and Gender - Side by Side */}
+                  <div className="grid grid-cols-2 gap-2">
+                    <FormField
+                      control={form.control}
+                      name="age"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel className="text-sm">Age</FormLabel>
                           <FormControl>
-                            <SelectTrigger>
-                              <SelectValue placeholder="Select your gender" />
-                            </SelectTrigger>
+                            <Input
+                              type="number"
+                              placeholder="Age"
+                              {...field}
+                              value={field.value || ''}
+                              onChange={(e) => {
+                                const val = e.target.value;
+                                field.onChange(val === '' ? undefined : parseInt(val) || undefined);
+                              }}
+                              className="h-9"
+                            />
                           </FormControl>
-                          <SelectContent>
-                            <SelectItem value="male">Male</SelectItem>
-                            <SelectItem value="female">Female</SelectItem>
-                            <SelectItem value="non-binary">Non-binary</SelectItem>
-                            <SelectItem value="prefer-not-to-say">Prefer not to say</SelectItem>
-                          </SelectContent>
-                        </Select>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+
+                    <FormField
+                      control={form.control}
+                      name="gender"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel className="text-sm">Gender</FormLabel>
+                          <Select onValueChange={field.onChange} defaultValue={field.value}>
+                            <FormControl>
+                              <SelectTrigger className="h-9">
+                                <SelectValue placeholder="Select" />
+                              </SelectTrigger>
+                            </FormControl>
+                            <SelectContent>
+                              <SelectItem value="male">Male</SelectItem>
+                              <SelectItem value="female">Female</SelectItem>
+                              <SelectItem value="non-binary">Non-binary</SelectItem>
+                              <SelectItem value="prefer-not-to-say">Prefer not to say</SelectItem>
+                            </SelectContent>
+                          </Select>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                  </div>
 
                   {/* Navigation Buttons */}
-                  <div className="flex justify-between pt-6">
+                  <div className="flex justify-between pt-3">
                     <Button
                       type="button"
                       variant="outline"
-                      onClick={() => navigate('/auth/signup')}
+                      onClick={() => navigate('/onboarding/welcome')}
+                      size="sm"
                     >
-                      <ArrowLeft className="mr-2 h-4 w-4" />
+                      <ArrowLeft className="mr-1 h-3 w-3" />
                       Back
                     </Button>
 
@@ -434,9 +426,10 @@ const CulturalProfilePage = () => {
                       type="submit"
                       variant="cultural"
                       disabled={isUploading}
+                      size="sm"
                     >
-                      {isUploading ? 'Uploading...' : 'Continue to Learning Goals'}
-                      <ArrowRight className="ml-2 h-4 w-4" />
+                      {isUploading ? 'Saving...' : 'Continue'}
+                      <ArrowRight className="ml-1 h-3 w-3" />
                     </Button>
                   </div>
                 </form>

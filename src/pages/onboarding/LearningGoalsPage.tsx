@@ -167,52 +167,49 @@ const LearningGoalsPage = () => {
   
   return (
     <div className="min-h-screen bg-gradient-to-br from-background via-card-cultural to-background">
-      <div className="container mx-auto px-4 py-8">
+      <div className="container mx-auto px-3 py-3">
         {/* Header */}
-        <div className="max-w-2xl mx-auto">
-          <div className="flex items-center justify-between mb-8">
+        <div className="max-w-lg mx-auto">
+          <div className="flex items-center justify-between mb-3">
             <div className="flex items-center space-x-2">
-              <Globe className="h-6 w-6 text-primary" />
-              <h1 className="text-2xl font-bold text-primary">roshLingua</h1>
+              <Globe className="h-5 w-5 text-primary" />
+              <h1 className="text-lg font-bold text-primary">roshLingua</h1>
             </div>
-            <div className="text-sm text-muted-foreground">
+            <div className="text-xs text-muted-foreground">
               Step 3 of 3
             </div>
           </div>
           
-          <Progress value={100} className="mb-8" />
+          <Progress value={100} className="mb-4" />
           
           <Card className="card-cultural">
-            <CardHeader className="text-center">
-              <CardTitle className="text-2xl">Set Your Learning Goals</CardTitle>
-              <CardDescription>
-                Tell us what you want to learn and share so we can find your perfect cultural exchange partners
+            <CardHeader className="text-center px-3 py-3">
+              <CardTitle className="text-lg">Learning Goals</CardTitle>
+              <CardDescription className="text-xs">
+                What do you want to learn and share?
               </CardDescription>
             </CardHeader>
             
-            <CardContent>
+            <CardContent className="px-3 py-3">
               <Form {...form}>
-                <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
+                <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-3">
                   {/* Learning Languages */}
                   <FormField
                     control={form.control}
                     name="learningLanguages"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>Languages You Want to Learn</FormLabel>
+                        <FormLabel className="text-sm">Languages to Learn</FormLabel>
                         <FormControl>
                           <LanguageSelector
                             selectedLanguages={field.value}
                             onLanguagesChange={field.onChange}
                             type="learning"
-                            placeholder="Add languages you want to learn..."
+                            placeholder="Add languages..."
                             maxSelection={4}
                             excludeLanguages={nativeLanguages}
                           />
                         </FormControl>
-                        <FormDescription>
-                          Select languages you're currently learning or want to start learning
-                        </FormDescription>
                         <FormMessage />
                       </FormItem>
                     )}
@@ -224,18 +221,15 @@ const LearningGoalsPage = () => {
                     name="culturalInterests"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>Cultural Interests</FormLabel>
+                        <FormLabel className="text-sm">Cultural Interests</FormLabel>
                         <FormControl>
                           <CulturalInterestSelector
                             selectedInterests={field.value}
                             onInterestsChange={field.onChange}
-                            placeholder="Add your cultural interests..."
+                            placeholder="Add interests..."
                             maxSelection={8}
                           />
                         </FormControl>
-                        <FormDescription>
-                          Choose topics you're passionate about to connect with like-minded people
-                        </FormDescription>
                         <FormMessage />
                       </FormItem>
                     )}
@@ -247,15 +241,15 @@ const LearningGoalsPage = () => {
                     name="bio"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>Cultural Bio</FormLabel>
+                        <FormLabel className="text-sm">About You</FormLabel>
                         <FormControl>
                           <Textarea 
-                            placeholder="Share something about your cultural background, what you love about your culture, and what you're excited to learn about others..."
-                            className="min-h-[100px]"
+                            placeholder="Tell us about yourself and what you're excited to learn..."
+                            className="min-h-[80px] text-sm"
                             {...field}
                           />
                         </FormControl>
-                        <FormDescription>
+                        <FormDescription className="text-xs">
                           {field.value?.length || 0}/300 characters
                         </FormDescription>
                         <FormMessage />
@@ -269,12 +263,9 @@ const LearningGoalsPage = () => {
                     name="lookingFor"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>What are you looking for?</FormLabel>
-                        <FormDescription className="mb-4">
-                          Select all that apply to help us match you with the right people
-                        </FormDescription>
+                        <FormLabel className="text-sm">I'm looking for</FormLabel>
                         <FormControl>
-                          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                          <div className="space-y-2">
                             {lookingForOptions.map((option) => (
                               <div key={option.id} className="flex items-center space-x-2">
                                 <Checkbox
@@ -290,9 +281,9 @@ const LearningGoalsPage = () => {
                                 />
                                 <label 
                                   htmlFor={option.id}
-                                  className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 cursor-pointer flex items-center"
+                                  className="text-xs font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 cursor-pointer flex items-center"
                                 >
-                                  <option.icon className="h-4 w-4 mr-2 text-muted-foreground" />
+                                  <option.icon className="h-3 w-3 mr-1 text-muted-foreground" />
                                   {option.label}
                                 </label>
                               </div>
@@ -305,22 +296,24 @@ const LearningGoalsPage = () => {
                   />
                   
                   {/* Navigation Buttons */}
-                  <div className="flex justify-between pt-6">
+                  <div className="flex justify-between pt-3">
                     <Button 
                       type="button" 
                       variant="outline"
                       onClick={() => navigate('/onboarding/cultural-profile')}
+                      size="sm"
                     >
-                      <ArrowLeft className="mr-2 h-4 w-4" />
+                      <ArrowLeft className="mr-1 h-3 w-3" />
                       Back
                     </Button>
                     
                     <Button 
                       type="submit" 
                       variant="cultural"
+                      size="sm"
                     >
-                      Complete Setup
-                      <ArrowRight className="ml-2 h-4 w-4" />
+                      Complete
+                      <ArrowRight className="ml-1 h-3 w-3" />
                     </Button>
                   </div>
                 </form>

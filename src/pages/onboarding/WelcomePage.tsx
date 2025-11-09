@@ -2,9 +2,8 @@ import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
-import { Label } from '@/components/ui/label';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { Globe, Languages, Users, Heart, Camera, Loader2 } from 'lucide-react';
+import { Globe, Languages, Users, Camera, Loader2, ArrowRight } from 'lucide-react';
 import { useAuthStore } from '@/stores/authStore';
 import { uploadAvatar } from '@/lib/storage';
 import { useToast } from '@/hooks/use-toast';
@@ -51,52 +50,59 @@ const WelcomePage = () => {
 
   const features = [
     {
-      icon: <Globe className="h-12 w-12 text-primary" />,
+      icon: <Globe className="h-8 w-8 text-primary" />,
       title: "Discover Cultures",
-      description: "Connect with people from 195+ countries and explore their unique traditions"
+      description: "Connect with people worldwide"
     },
     {
-      icon: <Languages className="h-12 w-12 text-secondary" />,
+      icon: <Languages className="h-8 w-8 text-secondary" />,
       title: "Language Exchange",
-      description: "Practice languages with native speakers in a supportive environment"
+      description: "Practice with native speakers"
     },
     {
-      icon: <Users className="h-12 w-12 text-accent" />,
+      icon: <Users className="h-8 w-8 text-accent" />,
       title: "Build Friendships",
-      description: "Form meaningful international connections through cultural exchange"
-    },
-    {
-      icon: <Heart className="h-12 w-12 text-success" />,
-      title: "Safe Community",
-      description: "Join a respectful platform focused on learning and cultural appreciation"
+      description: "Form international connections"
     }
   ];
 
   return (
-    <div className="min-h-screen bg-gradient-subtle flex items-center justify-center p-4">
-      <div className="max-w-4xl w-full">
-        <Card className="shadow-xl">
-          <CardContent className="p-8 md:p-12">
-            <div className="text-center mb-8">
-              <div className="relative inline-block mb-6">
-                <Avatar className="h-24 w-24 mx-auto border-4 border-primary/20">
+    <div className="min-h-screen bg-gradient-subtle flex items-center justify-center p-3">
+      <div className="max-w-md w-full">
+        <Card className="shadow-lg">
+          <CardContent className="p-4 sm:p-6">
+            {/* Header */}
+            <div className="text-center mb-4">
+              <img src={roshLinguaLogo} alt="roshLingua" className="h-12 w-12 mx-auto mb-3" />
+              <h1 className="text-xl sm:text-2xl font-bold text-cultural-gradient mb-2">
+                Welcome! 🎉
+              </h1>
+              <p className="text-sm text-muted-foreground">
+                Let's set up your profile in 2 minutes
+              </p>
+            </div>
+
+            {/* Avatar Upload */}
+            <div className="text-center mb-4">
+              <div className="relative inline-block">
+                <Avatar className="h-20 w-20 mx-auto border-2 border-primary/20">
                   <AvatarImage src={avatarPreview || profile?.avatar_url || undefined} />
-                  <AvatarFallback className="bg-gradient-cultural text-white text-3xl">
+                  <AvatarFallback className="bg-gradient-cultural text-white text-2xl">
                     {user?.email?.[0]?.toUpperCase() || '?'}
                   </AvatarFallback>
                 </Avatar>
                 <label htmlFor="welcome-avatar-upload">
                   <Button
                     size="sm"
-                    className="absolute -bottom-1 -right-1 rounded-full h-10 w-10 p-0 shadow-lg"
+                    className="absolute -bottom-1 -right-1 rounded-full h-8 w-8 p-0 shadow-md"
                     disabled={isUploading}
                     asChild
                   >
                     <span>
                       {isUploading ? (
-                        <Loader2 className="h-5 w-5 animate-spin" />
+                        <Loader2 className="h-4 w-4 animate-spin" />
                       ) : (
-                        <Camera className="h-5 w-5" />
+                        <Camera className="h-4 w-4" />
                       )}
                     </span>
                   </Button>
@@ -110,42 +116,35 @@ const WelcomePage = () => {
                   />
                 </label>
               </div>
-              <h1 className="text-4xl font-bold text-cultural-gradient mb-4">
-                Welcome to roshLingua, {user?.email?.split('@')[0] || 'Friend'}! 🎉
-              </h1>
-              <p className="text-lg text-muted-foreground">
-                {avatarPreview || profile?.avatar_url 
-                  ? "Looking great! Now let's set up your cultural profile" 
-                  : "Upload a profile picture and set up your cultural profile"}
+              <p className="text-xs text-muted-foreground mt-2">
+                {avatarPreview || profile?.avatar_url ? 'Looking great!' : 'Add a photo (optional)'}
               </p>
             </div>
 
-            <div className="grid md:grid-cols-2 gap-6 mb-8">
+            {/* Features - Compact */}
+            <div className="space-y-2 mb-4">
               {features.map((feature, index) => (
-                <div key={index} className="flex items-start space-x-4 p-4 rounded-lg bg-accent/10">
+                <div key={index} className="flex items-center space-x-3 p-2 rounded-lg bg-accent/10">
                   <div className="flex-shrink-0">
                     {feature.icon}
                   </div>
                   <div>
-                    <h3 className="font-semibold text-lg mb-2">{feature.title}</h3>
-                    <p className="text-sm text-muted-foreground">{feature.description}</p>
+                    <h3 className="font-semibold text-sm">{feature.title}</h3>
+                    <p className="text-xs text-muted-foreground">{feature.description}</p>
                   </div>
                 </div>
               ))}
             </div>
 
-            <div className="text-center space-y-4">
-              <p className="text-muted-foreground">
-                It only takes 2 minutes to complete your profile
-              </p>
-              <Button 
-                size="lg" 
-                className="bg-gradient-cultural text-white px-8"
-                onClick={() => navigate('/onboarding/cultural-profile')}
-              >
-                Start Your Cultural Journey
-              </Button>
-            </div>
+            {/* CTA Button */}
+            <Button 
+              size="lg" 
+              className="w-full bg-gradient-cultural text-white"
+              onClick={() => navigate('/onboarding/cultural-profile')}
+            >
+              Get Started
+              <ArrowRight className="ml-2 h-4 w-4" />
+            </Button>
           </CardContent>
         </Card>
       </div>

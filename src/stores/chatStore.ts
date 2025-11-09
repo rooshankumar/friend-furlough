@@ -585,19 +585,24 @@ export const useChatStore = create<ChatState>((set, get) => ({
       console.log('✅ Message created with media_url:', messageData.id);
 
       // Optional: Save metadata to attachments table (non-blocking)
-      supabase
-        .from('attachments')
-        .insert({
-          message_id: messageData.id,
-          conversation_id: conversationId,
-          cloudinary_url: mediaUrl,
-          cloudinary_public_id: publicId,
-          file_name: file.name,
-          file_size: file.size,
-          file_type: file.type
-        })
-        .then(() => console.log('✅ Attachment metadata saved'))
-        .catch(err => console.warn('⚠️ Failed to save attachment metadata (non-critical):', err));
+      (async () => {
+        try {
+          await supabase
+            .from('attachments')
+            .insert({
+              message_id: messageData.id,
+              conversation_id: conversationId,
+              cloudinary_url: mediaUrl,
+              cloudinary_public_id: publicId,
+              file_name: file.name,
+              file_size: file.size,
+              file_type: file.type
+            });
+          console.log('✅ Attachment metadata saved');
+        } catch (err) {
+          console.warn('⚠️ Failed to save attachment metadata (non-critical):', err);
+        }
+      })();
 
       // Create complete message object with all data
       const completeMessage: DbMessage = {

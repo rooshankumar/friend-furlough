@@ -21,13 +21,22 @@ interface MessageInsert {
  */
 export async function insertMessageDirect(message: MessageInsert): Promise<any> {
   console.log('🔧 Getting auth session for REST API...');
-  const session = await supabase.auth.getSession();
-  const token = session.data.session?.access_token;
+  
+  // Add timeout for getSession (it can hang on mobile too)
+  const sessionPromise = supabase.auth.getSession();
+  const timeoutPromise = new Promise((_, reject) =>
+    setTimeout(() => reject(new Error('Auth session timeout')), 5000)
+  );
+  
+  const session = await Promise.race([sessionPromise, timeoutPromise]) as any;
+  const token = session.data?.session?.access_token;
 
   if (!token) {
     console.error('❌ No auth token available');
     throw new Error('No auth token available');
   }
+  
+  console.log('✅ Got auth token for REST API');
 
   const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
   const url = `${supabaseUrl}/rest/v1/messages`;
@@ -43,7 +52,10 @@ export async function insertMessageDirect(message: MessageInsert): Promise<any> 
   });
 
   try {
-    const response = await fetch(url, {
+    console.log('🚀 Making REST API request...');
+    
+    // Add timeout for fetch (mobile networks can be slow)
+    const fetchPromise = fetch(url, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -53,6 +65,15 @@ export async function insertMessageDirect(message: MessageInsert): Promise<any> 
       },
       body: JSON.stringify(message)
     });
+    
+    const fetchTimeoutPromise = new Promise((_, reject) =>
+      setTimeout(() => {
+        console.error('⏱️ REST API fetch timeout (30s)');
+        reject(new Error('REST API fetch timeout'));
+      }, 30000)
+    );
+    
+    const response = await Promise.race([fetchPromise, fetchTimeoutPromise]) as Response;
 
     console.log('📡 REST API response status:', response.status);
 

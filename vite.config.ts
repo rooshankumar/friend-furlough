@@ -6,78 +6,72 @@ import { componentTagger } from "lovable-tagger";
 // https://vitejs.dev/config/
 export default defineConfig(({ mode }) => ({
   server: {
-    host: "0.0.0.0",
+    host: "0.0.0.0", // Allow access from Replit and external URLs
     port: 5000,
-    
+    proxy: {
+      // Optional: route API calls to Replit backend
+      "/api": "https://5609853b-7353-4830-99d4-8810531cea64-00-3c52iz14wozfc.worf.replit.dev",
+    },
   },
+
   preview: {
     port: 5000,
   },
-  plugins: [react(), mode === "development" && componentTagger()].filter(Boolean),
+
+  plugins: [
+    react(),
+    mode === "development" && componentTagger(), // Enables tagger only in dev
+  ].filter(Boolean),
+
   resolve: {
     alias: {
       "@": path.resolve(__dirname, "./src"),
     },
-    // Critical: Ensure only ONE instance of React
-    dedupe: ['react', 'react-dom', 'react/jsx-runtime'],
+    // Critical: ensure React isn't duplicated (important for dev hot reload)
+    dedupe: ["react", "react-dom", "react/jsx-runtime"],
   },
+
   build: {
-    // Optimize build for performance
-    target: 'esnext',
-    minify: 'esbuild',
+    target: "esnext",
+    minify: "esbuild",
     cssMinify: true,
+    chunkSizeWarningLimit: 1000,
+
     rollupOptions: {
       output: {
-        // Manual chunk splitting for better caching
+        // Better caching via manual chunking
         manualChunks: (id) => {
-          // Vendor chunks only - don't split app code to avoid circular dependencies
-          if (id.includes('node_modules')) {
-            // Keep React and React-DOM together in ONE chunk
-            if (id.includes('react') || id.includes('react-dom')) {
-              return 'vendor';
-            }
-            // Radix UI components in separate chunk
-            if (id.includes('@radix-ui')) {
-              return 'radix-vendor';
-            }
-            // Supabase in separate chunk
-            if (id.includes('@supabase')) {
-              return 'supabase-vendor';
-            }
-            // Everything else in vendor
-            return 'vendor';
+          if (id.includes("node_modules")) {
+            if (id.includes("react") || id.includes("react-dom")) return "vendor";
+            if (id.includes("@radix-ui")) return "radix-vendor";
+            if (id.includes("@supabase")) return "supabase-vendor";
+            return "vendor";
           }
-          // Let Vite handle app code splitting automatically
-        }
-      }
+        },
+      },
     },
-    // Increase chunk size warning limit
-    chunkSizeWarningLimit: 1000,
-    // Ensure proper module format
+
     commonjsOptions: {
       include: [/node_modules/],
-      transformMixedEsModules: true
-    }
+      transformMixedEsModules: true,
+    },
   },
+
   optimizeDeps: {
-    // Pre-bundle dependencies for faster dev server startup
     include: [
-      'react',
-      'react-dom',
-      'react-router-dom',
-      '@supabase/supabase-js',
-      '@tanstack/react-query',
-      'zustand',
-      'date-fns',
-      'lucide-react'
+      "react",
+      "react-dom",
+      "react-router-dom",
+      "@supabase/supabase-js",
+      "@tanstack/react-query",
+      "zustand",
+      "date-fns",
+      "lucide-react",
     ],
-    // Exclude large dependencies that should be loaded on demand
-    exclude: ['@radix-ui/react-tooltip']
+    exclude: ["@radix-ui/react-tooltip"], // Load on demand
   },
-  // Enable source maps in development for better debugging
-  ...(mode === 'development' && {
-    css: {
-      devSourcemap: true
-    }
-  })
+
+  ...(mode === "development" && {
+    css: { devSourcemap: true },
+  }),
 }));

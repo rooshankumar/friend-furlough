@@ -137,12 +137,24 @@ export const useMasterOptimization = () => {
     return () => observer.disconnect();
   }, []);
 
-  // Service worker registration
+  // Service worker registration - DISABLED FOR MOBILE TESTING
   useEffect(() => {
-    if ('serviceWorker' in navigator && process.env.NODE_ENV === 'production') {
+    // Temporarily disable service worker to test if it's causing DB insert issues
+    const isMobile = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
+    
+    if ('serviceWorker' in navigator && process.env.NODE_ENV === 'production' && !isMobile) {
       navigator.serviceWorker.register('/sw.js')
         .then(() => console.log('✅ Service Worker registered'))
         .catch((error) => console.error('Service Worker failed:', error));
+    } else if (isMobile) {
+      console.log('⚠️ Service Worker disabled on mobile for testing');
+      // Unregister existing service workers on mobile
+      navigator.serviceWorker?.getRegistrations().then(registrations => {
+        registrations.forEach(registration => {
+          registration.unregister();
+          console.log('🗑️ Unregistered service worker on mobile');
+        });
+      });
     }
   }, []);
 

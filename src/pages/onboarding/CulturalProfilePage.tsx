@@ -30,11 +30,83 @@ type CulturalProfileFormData = z.infer<typeof culturalProfileSchema>;
 const CulturalProfilePage = () => {
   const navigate = useNavigate();
   const { toast } = useToast();
-  const { profile, updateProfile, setOnboardingStep, onboardingCompleted } = useAuthStore();
+  const { user, profile, updateProfile, setOnboardingStep, onboardingCompleted } = useAuthStore();
   const [selectedCountry, setSelectedCountry] = useState<any>(null);
   const [avatarFile, setAvatarFile] = useState<File | null>(null);
   const [avatarPreview, setAvatarPreview] = useState<string | null>(profile?.avatar_url || null);
   const [isUploading, setIsUploading] = useState(false);
+  const [isCreatingProfile, setIsCreatingProfile] = useState(false);
+
+  // Helper function to validate gender
+  const validateGender = (gender: string | null | undefined): 'male' | 'female' | 'non-binary' | 'prefer-not-to-say' | undefined => {
+    if (!gender) return undefined;
+    const validGenders = ['male', 'female', 'non-binary', 'prefer-not-to-say'];
+    return validGenders.includes(gender) ? gender as any : 'prefer-not-to-say';
+  };
+
+  // Check if user exists but profile doesn't - create profile
+  useEffect(() => {
+    const ensureProfile = async () => {
+      if (user && !profile && !isCreatingProfile) {
+        setIsCreatingProfile(true);
+        try {
+          // Try to fetch profile first
+          const { data: existingProfile, error: fetchError } = await supabase
+            .from('profiles')
+            .select('*')
+            .eq('id', user.id)
+            .single();
+
+          if (existingProfile) {
+            // Profile exists, update store with validated gender
+            await updateProfile({
+              ...existingProfile,
+              gender: validateGender(existingProfile.gender)
+            });
+          } else {
+            // Create profile
+            const { error: createError } = await supabase
+              .from('profiles')
+              .insert({
+                id: user.id,
+                name: user.user_metadata?.name || user.email?.split('@')[0] || 'User',
+                online: true,
+                onboarding_completed: false
+              });
+
+            if (createError) {
+              console.error('Profile creation error:', createError);
+              toast({
+                title: "Error creating profile",
+                description: "Please try logging out and back in.",
+                variant: "destructive"
+              });
+            } else {
+              // Fetch the newly created profile
+              const { data: newProfile } = await supabase
+                .from('profiles')
+                .select('*')
+                .eq('id', user.id)
+                .single();
+
+              if (newProfile) {
+                await updateProfile({
+                  ...newProfile,
+                  gender: validateGender(newProfile.gender)
+                });
+              }
+            }
+          }
+        } catch (error) {
+          console.error('Error ensuring profile:', error);
+        } finally {
+          setIsCreatingProfile(false);
+        }
+      }
+    };
+
+    ensureProfile();
+  }, [user, profile, isCreatingProfile]);
 
   // Redirect if onboarding already completed
   useEffect(() => {
@@ -42,6 +114,57 @@ const CulturalProfilePage = () => {
       navigate('/explore');
     }
   }, [onboardingCompleted, navigate]);
+
+  // Show loading while creating profile
+  if (user && !profile && isCreatingProfile) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-background via-card-cultural to-background flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto mb-4"></div>
+          <p className="text-muted-foreground">Setting up your profile...</p>
+        </div>
+      </div>
+    );
+  }
+
+  // Show error if no user
+  if (!user) {
+    const handleClearSession = async () => {
+      // Clear all local storage
+      localStorage.clear();
+      // Clear session storage
+      sessionStorage.clear();
+      // Sign out from Supabase
+      await supabase.auth.signOut();
+      // Redirect to signin
+      navigate('/auth/signin');
+      toast({
+        title: "Session cleared",
+        description: "Please sign in again.",
+      });
+    };
+
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-background via-card-cultural to-background flex items-center justify-center p-4">
+        <Card className="max-w-md w-full">
+          <CardContent className="pt-6">
+            <div className="text-center">
+              <p className="text-destructive font-semibold mb-2">Session expired</p>
+              <p className="text-muted-foreground mb-4">Please log in again to continue.</p>
+              <div className="space-y-2">
+                <Button onClick={() => navigate('/auth/signin')} variant="cultural" className="w-full">
+                  Go to Sign In
+                </Button>
+                <Button onClick={handleClearSession} variant="outline" className="w-full">
+                  Clear Session & Sign In
+                </Button>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
 
   const form = useForm<CulturalProfileFormData>({
     resolver: zodResolver(culturalProfileSchema),
@@ -119,9 +242,32 @@ const CulturalProfilePage = () => {
     }
 
     if (!profile?.id) {
+      // Try to reload profile one more time
+      if (user) {
+        try {
+          const { data: freshProfile } = await supabase
+            .from('profiles')
+            .select('*')
+            .eq('id', user.id)
+            .single();
+
+          if (freshProfile) {
+            await updateProfile({
+              ...freshProfile,
+              gender: validateGender(freshProfile.gender)
+            });
+            // Retry submission with fresh profile
+            setTimeout(() => form.handleSubmit(onSubmit)(), 100);
+            return;
+          }
+        } catch (error) {
+          console.error('Failed to reload profile:', error);
+        }
+      }
+
       toast({
-        title: "Error",
-        description: "User profile not found. Please try logging in again.",
+        title: "Profile Error",
+        description: "Could not load your profile. Please clear your session and sign in again.",
         variant: "destructive",
       });
       return;

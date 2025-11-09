@@ -106,13 +106,19 @@ export async function insertMessageSimple(message: MessageInsert): Promise<any> 
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), 15000); // 15s timeout
     
-    const anonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
+    // Use PUBLISHABLE_KEY (your .env uses this name instead of ANON_KEY)
+    const anonKey = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY || import.meta.env.VITE_SUPABASE_ANON_KEY;
     
     console.log('📡 Request headers:', {
       hasAnonKey: !!anonKey,
       hasToken: !!token,
       anonKeyLength: anonKey?.length
     });
+    
+    if (!anonKey) {
+      console.error('❌ No anon key found in env');
+      throw new Error('Missing Supabase anon key');
+    }
     
     const response = await fetch(url, {
       method: 'POST',

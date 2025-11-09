@@ -125,21 +125,36 @@ export const useAuthStore = create<AuthState>()(
         }
 
         supabase.auth.onAuthStateChange(async (event, session) => {
+          console.log('🔐 Auth state changed:', event);
+          
           if (event === 'SIGNED_IN' && session?.user) {
-            const { data: profile } = await supabase
-              .from('profiles')
-              .select('*')
-              .eq('id', session.user.id)
-              .single();
+            try {
+              const { data: profile } = await supabase
+                .from('profiles')
+                .select('*')
+                .eq('id', session.user.id)
+                .single();
 
-            set({
-              session,
-              user: session.user,
-              profile: isValidProfile(profile) ? profile : null,
-              isAuthenticated: isValidProfile(profile),
-              onboardingCompleted: isValidProfile(profile) && profile.onboarding_completed === true,
-              isLoading: false
-            });
+              set({
+                session,
+                user: session.user,
+                profile: isValidProfile(profile) ? profile : null,
+                isAuthenticated: true, // User is authenticated if they have a session
+                onboardingCompleted: isValidProfile(profile) && profile.onboarding_completed === true,
+                isLoading: false
+              });
+            } catch (error) {
+              console.error('Failed to load profile on auth change:', error);
+              // Still set as authenticated even if profile fails to load
+              set({
+                session,
+                user: session.user,
+                profile: null,
+                isAuthenticated: true,
+                onboardingCompleted: false,
+                isLoading: false
+              });
+            }
           } else if (event === 'SIGNED_OUT') {
             set({
               user: null,
@@ -150,6 +165,10 @@ export const useAuthStore = create<AuthState>()(
               onboardingCompleted: false,
               isLoading: false
             });
+          } else if (event === 'TOKEN_REFRESHED') {
+            console.log('🔄 Token refreshed successfully');
+            // Update session but keep other state
+            set({ session });
           }
         });
       },
@@ -205,7 +224,7 @@ export const useAuthStore = create<AuthState>()(
             user: data.user,
             session: data.session,
             profile: isValidProfile(profile) ? profile : null,
-            isAuthenticated: isValidProfile(profile),
+            isAuthenticated: true, // Always true if we have a user
             onboardingCompleted: isValidProfile(profile) && profile.onboarding_completed === true
           });
         } catch (error) {

@@ -32,14 +32,17 @@ const CulturalProfilePage = () => {
   const { toast } = useToast();
   const { profile, updateProfile, setOnboardingStep, onboardingCompleted } = useAuthStore();
   const [selectedCountry, setSelectedCountry] = useState<any>(null);
-  
+  const [avatarFile, setAvatarFile] = useState<File | null>(null);
+  const [avatarPreview, setAvatarPreview] = useState<string | null>(profile?.avatar_url || null);
+  const [isUploading, setIsUploading] = useState(false);
+
   // Redirect if onboarding already completed
   useEffect(() => {
     if (onboardingCompleted) {
       navigate('/explore');
     }
   }, [onboardingCompleted, navigate]);
-  
+
   const form = useForm<CulturalProfileFormData>({
     resolver: zodResolver(culturalProfileSchema),
     defaultValues: {
@@ -50,9 +53,9 @@ const CulturalProfilePage = () => {
       gender: (profile?.gender as string) || 'prefer-not-to-say',
     },
   });
-  
+
   const watchedNativeLanguages = form.watch('nativeLanguages');
-  
+
   // Load existing native languages from database
   useEffect(() => {
     const loadNativeLanguages = async () => {
@@ -62,17 +65,17 @@ const CulturalProfilePage = () => {
           .select('language_name')
           .eq('user_id', profile.id)
           .eq('is_native', true);
-        
+
         if (data && data.length > 0) {
           const languageNames = data.map(lang => lang.language_name);
           form.setValue('nativeLanguages', languageNames);
         }
       }
     };
-    
+
     loadNativeLanguages();
   }, [profile?.id]);
-  
+
   // Set selected country if profile has country data
   useEffect(() => {
     if (profile?.country && profile?.country_code && profile?.country_flag) {
@@ -83,7 +86,7 @@ const CulturalProfilePage = () => {
       });
     }
   }, [profile]);
-  
+
   const onSubmit = async (data: CulturalProfileFormData) => {
     if (!selectedCountry) {
       toast({
@@ -93,7 +96,7 @@ const CulturalProfilePage = () => {
       });
       return;
     }
-    
+
     if (!profile?.id) {
       toast({
         title: "Error",
@@ -102,8 +105,38 @@ const CulturalProfilePage = () => {
       });
       return;
     }
-    
+
     try {
+      setIsUploading(true);
+
+      // Upload avatar if selected
+      let avatarUrl = profile?.avatar_url;
+      if (avatarFile) {
+        const fileExt = avatarFile.name.split('.').pop();
+        const fileName = `${profile?.id}-${Date.now()}.${fileExt}`;
+
+        const { data: uploadData, error: uploadError } = await supabase.storage
+          .from('avatars')
+          .upload(fileName, avatarFile, {
+            cacheControl: '3600',
+            upsert: true
+          });
+
+        if (uploadError) {
+          console.error('Avatar upload error:', uploadError);
+          toast({
+            title: "Avatar upload failed",
+            description: "Continuing without avatar. You can add it later.",
+            variant: "destructive"
+          });
+        } else {
+          const { data: { publicUrl } } = supabase.storage
+            .from('avatars')
+            .getPublicUrl(fileName);
+          avatarUrl = publicUrl;
+        }
+      }
+
       // Update user profile with cultural data
       await updateProfile({
         country_code: data.country,
@@ -112,8 +145,9 @@ const CulturalProfilePage = () => {
         city: data.city,
         age: data.age,
         gender: data.gender as any,
+        avatar_url: avatarUrl
       });
-      
+
       // Save native languages to languages table
       // First, delete existing native languages for this user
       await supabase
@@ -121,7 +155,7 @@ const CulturalProfilePage = () => {
         .delete()
         .eq('user_id', profile.id)
         .eq('is_native', true);
-      
+
       // Insert new native languages
       if (data.nativeLanguages.length > 0) {
         const languageRecords = data.nativeLanguages.map(langName => ({
@@ -132,17 +166,17 @@ const CulturalProfilePage = () => {
           is_learning: false,
           proficiency_level: 'native',
         }));
-        
+
         const { error: langError } = await supabase
           .from('languages')
           .insert(languageRecords);
-        
+
         if (langError) {
           console.error('Error saving languages:', langError);
           throw langError;
         }
       }
-      
+
       setOnboardingStep(3);
       toast({
         title: "Cultural profile updated! 🌍",
@@ -156,9 +190,11 @@ const CulturalProfilePage = () => {
         description: "Something went wrong. Please try again.",
         variant: "destructive",
       });
+    } finally {
+      setIsUploading(false);
     }
   };
-  
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-background via-card-cultural to-background">
       <div className="container mx-auto px-4 py-8">
@@ -173,9 +209,9 @@ const CulturalProfilePage = () => {
               Step 2 of 3
             </div>
           </div>
-          
+
           <Progress value={66} className="mb-8" />
-          
+
           <Card className="card-cultural">
             <CardHeader className="text-center">
               <CardTitle className="text-2xl">Share Your Cultural Background</CardTitle>
@@ -183,24 +219,62 @@ const CulturalProfilePage = () => {
                 Help others learn about your culture and find perfect language exchange partners
               </CardDescription>
             </CardHeader>
-            
+
             <CardContent>
               <Form {...form}>
                 <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
                   {/* Profile Photo Section */}
                   <div className="text-center">
-                    <div className="w-24 h-24 bg-muted rounded-full mx-auto mb-4 flex items-center justify-center">
-                      <Camera className="h-8 w-8 text-muted-foreground" />
+                    <div className="relative w-24 h-24 mx-auto mb-4">
+                      {avatarPreview ? (
+                        <img
+                          src={avatarPreview}
+                          alt="Profile"
+                          className="w-24 h-24 rounded-full object-cover border-2 border-primary"
+                        />
+                      ) : (
+                        <div className="w-24 h-24 bg-muted rounded-full flex items-center justify-center">
+                          <Camera className="h-8 w-8 text-muted-foreground" />
+                        </div>
+                      )}
                     </div>
-                    <Button variant="outline" size="sm">
+                    <input
+                      type="file"
+                      id="avatar-upload"
+                      accept="image/*"
+                      className="hidden"
+                      onChange={async (e) => {
+                        const file = e.target.files?.[0];
+                        if (file) {
+                          if (file.size > 5 * 1024 * 1024) {
+                            toast({
+                              title: "File too large",
+                              description: "Please select an image under 5MB",
+                              variant: "destructive"
+                            });
+                            return;
+                          }
+                          setAvatarFile(file);
+                          const preview = URL.createObjectURL(file);
+                          setAvatarPreview(preview);
+                        }
+                      }}
+                    />
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      type="button"
+                      onClick={() => document.getElementById('avatar-upload')?.click()}
+                      disabled={isUploading}
+                    >
                       <Upload className="mr-2 h-4 w-4" />
-                      Upload Photo
+                      {avatarPreview ? 'Change Photo' : 'Upload Photo'}
                     </Button>
                     <p className="text-xs text-muted-foreground mt-2">
                       Optional: Add a photo to help others connect with you
                     </p>
                   </div>
-                  
+
                   {/* Country Selection */}
                   <FormField
                     control={form.control}
@@ -225,7 +299,7 @@ const CulturalProfilePage = () => {
                       </FormItem>
                     )}
                   />
-                  
+
                   {/* City */}
                   <FormField
                     control={form.control}
@@ -240,7 +314,7 @@ const CulturalProfilePage = () => {
                       </FormItem>
                     )}
                   />
-                  
+
                   {/* Native Languages */}
                   <FormField
                     control={form.control}
@@ -264,7 +338,7 @@ const CulturalProfilePage = () => {
                       </FormItem>
                     )}
                   />
-                  
+
                   {/* Age */}
                   <FormField
                     control={form.control}
@@ -273,9 +347,9 @@ const CulturalProfilePage = () => {
                       <FormItem>
                         <FormLabel>Age</FormLabel>
                         <FormControl>
-                          <Input 
-                            type="number" 
-                            placeholder="Enter your age" 
+                          <Input
+                            type="number"
+                            placeholder="Enter your age"
                             {...field}
                             onChange={(e) => field.onChange(parseInt(e.target.value) || 0)}
                           />
@@ -287,7 +361,7 @@ const CulturalProfilePage = () => {
                       </FormItem>
                     )}
                   />
-                  
+
                   {/* Gender */}
                   <FormField
                     control={form.control}
@@ -312,23 +386,24 @@ const CulturalProfilePage = () => {
                       </FormItem>
                     )}
                   />
-                  
+
                   {/* Navigation Buttons */}
                   <div className="flex justify-between pt-6">
-                    <Button 
-                      type="button" 
+                    <Button
+                      type="button"
                       variant="outline"
                       onClick={() => navigate('/auth/signup')}
                     >
                       <ArrowLeft className="mr-2 h-4 w-4" />
                       Back
                     </Button>
-                    
-                    <Button 
-                      type="submit" 
+
+                    <Button
+                      type="submit"
                       variant="cultural"
+                      disabled={isUploading}
                     >
-                      Continue to Learning Goals
+                      {isUploading ? 'Uploading...' : 'Continue to Learning Goals'}
                       <ArrowRight className="ml-2 h-4 w-4" />
                     </Button>
                   </div>

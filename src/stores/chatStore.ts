@@ -618,22 +618,47 @@ export const useChatStore = create<ChatState>((set, get) => ({
       }
       console.log('✅ Attachment metadata saved:', attachmentData.id);
 
+      // Create complete message object with all data
+      const completeMessage: DbMessage = {
+        ...messageData,
+        media_url: mediaUrl,
+        status: 'sent' as MessageStatus,
+        uploadProgress: 100
+      };
+
+      console.log('📝 Replacing temp message with complete message:', {
+        tempId,
+        messageId: messageData.id,
+        hasMediaUrl: !!mediaUrl
+      });
+
       // Replace temp message with real one INCLUDING media_url for immediate display
-      set(state => ({
-        messages: {
-          ...state.messages,
-          [conversationId]: state.messages[conversationId]?.map(msg =>
-            msg.tempId === tempId 
-              ? { ...messageData, media_url: mediaUrl, status: 'sent', uploadProgress: 100 } 
-              : msg
-          ) || []
-        }
-      }));
+      set(state => {
+        const currentMessages = state.messages[conversationId] || [];
+        console.log('📋 Current messages count:', currentMessages.length);
+        
+        const updatedMessages = currentMessages.map(msg => {
+          if (msg.tempId === tempId) {
+            console.log('✅ Found and replacing temp message');
+            return completeMessage;
+          }
+          return msg;
+        });
+
+        console.log('📋 Updated messages count:', updatedMessages.length);
+        
+        return {
+          messages: {
+            ...state.messages,
+            [conversationId]: updatedMessages
+          }
+        };
+      });
 
       // Update conversation's last message
-      await get().updateConversationLastMessage(conversationId, { ...messageData, media_url: mediaUrl });
+      await get().updateConversationLastMessage(conversationId, completeMessage);
 
-      console.log('✅ Attachment sent successfully');
+      console.log('✅ Attachment sent successfully and displayed in UI');
 
     } catch (error: any) {
       console.error('❌ Failed to send attachment:', error);
@@ -880,7 +905,7 @@ export const useChatStore = create<ChatState>((set, get) => ({
           filter: `conversation_id=eq.${conversationId}`
         },
         (payload) => {
-          console.log('New message received:', payload);
+          console.log('📨 New message received via realtime:', payload.new.id);
           if (payload.new && payload.new.conversation_id === conversationId) {
             set(state => {
               const existingMessages = state.messages[conversationId] || [];
@@ -889,9 +914,11 @@ export const useChatStore = create<ChatState>((set, get) => ({
               // If already present by id, skip (prevents duplicates)
               const messageExistsById = existingMessages.some((m: any) => m.id === incoming.id);
               if (messageExistsById) {
-                console.log('✅ Message already exists by id, skipping duplicate');
+                console.log('⚠️ Message already exists by id, skipping duplicate:', incoming.id);
                 return state;
               }
+
+              console.log('✅ New message not in local state, processing...');
 
               // IMPROVED: Reconcile with optimistic message using client_id (primary) or tempId (fallback)
               let replaced = false;

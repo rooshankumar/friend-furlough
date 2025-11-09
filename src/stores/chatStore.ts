@@ -246,7 +246,8 @@ export const useChatStore = create<ChatState>((set, get) => ({
           content,
           created_at,
           type,
-          reply_to_message_id
+          reply_to_message_id,
+          media_url
         `)
         .eq('conversation_id', conversationId)
         .order('created_at', { ascending: false }) // Get newest first
@@ -267,23 +268,8 @@ export const useChatStore = create<ChatState>((set, get) => ({
 
       console.log(`✅ Loaded ${data?.length || 0} messages from database`);
 
-      // Fetch attachments for these messages (or by conversation if message_id is null)
-      const messageIds = (data || []).map(m => m.id);
-      const { data: attachments, error: attachmentsError } = await supabase
-        .from('attachments')
-        .select('message_id,cloudinary_url')
-        .or(`message_id.in.(${messageIds.join(',')}),and(conversation_id.eq.${conversationId},message_id.is.null)`);
-
-      if (attachmentsError) {
-        console.error('❌ Error loading attachments:', attachmentsError);
-      }
-
-      // Create a map of message_id -> cloudinary_url
-      const attachmentMap = new Map(
-        (attachments || []).map(a => [a.message_id, a.cloudinary_url])
-      );
-
-      console.log(`📎 Loaded ${attachments?.length || 0} attachments for messages`, attachments);
+      // media_url is already in messages table - no need for extra query!
+      console.log(`✅ Loaded ${data?.length || 0} messages with media_url directly from database`);
 
       // Get current user to determine message status
       const { data: { user } } = await supabase.auth.getUser();
@@ -325,14 +311,14 @@ export const useChatStore = create<ChatState>((set, get) => ({
               sender_name: userMap.get(repliedMessage.sender_id) || 'User',
               sender_id: repliedMessage.sender_id,
               type: repliedMessage.type,
-              media_url: attachmentMap.get(repliedMessage.id) // Get from attachments table
+              media_url: repliedMessage.media_url // Already in message!
             };
           }
         }
 
         return {
           ...message,
-          media_url: attachmentMap.get(message.id), // Get URL from attachments table
+          // media_url is already in message from database
           status,
           reply_to
         };
@@ -581,7 +567,7 @@ export const useChatStore = create<ChatState>((set, get) => ({
       const publicId = cloudinaryResult.public_id;
       console.log('✅ Cloudinary upload complete:', { url: mediaUrl, publicId });
 
-      console.log('📤 Step 2: Creating message in database...');
+      console.log('📤 Step 2: Creating message with media_url in database...');
       const { data: messageData, error: messageError } = await supabase
         .from('messages')
         .insert({
@@ -589,16 +575,17 @@ export const useChatStore = create<ChatState>((set, get) => ({
           sender_id: senderId,
           content: file.name,
           type: messageType,
-          client_id: clientId
+          client_id: clientId,
+          media_url: mediaUrl // Store URL directly in messages table
         })
         .select()
         .single();
 
       if (messageError) throw messageError;
-      console.log('✅ Message created:', messageData.id);
+      console.log('✅ Message created with media_url:', messageData.id);
 
-      console.log('📤 Step 3: Saving attachment metadata...');
-      const { data: attachmentData, error: attachmentError } = await supabase
+      // Optional: Save metadata to attachments table (non-blocking)
+      supabase
         .from('attachments')
         .insert({
           message_id: messageData.id,
@@ -609,14 +596,8 @@ export const useChatStore = create<ChatState>((set, get) => ({
           file_size: file.size,
           file_type: file.type
         })
-        .select()
-        .single();
-
-      if (attachmentError) {
-        console.error('❌ Failed to save attachment metadata:', attachmentError);
-        throw attachmentError;
-      }
-      console.log('✅ Attachment metadata saved:', attachmentData.id);
+        .then(() => console.log('✅ Attachment metadata saved'))
+        .catch(err => console.warn('⚠️ Failed to save attachment metadata (non-critical):', err));
 
       // Create complete message object with all data
       const completeMessage: DbMessage = {
@@ -904,29 +885,13 @@ export const useChatStore = create<ChatState>((set, get) => ({
           table: 'messages',
           filter: `conversation_id=eq.${conversationId}`
         },
-        async (payload) => {
+        (payload) => {
           console.log('📨 New message received via realtime:', payload.new.id);
           if (payload.new && payload.new.conversation_id === conversationId) {
             const incoming: any = payload.new;
 
-            // Fetch attachment if message has media
-            if (incoming.type === 'image' || incoming.type === 'video' || incoming.type === 'file' || incoming.type === 'voice') {
-              console.log('📎 Fetching attachment for message:', incoming.id);
-              try {
-                const { data: attachment } = await supabase
-                  .from('attachments')
-                  .select('cloudinary_url')
-                  .eq('message_id', incoming.id)
-                  .single();
-                
-                if (attachment) {
-                  incoming.media_url = attachment.cloudinary_url;
-                  console.log('✅ Attachment loaded:', attachment.cloudinary_url);
-                }
-              } catch (err) {
-                console.warn('⚠️ Could not fetch attachment:', err);
-              }
-            }
+            // media_url is already in the message (no extra query needed!)
+            console.log('📨 Message media_url:', incoming.media_url || 'none');
 
             set(state => {
               const existingMessages = state.messages[conversationId] || [];

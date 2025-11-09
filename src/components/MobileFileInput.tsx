@@ -55,10 +55,13 @@ const MobileFileInput: React.FC<MobileFileInputProps> = ({
   const handleFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
 
-    console.log('📎 File selected:', file ? {
+    const isMobile = /Android|webOS|iPhone|iPad|iPod/i.test(navigator.userAgent);
+    
+    console.log('📎 File selected (Mobile: ' + isMobile + '):', file ? {
       name: file.name,
       size: `${(file.size / 1024 / 1024).toFixed(2)}MB`,
-      type: file.type
+      type: file.type,
+      userAgent: navigator.userAgent.substring(0, 50)
     } : 'NO FILE');
 
     if (!file) {
@@ -125,10 +128,22 @@ const MobileFileInput: React.FC<MobileFileInputProps> = ({
 
     } catch (error: any) {
       console.error('❌ Upload failed:', error);
+      
+      // Mobile-friendly error messages
+      let errorMsg = error.message || 'Please try again';
+      if (errorMsg.includes('timeout')) {
+        errorMsg = '⏱️ Upload taking too long - try connecting to WiFi or use a smaller file';
+      } else if (errorMsg.includes('network') || errorMsg.includes('connection')) {
+        errorMsg = '📡 Network issue - check your internet connection';
+      } else if (errorMsg.includes('large')) {
+        errorMsg = '📦 File too large - try a smaller file (max 20MB)';
+      }
+      
       toast({
         title: 'Upload failed',
-        description: error.message || 'Please try again',
-        variant: 'destructive'
+        description: errorMsg,
+        variant: 'destructive',
+        duration: 5000 // Longer duration for mobile users to read
       });
       setUploadProgress(0);
       setIsLoading(false);

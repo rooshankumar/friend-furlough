@@ -25,16 +25,18 @@ function checkNetwork(): void {
 
 /**
  * Get appropriate timeout based on file size and platform
+ * Mobile devices need MUCH longer timeouts due to slower connections
  */
 function getTimeout(fileSize: number): number {
-  const isMobile = Capacitor.isNativePlatform();
+  const isMobile = Capacitor.isNativePlatform() || /Android|webOS|iPhone|iPad|iPod/i.test(navigator.userAgent);
   const sizeMB = fileSize / (1024 * 1024);
   
-  // Base timeout: 30s for mobile, 60s for desktop
-  const baseTimeout = isMobile ? 30000 : 60000;
+  // Base timeout: 90s for mobile (3x longer), 60s for desktop
+  const baseTimeout = isMobile ? 90000 : 60000;
   
-  // Add 10s per MB for large files
-  const additionalTime = Math.floor(sizeMB) * 10000;
+  // Add 20s per MB for mobile (slower connections), 10s for desktop
+  const timePerMB = isMobile ? 20000 : 10000;
+  const additionalTime = Math.floor(sizeMB) * timePerMB;
   
   return baseTimeout + additionalTime;
 }
@@ -59,6 +61,14 @@ export const uploadToCloudinary = async (
 ): Promise<CloudinaryResponse> => {
   checkNetwork();
   
+  const isMobile = Capacitor.isNativePlatform() || /Android|webOS|iPhone|iPad|iPod/i.test(navigator.userAgent);
+  
+  console.log(`📤 Starting Cloudinary upload (Mobile: ${isMobile}):`, {
+    fileName: file.name,
+    size: `${(file.size / 1024 / 1024).toFixed(2)}MB`,
+    type: file.type
+  });
+  
   onProgress?.(10);
 
   const formData = new FormData();
@@ -67,14 +77,24 @@ export const uploadToCloudinary = async (
   formData.append('cloud_name', CLOUDINARY_CLOUD_NAME);
   formData.append('folder', 'chat_attachments');
   
+  // Mobile-specific optimization: Add quality reduction for large images
+  if (isMobile && file.type.startsWith('image/') && file.size > 2 * 1024 * 1024) {
+    formData.append('quality', 'auto:good');
+    formData.append('fetch_format', 'auto');
+  }
+  
   onProgress?.(30);
 
   const url = `https://api.cloudinary.com/v1_1/${CLOUDINARY_CLOUD_NAME}/image/upload`;
   const timeout = getTimeout(file.size);
   
+  console.log(`⏱️ Upload timeout set to ${timeout / 1000}s`);
+  
   return new Promise((resolve, reject) => {
     const xhr = new XMLHttpRequest();
     let networkCheckInterval: NodeJS.Timeout;
+    let lastProgressTime = Date.now();
+    let progressStalled = false;
     
     // Monitor network during upload
     networkCheckInterval = setInterval(() => {
@@ -82,12 +102,24 @@ export const uploadToCloudinary = async (
         xhr.abort();
         clearInterval(networkCheckInterval);
         reject(new Error('Network connection lost during upload'));
+        return;
+      }
+      
+      // Detect stalled uploads (no progress for 15s)
+      if (Date.now() - lastProgressTime > 15000) {
+        if (!progressStalled) {
+          console.warn('⚠️ Upload progress stalled for 15s');
+          progressStalled = true;
+        }
       }
     }, 2000);
     
     xhr.upload.addEventListener('progress', (e) => {
       if (e.lengthComputable) {
+        lastProgressTime = Date.now();
+        progressStalled = false;
         const percentComplete = Math.round((e.loaded / e.total) * 100);
+        console.log(`📊 Upload progress: ${percentComplete}%`);
         onProgress?.(percentComplete);
       }
     });
@@ -95,41 +127,56 @@ export const uploadToCloudinary = async (
     xhr.addEventListener('load', () => {
       clearInterval(networkCheckInterval);
       
+      console.log(`✅ Upload completed with status: ${xhr.status}`);
+      
       if (xhr.status === 200) {
         try {
           const response = JSON.parse(xhr.responseText);
           onProgress?.(100);
-          // Return full response object with public_id and secure_url
+          console.log('✅ Cloudinary response:', { url: response.secure_url, public_id: response.public_id });
           resolve(response);
         } catch (e) {
+          console.error('❌ Failed to parse response:', xhr.responseText);
           reject(new Error('Invalid response from server'));
         }
       } else if (xhr.status === 413) {
-        reject(new Error('File too large for upload'));
+        reject(new Error('File too large for upload (max 20MB)'));
       } else if (xhr.status >= 500) {
-        reject(new Error('Server error. Please try again.'));
+        reject(new Error('Server error. Please try again in a moment.'));
+      } else if (xhr.status === 0) {
+        reject(new Error('Network error - check your connection and try again'));
       } else {
-        reject(new Error(`Upload failed with status ${xhr.status}`));
+        reject(new Error(`Upload failed (${xhr.status}). Please try again.`));
       }
     });
     
     xhr.addEventListener('error', () => {
       clearInterval(networkCheckInterval);
-      reject(new Error(isOnline ? 'Network error during upload' : 'No internet connection'));
+      console.error('❌ XHR error event triggered');
+      reject(new Error(isOnline ? 'Network error during upload - check your connection' : 'No internet connection'));
     });
     
     xhr.addEventListener('timeout', () => {
       clearInterval(networkCheckInterval);
-      reject(new Error('Upload timeout - file may be too large or connection too slow'));
+      console.error(`❌ Upload timeout after ${timeout / 1000}s`);
+      reject(new Error(`Upload timeout - ${isMobile ? 'try connecting to a faster network or' : ''} use a smaller file`));
     });
     
     xhr.addEventListener('abort', () => {
       clearInterval(networkCheckInterval);
+      console.warn('⚠️ Upload cancelled');
       reject(new Error('Upload cancelled'));
     });
     
     xhr.timeout = timeout;
     xhr.open('POST', url);
+    
+    // Mobile-specific: Set longer keep-alive
+    if (isMobile) {
+      xhr.setRequestHeader('Connection', 'keep-alive');
+    }
+    
+    console.log('🚀 Sending upload request...');
     xhr.send(formData);
   });
 };

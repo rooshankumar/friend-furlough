@@ -192,12 +192,16 @@ export async function uploadAttachment(
     throw new Error('No network connection. Please check your internet and try again.');
   }
   
+  const isMobile = /Android|webOS|iPhone|iPad|iPod/i.test(navigator.userAgent);
+  
   console.log('📎 Starting attachment upload:', {
     fileName: file.name,
     fileSize: `${(file.size / 1024 / 1024).toFixed(2)}MB`,
     fileType: file.type,
     conversationId,
-    messageId
+    messageId,
+    isMobile,
+    platform: isMobile ? 'Mobile' : 'Desktop'
   });
   
   try {

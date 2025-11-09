@@ -24,10 +24,18 @@ export async function insertViaEdgeFunction(message: MessageInsert): Promise<any
   const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
   const functionUrl = `${supabaseUrl}/functions/v1/insert-message`;
   
-  console.log('📡 Calling Edge Function:', functionUrl);
+  console.log('📡 Calling Edge Function:', {
+    url: functionUrl,
+    messageData: {
+      conversation_id: message.conversation_id,
+      type: message.type,
+      hasMediaUrl: !!message.media_url
+    }
+  });
   
   try {
-    const response = await fetch(functionUrl, {
+    // Add timeout for Edge Function call
+    const fetchPromise = fetch(functionUrl, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -36,19 +44,39 @@ export async function insertViaEdgeFunction(message: MessageInsert): Promise<any
       body: JSON.stringify(message)
     });
     
-    console.log('📡 Edge Function response:', response.status);
+    const timeoutPromise = new Promise((_, reject) =>
+      setTimeout(() => {
+        console.error('⏱️ Edge Function timeout (30s)');
+        reject(new Error('Edge Function timeout'));
+      }, 30000)
+    );
+    
+    const response = await Promise.race([fetchPromise, timeoutPromise]) as Response;
+    
+    console.log('📡 Edge Function response status:', response.status);
     
     if (!response.ok) {
       const error = await response.text();
-      console.error('❌ Edge Function error:', error);
-      throw new Error(`Edge Function error: ${response.status}`);
+      console.error('❌ Edge Function error:', {
+        status: response.status,
+        statusText: response.statusText,
+        body: error
+      });
+      throw new Error(`Edge Function error: ${response.status} - ${error}`);
     }
     
     const data = await response.json();
-    console.log('✅ Edge Function insert successful:', data);
+    console.log('✅ Edge Function insert successful:', {
+      id: data.id,
+      type: data.type,
+      hasMediaUrl: !!data.media_url
+    });
     return data;
   } catch (error: any) {
-    console.error('❌ Edge Function failed:', error);
+    console.error('❌ Edge Function failed:', {
+      message: error.message,
+      name: error.name
+    });
     throw error;
   }
 }

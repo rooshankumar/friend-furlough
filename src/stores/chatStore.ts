@@ -569,27 +569,45 @@ export const useChatStore = create<ChatState>((set, get) => ({
 
       console.log('📤 Step 2: Creating message with media_url in database...');
       
-      // Import fallback insert method and queue
+      // Import Edge Function insert (most reliable)
+      const { insertViaEdgeFunction } = await import('@/lib/edgeFunctionInsert');
       const { insertMessageWithFallback } = await import('@/lib/directDbInsert');
       const { messageQueue } = await import('@/lib/messageQueue');
       
       let messageData: any = null;
 
       try {
-        console.log('🔄 Attempting database insert with automatic fallback...');
-        messageData = await insertMessageWithFallback({
-          conversation_id: conversationId,
-          sender_id: senderId,
-          content: file.name,
-          type: messageType,
-          client_id: clientId,
-          media_url: mediaUrl
-        });
-        console.log('✅ Message created with media_url:', messageData.id);
+        console.log('🔄 Trying Edge Function insert (primary method)...');
+        
+        // Try Edge Function first (most reliable)
+        try {
+          messageData = await insertViaEdgeFunction({
+            conversation_id: conversationId,
+            sender_id: senderId,
+            content: file.name,
+            type: messageType,
+            client_id: clientId,
+            media_url: mediaUrl
+          });
+          console.log('✅ Edge Function insert successful:', messageData.id);
+        } catch (edgeError: any) {
+          console.warn('⚠️ Edge Function failed, trying Supabase client fallback...', edgeError.message);
+          
+          // Fallback to Supabase client/REST API
+          messageData = await insertMessageWithFallback({
+            conversation_id: conversationId,
+            sender_id: senderId,
+            content: file.name,
+            type: messageType,
+            client_id: clientId,
+            media_url: mediaUrl
+          });
+          console.log('✅ Fallback insert successful:', messageData.id);
+        }
       } catch (err: any) {
         console.error('❌ All insert methods failed, using queue fallback:', err);
         
-        // FALLBACK: Queue the message locally and show it in UI
+        // FINAL FALLBACK: Queue the message locally and show it in UI
         const queuedId = `queued_${Date.now()}_${Math.random().toString(36).slice(2)}`;
         messageData = {
           id: queuedId,

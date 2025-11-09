@@ -569,41 +569,25 @@ export const useChatStore = create<ChatState>((set, get) => ({
 
       console.log('📤 Step 2: Creating message with media_url in database...');
       
-      // Import Edge Function insert (most reliable)
-      const { insertViaEdgeFunction } = await import('@/lib/edgeFunctionInsert');
-      const { insertMessageWithFallback } = await import('@/lib/directDbInsert');
+      // Import simple insert (avoids getSession hanging)
+      const { insertMessageSimple } = await import('@/lib/simpleInsert');
       const { messageQueue } = await import('@/lib/messageQueue');
       
       let messageData: any = null;
 
       try {
-        console.log('🔄 Trying Edge Function insert (primary method)...');
+        console.log('🔄 Trying simple direct insert (cached token)...');
         
-        // Try Edge Function first (most reliable)
-        try {
-          messageData = await insertViaEdgeFunction({
-            conversation_id: conversationId,
-            sender_id: senderId,
-            content: file.name,
-            type: messageType,
-            client_id: clientId,
-            media_url: mediaUrl
-          });
-          console.log('✅ Edge Function insert successful:', messageData.id);
-        } catch (edgeError: any) {
-          console.warn('⚠️ Edge Function failed, trying Supabase client fallback...', edgeError.message);
-          
-          // Fallback to Supabase client/REST API
-          messageData = await insertMessageWithFallback({
-            conversation_id: conversationId,
-            sender_id: senderId,
-            content: file.name,
-            type: messageType,
-            client_id: clientId,
-            media_url: mediaUrl
-          });
-          console.log('✅ Fallback insert successful:', messageData.id);
-        }
+        // Use simple insert with cached token (most reliable on mobile)
+        messageData = await insertMessageSimple({
+          conversation_id: conversationId,
+          sender_id: senderId,
+          content: file.name,
+          type: messageType,
+          client_id: clientId,
+          media_url: mediaUrl
+        });
+        console.log('✅ Simple insert successful:', messageData.id);
       } catch (err: any) {
         console.error('❌ All insert methods failed, using queue fallback:', err);
         

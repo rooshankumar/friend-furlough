@@ -199,10 +199,10 @@ export const useChatStore = create<ChatState>((set, get) => ({
 
       const conversationsWithDetails = Array.from(conversationMap.values());
 
-      // Filter out permanently deleted conversations
+      // Filter out permanently deleted conversations AND conversations without messages
       const deletedConvs = JSON.parse(localStorage.getItem('deletedConversations') || '[]');
       const filteredConversations = conversationsWithDetails.filter(
-        conv => !deletedConvs.includes(conv.id)
+        conv => !deletedConvs.includes(conv.id) && conv.lastMessage !== undefined
       );
 
       // Sort by most recent activity
@@ -211,7 +211,6 @@ export const useChatStore = create<ChatState>((set, get) => ({
         const bTime = b.lastMessage?.created_at || b.updated_at;
         return new Date(bTime).getTime() - new Date(aTime).getTime();
       });
-
 
       set({ conversations: filteredConversations, isLoading: false });
     } catch (error) {

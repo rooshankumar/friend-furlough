@@ -15,6 +15,7 @@ import React, { useState, useEffect, useRef, useCallback, useMemo, useLayoutEffe
 import { isMobileApp } from '@/lib/mobileFilePicker';
 import MobileFileInput from '@/components/MobileFileInput';
 import { B2Image } from '@/components/B2Image';
+import { ImageViewer } from '@/components/chat/ImageViewer';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import { usePerformanceMonitor } from '@/hooks/usePerformanceOptimization';
 import { useAuthStore } from '@/stores/authStore';
@@ -74,6 +75,7 @@ interface EnhancedMessageV2Props {
   onReply?: (message: any) => void;
   onCopy?: (content: string) => void;
   onDelete?: (messageId: string) => void;
+  onImageClick?: (imageUrl: string) => void;
 }
 
 const EnhancedMessageV2: React.FC<EnhancedMessageV2Props> = ({
@@ -85,7 +87,8 @@ const EnhancedMessageV2: React.FC<EnhancedMessageV2Props> = ({
   onReact,
   onReply,
   onCopy,
-  onDelete
+  onDelete,
+  onImageClick
 }) => {
   const [swipeX, setSwipeX] = useState(0);
   const touchStartX = useRef(0);
@@ -142,14 +145,17 @@ const EnhancedMessageV2: React.FC<EnhancedMessageV2Props> = ({
         {message.type === 'image' ? (
           <div className="relative group">
             {message.media_url ? (
-              <B2Image 
-                src={message.media_url} 
-                alt="Shared image"
-                loading="lazy"
-                decoding="async"
-                className="max-w-xs w-full h-auto max-h-64 object-cover rounded-2xl shadow-md cursor-pointer hover:opacity-90 transition-opacity"
-                onClick={() => navigate(`/image-viewer?url=${encodeURIComponent(message.media_url!)}`)}
-              />
+              <div 
+                onClick={() => onImageClick?.(message.media_url!)}
+                className="cursor-pointer hover:opacity-90 transition-opacity"
+              >
+                <B2Image 
+                  src={message.media_url} 
+                  alt="Shared image"
+                  loading="lazy"
+                  className="max-w-[280px] rounded-lg"
+                />
+              </div>
             ) : (
               // Placeholder while uploading
               <div className="w-48 h-48 bg-muted/20 rounded-2xl flex items-center justify-center">
@@ -252,6 +258,27 @@ const EnhancedMessageV2: React.FC<EnhancedMessageV2Props> = ({
                   hour12: false 
                 })}
               </span>
+              {/* Show avatar for read messages (own messages only) */}
+              {isOwnMessage && message.status === 'read' && otherUser && (
+                <Avatar className="h-3.5 w-3.5 ring-1 ring-white/20">
+                  <AvatarImage src={otherUser.avatar_url} />
+                  <AvatarFallback className="bg-white/20 text-[8px]">
+                    {otherUser.name?.[0] || '?'}
+                  </AvatarFallback>
+                </Avatar>
+              )}
+              {/* Show double tick for delivered (not read yet) */}
+              {isOwnMessage && message.status === 'delivered' && (
+                <svg className="w-3.5 h-3.5" viewBox="0 0 16 16" fill="currentColor">
+                  <path d="M15.01 3.316l-.478-.372a.365.365 0 0 0-.51.063L8.666 9.88a.32.32 0 0 1-.484.033l-.358-.325a.32.32 0 0 0-.484.032l-.378.483a.418.418 0 0 0 .036.54l1.32 1.267a.32.32 0 0 0 .484-.034l6.272-8.048a.366.366 0 0 0-.064-.512zm-4.1 0l-.478-.372a.365.365 0 0 0-.51.063L4.566 9.88a.32.32 0 0 1-.484.033L1.891 7.769a.366.366 0 0 0-.515.006l-.423.433a.364.364 0 0 0 .006.514l3.258 3.185c.143.14.361.125.484-.033l6.272-8.048a.365.365 0 0 0-.063-.51z"/>
+                </svg>
+              )}
+              {/* Show single tick for sending */}
+              {isOwnMessage && message.status === 'sending' && (
+                <svg className="w-3 h-3" viewBox="0 0 16 16" fill="currentColor">
+                  <path d="M15.01 3.316l-.478-.372a.365.365 0 0 0-.51.063L8.666 9.88a.32.32 0 0 1-.484.033l-.358-.325a.32.32 0 0 0-.484.032l-.378.483a.418.418 0 0 0 .036.54l1.32 1.267a.32.32 0 0 0 .484-.034l6.272-8.048a.366.366 0 0 0-.064-.512z"/>
+                </svg>
+              )}
             </div>
           </div>
         )}
@@ -298,6 +325,7 @@ const ChatPageV2 = () => {
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
   const [isUploadingAttachment, setIsUploadingAttachment] = useState(false);
+  const [viewingImage, setViewingImage] = useState<string | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   // Pull-to-refresh for messages
@@ -791,8 +819,8 @@ const ChatPageV2 = () => {
 
         {/* Main Chat Area */}
         <div className="flex-1 flex flex-col h-full relative overflow-hidden bg-background">
-          {/* Enhanced Header - Compact on Mobile */}
-          <div className="flex-shrink-0 border-b border-border/50 p-2 md:p-4 bg-background/95 backdrop-blur-md shadow-sm">
+          {/* Enhanced Header - Compact on Mobile - FIXED POSITION */}
+          <div className="flex-shrink-0 border-b border-border/50 p-2 md:p-4 bg-background/95 backdrop-blur-md shadow-sm sticky top-0 z-10">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2 md:gap-3 flex-1 min-w-0">
                 <Link to="/chat" className="lg:hidden flex-shrink-0">
@@ -937,14 +965,15 @@ const ChatPageV2 = () => {
                   onDelete={handleDeleteMessage}
                   onRetry={handleRetryUpload}
                   onRemove={handleRemoveFailedUpload}
+                  onImageClick={setViewingImage}
                 />
               ))}
               <div ref={messagesEndRef} />
             </div>
           </ChatErrorBoundary>
 
-          {/* Input Area */}
-          <div className="flex-shrink-0 border-t border-border/50 bg-background p-3">
+          {/* Message Input - Enhanced Mobile - FIXED POSITION */}
+          <div className="flex-shrink-0 border-t border-border/50 bg-background/95 backdrop-blur-md p-2 md:p-4 safe-bottom sticky bottom-0 z-10">
             {/* Reply Preview - WhatsApp Style */}
             {replyingTo && (
               <div className="mb-2 px-3 py-2 bg-primary/5 rounded-lg border-l-4 border-primary flex items-center gap-3">
@@ -1084,6 +1113,14 @@ const ChatPageV2 = () => {
           onConfirm={handleDeleteConversation}
           onCancel={() => setDeleteDialogOpen(false)}
         />
+
+        {/* Image Viewer */}
+        {viewingImage && (
+          <ImageViewer
+            imageUrl={viewingImage}
+            onClose={() => setViewingImage(null)}
+          />
+        )}
       </div>
     </div>
   );

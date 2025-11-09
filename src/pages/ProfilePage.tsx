@@ -249,9 +249,8 @@ const ProfilePage = () => {
       
       await updateProfile({ avatar_url: result.url! });
       
-      if (profileUser) {
-        setProfileUser({ ...profileUser, avatar_url: result.url!, profilePhoto: result.url! });
-      }
+      // Refresh profile data from database to get updated avatar
+      await fetchProfileData();
       
       toast({
         title: "Avatar updated",

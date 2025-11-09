@@ -72,6 +72,7 @@ interface ChatState {
   processOfflineQueue: () => Promise<void>;
   deleteConversation: (conversationId: string, userId: string) => Promise<void>;
   removeTempMessage: (conversationId: string, tempId: string) => void;
+  updateConversationLastMessage: (conversationId: string, newMessage: DbMessage) => Promise<void>; // Added for updating last message
 }
 
 // Generate idempotent client IDs (safe for reconciliation)
@@ -180,7 +181,7 @@ export const useChatStore = create<ChatState>((set, get) => ({
       userParticipants.forEach(up => {
         const conversation = (up as any).conversations;
         const convId = conversation.id;
-        
+
         // Only add if not already in map (first occurrence wins)
         if (!conversationMap.has(convId)) {
           conversationMap.set(convId, {
@@ -195,7 +196,7 @@ export const useChatStore = create<ChatState>((set, get) => ({
           });
         }
       });
-      
+
       const conversationsWithDetails = Array.from(conversationMap.values());
 
       // Filter out permanently deleted conversations
@@ -234,7 +235,7 @@ export const useChatStore = create<ChatState>((set, get) => ({
 
       const state = get();
       const existingMessages = state.messages[conversationId] || [];
-      
+
       // For loading more, get messages older than the oldest current message
       let query = supabase
         .from('messages')
@@ -245,7 +246,8 @@ export const useChatStore = create<ChatState>((set, get) => ({
           content,
           created_at,
           type,
-          reply_to_message_id
+          reply_to_message_id,
+          media_url
         `)
         .eq('conversation_id', conversationId)
         .order('created_at', { ascending: false }) // Get newest first
@@ -266,23 +268,8 @@ export const useChatStore = create<ChatState>((set, get) => ({
 
       console.log(`✅ Loaded ${data?.length || 0} messages from database`);
 
-      // Fetch attachments for these messages (or by conversation if message_id is null)
-      const messageIds = (data || []).map(m => m.id);
-      const { data: attachments, error: attachmentsError } = await supabase
-        .from('attachments')
-        .select('message_id, cloudinary_url')
-        .or(`message_id.in.(${messageIds.join(',')}),and(conversation_id.eq.${conversationId},message_id.is.null)`);
-      
-      if (attachmentsError) {
-        console.error('❌ Error loading attachments:', attachmentsError);
-      }
-      
-      // Create a map of message_id -> cloudinary_url
-      const attachmentMap = new Map(
-        (attachments || []).map(a => [a.message_id, a.cloudinary_url])
-      );
-      
-      console.log(`📎 Loaded ${attachments?.length || 0} attachments for messages`, attachments);
+      // media_url is already in messages table - no need for extra query!
+      console.log(`✅ Loaded ${data?.length || 0} messages with media_url directly from database`);
 
       // Get current user to determine message status
       const { data: { user } } = await supabase.auth.getUser();
@@ -324,14 +311,14 @@ export const useChatStore = create<ChatState>((set, get) => ({
               sender_name: userMap.get(repliedMessage.sender_id) || 'User',
               sender_id: repliedMessage.sender_id,
               type: repliedMessage.type,
-              media_url: attachmentMap.get(repliedMessage.id) // Get from attachments table
+              media_url: repliedMessage.media_url // Already in message!
             };
           }
         }
 
         return {
           ...message,
-          media_url: attachmentMap.get(message.id), // Get URL from attachments table
+          // media_url is already in message from database
           status,
           reply_to
         };
@@ -343,7 +330,7 @@ export const useChatStore = create<ChatState>((set, get) => ({
       // Load cached attachments for this conversation
       const cachedAttachments = attachmentCache.getByConversation(conversationId);
       console.log(`📦 Found ${cachedAttachments.length} cached attachments for conversation`);
-      
+
       // Convert cached attachments to messages
       const cachedMessages: DbMessage[] = cachedAttachments.map(cached => ({
         id: cached.clientId, // Use clientId as temp ID
@@ -362,7 +349,7 @@ export const useChatStore = create<ChatState>((set, get) => ({
       const allMessages = loadMore 
         ? [...sortedMessages, ...existingMessages]
         : sortedMessages;
-      
+
       // Add cached messages that aren't in the database yet
       cachedMessages.forEach(cached => {
         const exists = allMessages.some(msg => (msg as any).client_id === cached.client_id);
@@ -460,12 +447,12 @@ export const useChatStore = create<ChatState>((set, get) => ({
         client_id: clientId,
         reply_to_message_id: replyToMessageId
       };
-      
+
       console.log('📤 Inserting message to database:', {
         ...insertData,
         note: mediaUrl ? 'Has attachment (stored in attachments table)' : 'Text message'
       });
-      
+
       const { data, error } = await supabase
         .from('messages')
         .insert(insertData)
@@ -531,12 +518,12 @@ export const useChatStore = create<ChatState>((set, get) => ({
   },
 
   sendAttachment: async (conversationId: string, senderId: string, file: File) => {
-    connectionManager.startUpload();
-
     const tempId = `temp_${Date.now()}_${Math.random()}`;
     const clientId = generateClientId();
     const messageType = file.type.startsWith('image/') ? 'image' : 
-                       file.type.startsWith('video/') ? 'file' : 'file';
+                       file.type.startsWith('video/') ? 'video' : 'file';
+
+    console.log('📎 sendAttachment called:', { conversationId, file: file.name, type: messageType });
 
     const optimisticMessage: DbMessage = {
       id: tempId,
@@ -559,214 +546,110 @@ export const useChatStore = create<ChatState>((set, get) => ({
       }
     }));
 
-    let cloudinaryUrl: string | undefined;
-    let attachmentId: string | undefined;
-    
     try {
-      // STEP 1: Upload to Cloudinary
-      console.log('☁️ Uploading file to Cloudinary...', { fileName: file.name, size: file.size, type: file.type });
+      console.log('📤 Step 1: Uploading to Cloudinary...');
       
-      const { uploadChatAttachment } = await import('@/lib/storage');
+      const { uploadToCloudinary } = await import('@/lib/cloudinaryUpload');
       
-      cloudinaryUrl = await uploadChatAttachment(file, conversationId, (progress) => {
+      const cloudinaryResult = await uploadToCloudinary(file, (progress) => {
+        console.log(`📊 Upload progress: ${progress}%`);
         set(state => ({
           messages: {
             ...state.messages,
-            [conversationId]: state.messages[conversationId].map(msg =>
+            [conversationId]: state.messages[conversationId]?.map(msg =>
               msg.tempId === tempId ? { ...msg, uploadProgress: progress } : msg
-            )
+            ) || []
           }
         }));
       });
-      
-      connectionManager.endUpload();
-      
-      console.log('✅ File uploaded to Cloudinary!', { cloudinaryUrl });
-      
-      // STEP 2: Create message FIRST (simpler approach)
-      console.log('💾 Creating message for attachment...');
-      
-      // Try with client_id first, fallback without it if column doesn't exist
-      let messageData: any = null;
-      let messageError: any = null;
-      
-      // Wrap in timeout to prevent mobile hanging
-      const createMessageWithTimeout = async () => {
-        const messagePromise = (async () => {
-          try {
-            const result = await supabase
-              .from('messages')
-              .insert({
-                conversation_id: conversationId,
-                sender_id: senderId,
-                content: file.name,
-                type: messageType,
-                client_id: clientId,
-              })
-              .select()
-              .single();
-            return { data: result.data, error: result.error };
-          } catch (e: any) {
-            return { data: null, error: e };
-          }
-        })();
-        
-        // 15 second timeout for mobile
-        const timeoutPromise = new Promise<{ data: null; error: any }>((resolve) =>
-          setTimeout(() => {
-            console.error('⏱️ Message creation timeout (15s)');
-            resolve({ data: null, error: new Error('Database timeout - please check your connection') });
-          }, 15000)
-        );
-        
-        return Promise.race([messagePromise, timeoutPromise]);
+
+      const mediaUrl = cloudinaryResult.secure_url;
+      const publicId = cloudinaryResult.public_id;
+      console.log('✅ Cloudinary upload complete:', { url: mediaUrl, publicId });
+
+      console.log('📤 Step 2: Creating message with media_url in database...');
+      const { data: messageData, error: messageError } = await supabase
+        .from('messages')
+        .insert({
+          conversation_id: conversationId,
+          sender_id: senderId,
+          content: file.name,
+          type: messageType,
+          client_id: clientId,
+          media_url: mediaUrl // Store URL directly in messages table
+        })
+        .select()
+        .single();
+
+      if (messageError) throw messageError;
+      console.log('✅ Message created with media_url:', messageData.id);
+
+      // Optional: Save metadata to attachments table (non-blocking)
+      supabase
+        .from('attachments')
+        .insert({
+          message_id: messageData.id,
+          conversation_id: conversationId,
+          cloudinary_url: mediaUrl,
+          cloudinary_public_id: publicId,
+          file_name: file.name,
+          file_size: file.size,
+          file_type: file.type
+        })
+        .then(() => console.log('✅ Attachment metadata saved'))
+        .catch(err => console.warn('⚠️ Failed to save attachment metadata (non-critical):', err));
+
+      // Create complete message object with all data
+      const completeMessage: DbMessage = {
+        ...messageData,
+        media_url: mediaUrl,
+        status: 'sent' as MessageStatus,
+        uploadProgress: 100
       };
-      
-      try {
-        const result = await createMessageWithTimeout();
-        messageData = result.data;
-        messageError = result.error;
-        
-        console.log('📊 Message creation result:', { 
-          hasData: !!messageData, 
-          hasError: !!messageError,
-          errorCode: messageError?.code,
-          errorMessage: messageError?.message 
-        });
-      } catch (e: any) {
-        console.error('❌ Message creation exception:', e);
-        messageError = e;
-      }
-      
-      // Fallback: try without client_id if it failed
-      if (messageError && (messageError.code === '42703' || messageError.message?.includes('client_id'))) {
-        console.warn('⚠️ client_id column missing, retrying without it...');
-        try {
-          const fallback = await supabase
-            .from('messages')
-            .insert({
-              conversation_id: conversationId,
-              sender_id: senderId,
-              content: file.name,
-              type: messageType,
-            })
-            .select()
-            .single();
-          messageData = fallback.data;
-          messageError = fallback.error;
-        } catch (e: any) {
-          console.error('❌ Fallback also failed:', e);
-          messageError = e;
-        }
-      }
-      
-      if (messageError) {
-        console.error('❌ Failed to create message:', messageError);
-        console.error('❌ Full error:', JSON.stringify(messageError, null, 2));
-        console.error('❌ Error details:', {
-          code: messageError.code,
-          message: messageError.message,
-          details: messageError.details,
-          hint: messageError.hint
-        });
-        throw new Error(`Failed to create message: ${messageError.message || 'Unknown error'}`);
-      }
-      
-      if (!messageData) {
-        console.error('❌ No message data returned from insert');
-        throw new Error('Failed to create message: No data returned');
-      }
-      
-      console.log('✅ Message created!', { messageId: messageData.id, type: messageData.type });
-      
-      // STEP 3: Save attachment WITH message_id (no update needed!)
-      // Use a timeout to prevent hanging - if it takes too long, skip it
-      console.log('💾 Saving attachment to attachments table...', {
-        conversationId,
-        senderId,
+
+      console.log('📝 Replacing temp message with complete message:', {
+        tempId,
         messageId: messageData.id,
-        fileName: file.name,
-        cloudinaryUrl
+        hasMediaUrl: !!mediaUrl
       });
-      
-      try {
-        const attachmentPromise = supabase
-          .from('attachments')
-          .insert({
-            message_id: messageData.id,
-            conversation_id: conversationId,
-            user_id: senderId,
-            file_name: file.name,
-            file_type: file.type,
-            file_size: file.size,
-            cloudinary_url: cloudinaryUrl,
-          })
-          .select()
-          .single();
+
+      // Replace temp message with real one INCLUDING media_url for immediate display
+      set(state => {
+        const currentMessages = state.messages[conversationId] || [];
+        console.log('📋 Current messages count:', currentMessages.length);
         
-        // 5 second timeout - if it takes longer, skip it
-        const timeoutPromise = new Promise((_, reject) => 
-          setTimeout(() => reject(new Error('Attachment save timeout')), 5000)
-        );
+        const updatedMessages = currentMessages.map(msg => {
+          if (msg.tempId === tempId) {
+            console.log('✅ Found and replacing temp message');
+            return completeMessage;
+          }
+          return msg;
+        });
+
+        console.log('📋 Updated messages count:', updatedMessages.length);
         
-        const { data: attachmentData, error: attachmentError } = await Promise.race([
-          attachmentPromise,
-          timeoutPromise
-        ]).catch(err => ({ data: null, error: err })) as any;
-        
-        if (attachmentError) {
-          console.error('❌ Failed to save attachment metadata:', attachmentError);
-          console.warn('⚠️ Skipping attachment metadata - message already created with URL');
-        } else {
-          console.log('✅ Attachment metadata saved!', { 
-            attachmentId: attachmentData?.id,
-            messageId: attachmentData?.message_id
-          });
-        }
-      } catch (err) {
-        console.error('❌ Attachment save error:', err);
-        console.warn('⚠️ Continuing without attachment metadata');
-      }
-      
-      // STEP 5: Update UI with real message (add media_url from attachment)
-      set(state => ({
-        messages: {
-          ...state.messages,
-          [conversationId]: state.messages[conversationId].map(msg =>
-            msg.tempId === tempId ? { 
-              ...messageData,
-              media_url: cloudinaryUrl, // Add URL for display (not in DB anymore)
-              status: 'delivered' as MessageStatus,
-              uploadProgress: 100
-            } : msg
-          )
-        }
-      }));
-      
-      console.log('✅ Attachment send complete!');
-      return messageData;
+        return {
+          messages: {
+            ...state.messages,
+            [conversationId]: updatedMessages
+          }
+        };
+      });
+
+      // Update conversation's last message
+      await get().updateConversationLastMessage(conversationId, completeMessage);
+
+      console.log('✅ Attachment sent successfully and displayed in UI');
+
     } catch (error: any) {
-      connectionManager.endUpload();
-      
-      console.error('❌ Attachment send failed:', error);
-      console.error('❌ Error details:', {
-        message: error?.message,
-        code: error?.code,
-        details: error?.details,
-        hint: error?.hint
-      });
+      console.error('❌ Failed to send attachment:', error);
 
       set(state => ({
         messages: {
           ...state.messages,
-          [conversationId]: state.messages[conversationId].map(msg =>
-            msg.tempId === tempId ? { 
-              ...msg, 
-              status: 'failed' as MessageStatus,
-              uploadProgress: undefined,
-              error: error.message || 'Upload failed'
-            } : msg
-          )
+          [conversationId]: state.messages[conversationId]?.map(msg =>
+            msg.tempId === tempId ? { ...msg, status: 'failed', uploadProgress: 0 } : msg
+          ) || []
         }
       }));
 
@@ -972,7 +855,7 @@ export const useChatStore = create<ChatState>((set, get) => ({
 
   subscribeToMessages: (conversationId: string) => {
     const { activeChannel } = get();
-    
+
     // Prevent duplicate subscriptions to the same conversation
     if (activeChannel && activeChannel.topic === `messages:${conversationId}`) {
       console.log('✅ Already subscribed to conversation:', conversationId);
@@ -1003,18 +886,24 @@ export const useChatStore = create<ChatState>((set, get) => ({
           filter: `conversation_id=eq.${conversationId}`
         },
         (payload) => {
-          console.log('New message received:', payload);
+          console.log('📨 New message received via realtime:', payload.new.id);
           if (payload.new && payload.new.conversation_id === conversationId) {
+            const incoming: any = payload.new;
+
+            // media_url is already in the message (no extra query needed!)
+            console.log('📨 Message media_url:', incoming.media_url || 'none');
+
             set(state => {
               const existingMessages = state.messages[conversationId] || [];
-              const incoming: any = payload.new;
 
               // If already present by id, skip (prevents duplicates)
               const messageExistsById = existingMessages.some((m: any) => m.id === incoming.id);
               if (messageExistsById) {
-                console.log('✅ Message already exists by id, skipping duplicate');
+                console.log('⚠️ Message already exists by id, skipping duplicate:', incoming.id);
                 return state;
               }
+
+              console.log('✅ New message not in local state, processing...');
 
               // IMPROVED: Reconcile with optimistic message using client_id (primary) or tempId (fallback)
               let replaced = false;
@@ -1296,6 +1185,38 @@ export const useChatStore = create<ChatState>((set, get) => ({
       console.error('❌ Failed to delete conversation:', error);
       throw error;
     }
+  },
+
+  updateConversationLastMessage: async (conversationId: string, newMessage: DbMessage) => {
+    set(state => {
+      const updatedConversations = state.conversations.map(conv => {
+        if (conv.id === conversationId) {
+          return {
+            ...conv,
+            lastMessage: {
+              id: newMessage.id,
+              conversation_id: newMessage.conversation_id,
+              sender_id: newMessage.sender_id,
+              content: newMessage.content,
+              created_at: newMessage.created_at,
+              type: newMessage.type,
+              media_url: newMessage.media_url
+            },
+            updated_at: newMessage.created_at // Update conversation timestamp
+          };
+        }
+        return conv;
+      });
+
+      // Re-sort conversations to place the updated one at the top
+      updatedConversations.sort((a, b) => {
+        const aTime = a.lastMessage?.created_at || a.updated_at;
+        const bTime = b.lastMessage?.created_at || b.updated_at;
+        return new Date(bTime).getTime() - new Date(aTime).getTime();
+      });
+
+      return { conversations: updatedConversations };
+    });
   }
 }));
 

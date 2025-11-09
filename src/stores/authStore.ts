@@ -43,7 +43,7 @@ interface AuthState {
   isLoading: boolean;
   onboardingStep: number;
   onboardingCompleted: boolean;
-  
+
   // Actions
   initialize: () => Promise<void>;
   signUp: (email: string, password: string, name: string) => Promise<void>;
@@ -68,64 +68,92 @@ export const useAuthStore = create<AuthState>()(
 
       initialize: async () => {
         set({ isLoading: true });
-        
+
         try {
-          const { data: { session } } = await supabase.auth.getSession();
-          
+          // Add timeout to prevent hanging
+          const timeoutPromise = new Promise((_, reject) => {
+            setTimeout(() => reject(new Error('Auth initialization timeout')), 10000);
+          });
+
+          const sessionPromise = supabase.auth.getSession();
+
+          const { data: { session } } = await Promise.race([
+            sessionPromise,
+            timeoutPromise
+          ]) as any;
+
           if (session?.user) {
-            // Fetch only essential profile fields for faster load
-            const { data: profile } = await supabase
+            set({
+              user: session.user,
+              isAuthenticated: true
+            });
+
+            // Load profile data with timeout
+            const profilePromise = supabase
               .from('profiles')
-              .select('id, name, avatar_url, country, age, city, onboarding_completed')
+              .select('*')
               .eq('id', session.user.id)
               .single();
-            
+
+            const profileTimeout = new Promise((_, reject) => {
+              setTimeout(() => reject(new Error('Profile load timeout')), 5000);
+            });
+
+            try {
+              const { data: profile } = await Promise.race([
+                profilePromise,
+                profileTimeout
+              ]) as any;
+
+              if (profile) {
+                set({
+                  profile,
+                  onboardingCompleted: Boolean(profile.onboarding_completed)
+                });
+              }
+            } catch (profileError) {
+              console.warn('Profile load failed or timed out:', profileError);
+              // Continue without profile - it will load later
+            }
+          }
+
+          console.log('✅ Auth initialized successfully');
+          set({ isLoading: false });
+        } catch (error) {
+          console.error('Auth initialization error:', error);
+          set({ isLoading: false, user: null, profile: null, isAuthenticated: false });
+        }
+
+        supabase.auth.onAuthStateChange(async (event, session) => {
+          if (event === 'SIGNED_IN' && session?.user) {
+            const { data: profile } = await supabase
+              .from('profiles')
+              .select('*')
+              .eq('id', session.user.id)
+              .single();
+
             set({
               session,
               user: session.user,
               profile: isValidProfile(profile) ? profile : null,
               isAuthenticated: isValidProfile(profile),
-              onboardingCompleted: isValidProfile(profile) && profile.country ? true : false,
+              onboardingCompleted: isValidProfile(profile) && profile.onboarding_completed === true,
               isLoading: false
             });
-          } else {
-            set({ isLoading: false });
+          } else if (event === 'SIGNED_OUT') {
+            set({
+              user: null,
+              session: null,
+              profile: null,
+              isAuthenticated: false,
+              onboardingStep: 1,
+              onboardingCompleted: false,
+              isLoading: false
+            });
           }
-
-          supabase.auth.onAuthStateChange(async (event, session) => {
-            if (event === 'SIGNED_IN' && session?.user) {
-              const { data: profile } = await supabase
-                .from('profiles')
-                .select('*')
-                .eq('id', session.user.id)
-                .single();
-              
-              set({
-                session,
-                user: session.user,
-                profile: isValidProfile(profile) ? profile : null,
-                isAuthenticated: isValidProfile(profile),
-                onboardingCompleted: isValidProfile(profile) && profile.onboarding_completed === true,
-                isLoading: false
-              });
-            } else if (event === 'SIGNED_OUT') {
-              set({
-                user: null,
-                session: null,
-                profile: null,
-                isAuthenticated: false,
-                onboardingStep: 1,
-                onboardingCompleted: false,
-                isLoading: false
-              });
-            }
-          });
-        } catch (error) {
-          console.error('Initialize error:', error);
-          set({ isLoading: false });
-        }
+        });
       },
-      
+
       signUp: async (email, password, name) => {
         set({ isLoading: true });
         try {
@@ -137,9 +165,9 @@ export const useAuthStore = create<AuthState>()(
               emailRedirectTo: `${window.location.origin}/`
             }
           });
-          
+
           if (error) throw error;
-          
+
           if (data.user) {
             set({
               user: data.user,
@@ -156,7 +184,7 @@ export const useAuthStore = create<AuthState>()(
           throw error;
         }
       },
-      
+
       signIn: async (email, password) => {
         set({ isLoading: true });
         try {
@@ -166,13 +194,13 @@ export const useAuthStore = create<AuthState>()(
           });
           if (error) throw error;
           if (!data.user) throw new Error('No user returned from sign in');
-          
+
           const { data: profile } = await supabase
             .from('profiles')
             .select('*')
             .eq('id', data.user.id)
             .single();
-          
+
           set({
             user: data.user,
             session: data.session,
@@ -192,10 +220,10 @@ export const useAuthStore = create<AuthState>()(
         const { signInWithGoogleMobile } = await import('@/lib/mobileAuth');
         return await signInWithGoogleMobile();
       },
-      
+
       signOut: async () => {
         await supabase.auth.signOut();
-        set({ 
+        set({
           user: null,
           session: null,
           profile: null,
@@ -204,40 +232,40 @@ export const useAuthStore = create<AuthState>()(
           onboardingCompleted: false
         });
       },
-      
+
       updateProfile: async (updates) => {
         const { user } = get();
         if (!user) throw new Error('No user logged in');
-        
+
         const { error } = await supabase
           .from('profiles')
           .update(updates)
           .eq('id', user.id);
-        
+
         if (error) throw error;
-        
+
         const { data: profile } = await supabase
           .from('profiles')
           .select('*')
           .eq('id', user.id)
           .single();
-        
+
         set({ profile: isValidProfile(profile) ? profile : null });
       },
-      
+
       setOnboardingStep: (step) => {
         set({ onboardingStep: step });
       },
-      
+
       completeOnboarding: async () => {
         const { user, profile } = get();
         if (!user) return;
-        
+
         const isComplete = profile && profile.country && profile.name;
-        
-        set({ 
-          onboardingCompleted: isComplete ? true : false, 
-          onboardingStep: 1 
+
+        set({
+          onboardingCompleted: isComplete ? true : false,
+          onboardingStep: 1
         });
       }
     }),

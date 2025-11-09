@@ -112,10 +112,11 @@ export const MobileConsole: React.FC = () => {
     return (
       <Button
         onClick={() => setIsVisible(true)}
-        className="fixed bottom-20 right-4 z-[9999] rounded-full w-12 h-12 shadow-lg"
+        className="fixed bottom-20 right-4 z-[9999] rounded-full w-12 h-12 shadow-lg bg-destructive/90 hover:bg-destructive text-white"
         variant="secondary"
+        title="Open Debug Console (Shake 3x or Click)"
       >
-        🐛
+        <span className="text-xl">🐛</span>
       </Button>
     );
   }

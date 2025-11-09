@@ -14,6 +14,7 @@ import PerformanceMonitor from "./components/PerformanceMonitor";
 import { useAppDataPreloader } from "./hooks/useDataPreloader";
 import { useMasterOptimization } from "./hooks/useMasterOptimization";
 import { globalDataManager } from "./lib/globalDataManager";
+import { MobileConsole } from '@/components/MobileConsole';
 
 // Lazy load pages for better performance
 const HomePage = React.lazy(() => import("./pages/HomePage"));
@@ -215,14 +216,7 @@ const App = () => {
         <ThemeProvider defaultTheme="system">
           <Toaster />
           <Sonner />
-          <BrowserRouter
-            future={{
-              v7_startTransition: true,
-              v7_relativeSplatPath: true,
-            }}
-          >
-            <AppContent />
-          </BrowserRouter>
+          <MobileConsole />
         </ThemeProvider>
       </TooltipProvider>
     </QueryClientProvider>

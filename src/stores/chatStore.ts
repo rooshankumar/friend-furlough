@@ -904,12 +904,32 @@ export const useChatStore = create<ChatState>((set, get) => ({
           table: 'messages',
           filter: `conversation_id=eq.${conversationId}`
         },
-        (payload) => {
+        async (payload) => {
           console.log('📨 New message received via realtime:', payload.new.id);
           if (payload.new && payload.new.conversation_id === conversationId) {
+            const incoming: any = payload.new;
+
+            // Fetch attachment if message has media
+            if (incoming.type === 'image' || incoming.type === 'video' || incoming.type === 'file' || incoming.type === 'voice') {
+              console.log('📎 Fetching attachment for message:', incoming.id);
+              try {
+                const { data: attachment } = await supabase
+                  .from('attachments')
+                  .select('cloudinary_url')
+                  .eq('message_id', incoming.id)
+                  .single();
+                
+                if (attachment) {
+                  incoming.media_url = attachment.cloudinary_url;
+                  console.log('✅ Attachment loaded:', attachment.cloudinary_url);
+                }
+              } catch (err) {
+                console.warn('⚠️ Could not fetch attachment:', err);
+              }
+            }
+
             set(state => {
               const existingMessages = state.messages[conversationId] || [];
-              const incoming: any = payload.new;
 
               // If already present by id, skip (prevents duplicates)
               const messageExistsById = existingMessages.some((m: any) => m.id === incoming.id);

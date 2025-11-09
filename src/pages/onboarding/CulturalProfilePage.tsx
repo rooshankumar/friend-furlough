@@ -46,11 +46,11 @@ const CulturalProfilePage = () => {
   const form = useForm<CulturalProfileFormData>({
     resolver: zodResolver(culturalProfileSchema),
     defaultValues: {
-      country: profile?.country_code || '',
-      city: (profile as any)?.city || '',
+      country: profile?.country_code || localStorage.getItem('onboarding_country') || '',
+      city: (profile as any)?.city || localStorage.getItem('onboarding_city') || '',
       nativeLanguages: [],
-      age: profile?.age || 0,
-      gender: (profile?.gender as string) || 'prefer-not-to-say',
+      age: profile?.age || (localStorage.getItem('onboarding_age') ? parseInt(localStorage.getItem('onboarding_age')!) : undefined),
+      gender: (profile?.gender as string) || localStorage.getItem('onboarding_gender') || 'prefer-not-to-say',
     },
   });
 
@@ -76,7 +76,7 @@ const CulturalProfilePage = () => {
     loadNativeLanguages();
   }, [profile?.id]);
 
-  // Set selected country if profile has country data
+  // Set selected country if profile has country data or from localStorage
   useEffect(() => {
     if (profile?.country && profile?.country_code && profile?.country_flag) {
       setSelectedCountry({
@@ -84,8 +84,29 @@ const CulturalProfilePage = () => {
         name: profile.country,
         flag: profile.country_flag
       });
+    } else {
+      const savedCountry = localStorage.getItem('onboarding_country_data');
+      if (savedCountry) {
+        try {
+          setSelectedCountry(JSON.parse(savedCountry));
+        } catch (e) {
+          console.error('Failed to parse saved country');
+        }
+      }
     }
   }, [profile]);
+
+  // Save form data to localStorage on change
+  useEffect(() => {
+    const subscription = form.watch((value) => {
+      if (value.country) localStorage.setItem('onboarding_country', value.country);
+      if (value.city) localStorage.setItem('onboarding_city', value.city);
+      if (value.age) localStorage.setItem('onboarding_age', value.age.toString());
+      if (value.gender) localStorage.setItem('onboarding_gender', value.gender);
+      if (selectedCountry) localStorage.setItem('onboarding_country_data', JSON.stringify(selectedCountry));
+    });
+    return () => subscription.unsubscribe();
+  }, [form, selectedCountry]);
 
   const onSubmit = async (data: CulturalProfileFormData) => {
     if (!selectedCountry) {
@@ -177,6 +198,13 @@ const CulturalProfilePage = () => {
         }
       }
 
+      // Clear localStorage after successful save
+      localStorage.removeItem('onboarding_country');
+      localStorage.removeItem('onboarding_city');
+      localStorage.removeItem('onboarding_age');
+      localStorage.removeItem('onboarding_gender');
+      localStorage.removeItem('onboarding_country_data');
+
       setOnboardingStep(3);
       toast({
         title: "Cultural profile updated! 🌍",
@@ -197,7 +225,7 @@ const CulturalProfilePage = () => {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-background via-card-cultural to-background">
-      <div className="container mx-auto px-4 py-8">
+      <div className="container mx-auto px-4 py-4 md:py-8">
         {/* Header */}
         <div className="max-w-2xl mx-auto">
           <div className="flex items-center justify-between mb-8">
@@ -213,16 +241,16 @@ const CulturalProfilePage = () => {
           <Progress value={66} className="mb-8" />
 
           <Card className="card-cultural">
-            <CardHeader className="text-center">
-              <CardTitle className="text-2xl">Share Your Cultural Background</CardTitle>
-              <CardDescription>
+            <CardHeader className="text-center px-4 md:px-6">
+              <CardTitle className="text-xl md:text-2xl">Share Your Cultural Background</CardTitle>
+              <CardDescription className="text-sm">
                 Help others learn about your culture and find perfect language exchange partners
               </CardDescription>
             </CardHeader>
 
-            <CardContent>
+            <CardContent className="px-4 md:px-6">
               <Form {...form}>
-                <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
+                <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4 md:space-y-6">
                   {/* Profile Photo Section */}
                   <div className="text-center">
                     <div className="relative w-24 h-24 mx-auto mb-4">
@@ -351,7 +379,11 @@ const CulturalProfilePage = () => {
                             type="number"
                             placeholder="Enter your age"
                             {...field}
-                            onChange={(e) => field.onChange(parseInt(e.target.value) || 0)}
+                            value={field.value || ''}
+                            onChange={(e) => {
+                              const val = e.target.value;
+                              field.onChange(val === '' ? undefined : parseInt(val) || undefined);
+                            }}
                           />
                         </FormControl>
                         <FormDescription>

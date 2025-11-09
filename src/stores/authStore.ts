@@ -27,12 +27,15 @@ interface Profile {
 
 // Type guard for Profile
 function isValidProfile(profile: any): profile is Profile {
-  return (
-    profile &&
-    typeof profile === 'object' &&
-    typeof profile.id === 'string' &&
-    typeof profile.name === 'string'
-  );
+  if (!profile || typeof profile !== 'object') return false;
+  if (typeof profile.id !== 'string' || typeof profile.name !== 'string') return false;
+  
+  // Validate gender if present
+  if (profile.gender && !['male', 'female', 'non-binary', 'prefer-not-to-say'].includes(profile.gender)) {
+    profile.gender = 'prefer-not-to-say'; // Default to safe value
+  }
+  
+  return true;
 }
 
 interface AuthState {
@@ -188,10 +191,32 @@ export const useAuthStore = create<AuthState>()(
           if (error) throw error;
 
           if (data.user) {
+            // Create profile record immediately
+            const { error: profileError } = await supabase
+              .from('profiles')
+              .insert({
+                id: data.user.id,
+                name: name,
+                online: true,
+                onboarding_completed: false
+              });
+
+            if (profileError) {
+              console.error('Profile creation error:', profileError);
+              // Continue anyway - profile might be created by trigger
+            }
+
+            // Fetch the profile
+            const { data: profile } = await supabase
+              .from('profiles')
+              .select('*')
+              .eq('id', data.user.id)
+              .single();
+
             set({
               user: data.user,
               session: data.session,
-              profile: null,
+              profile: isValidProfile(profile) ? profile : null,
               isAuthenticated: true,
               isLoading: false,
               onboardingStep: 1,

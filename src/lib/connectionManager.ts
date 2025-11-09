@@ -36,48 +36,61 @@ class ConnectionManager {
     });
 
     // Page visibility changes (app backgrounding/foregrounding)
+    let lastVisibilityCheck = 0;
+    
     document.addEventListener('visibilitychange', () => {
       if (document.visibilityState === 'visible') {
+        const now = Date.now();
+        
+        // Only check if it's been more than 10 seconds since last check
+        if (now - lastVisibilityCheck < 10000) {
+          return;
+        }
+        
         console.log('👁️ App became visible, checking connection...');
-        // Immediate check when app becomes visible
-        setTimeout(() => this.checkConnection(), 100);
-        // Only reconnect if no active uploads
+        lastVisibilityCheck = now;
+        
+        // Only check connection if we're actually offline
         setTimeout(() => {
-          if (this.activeUploads === 0) {
-            this.attemptReconnection();
-          } else {
-            console.log('⏸️ Skipping reconnection - upload in progress');
+          if (!this.connected) {
+            this.checkConnection();
           }
-        }, 500);
-      } else {
-        console.log('👁️ App went to background');
+        }, 1000);
       }
     });
 
-    // Window focus events (tab switching) - reduced frequency
-    let lastFocusReconnect = 0;
+    // Window focus events (tab switching) - only check connection, don't force reconnect
+    let lastFocusCheck = 0;
+    let isInitialized = false;
+    
     window.addEventListener('focus', () => {
-      console.log('🎯 App gained focus, checking connection...');
-      setTimeout(() => this.checkConnection(), 100);
-      
-      // Only attempt reconnection if it's been more than 30 seconds since last one.
-      // Re-check activeUploads at execution time to avoid interrupting uploads.
       const now = Date.now();
-      if (now - lastFocusReconnect > 30000) {
-        setTimeout(() => {
-          if (this.activeUploads === 0) {
-            this.attemptReconnection();
-            lastFocusReconnect = Date.now();
-          } else {
-            console.log('⏸️ Skipping reconnection on focus - upload in progress');
-          }
-        }, 300);
+      
+      // Skip if we just checked (within 5 seconds) or if not initialized yet
+      if (now - lastFocusCheck < 5000 || !isInitialized) {
+        return;
       }
+      
+      console.log('🎯 App gained focus, checking connection...');
+      lastFocusCheck = now;
+      
+      // Only check connection, don't force reconnect unless truly offline
+      setTimeout(() => {
+        if (!this.connected) {
+          this.checkConnection();
+        }
+      }, 500);
     });
 
     window.addEventListener('blur', () => {
-      console.log('🎯 App lost focus');
+      // Do nothing on blur to avoid interrupting initialization
     });
+    
+    // Mark as initialized after 3 seconds
+    setTimeout(() => {
+      isInitialized = true;
+      console.log('✅ Connection manager initialized');
+    }, 3000);
 
     // Mobile-specific events
     if ('serviceWorker' in navigator) {

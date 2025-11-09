@@ -568,21 +568,27 @@ export const useChatStore = create<ChatState>((set, get) => ({
       console.log('✅ Cloudinary upload complete:', { url: mediaUrl, publicId });
 
       console.log('📤 Step 2: Creating message with media_url in database...');
-      const { data: messageData, error: messageError } = await supabase
-        .from('messages')
-        .insert({
+      
+      // Import fallback insert method
+      const { insertMessageWithFallback } = await import('@/lib/directDbInsert');
+      
+      let messageData: any = null;
+
+      try {
+        console.log('🔄 Attempting database insert with automatic fallback...');
+        messageData = await insertMessageWithFallback({
           conversation_id: conversationId,
           sender_id: senderId,
           content: file.name,
           type: messageType,
           client_id: clientId,
-          media_url: mediaUrl // Store URL directly in messages table
-        })
-        .select()
-        .single();
-
-      if (messageError) throw messageError;
-      console.log('✅ Message created with media_url:', messageData.id);
+          media_url: mediaUrl
+        });
+        console.log('✅ Message created with media_url:', messageData.id);
+      } catch (err: any) {
+        console.error('❌ All insert methods failed:', err);
+        throw new Error(`Failed to create message: ${err.message}`);
+      }
 
       // Optional: Save metadata to attachments table (non-blocking)
       (async () => {

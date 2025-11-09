@@ -54,12 +54,13 @@ export const EnhancedMessage: React.FC<EnhancedMessageProps> = ({
       const isFilename = message.content && /\.(png|jpg|jpeg|gif|webp|bmp|svg|tiff|ico|heic|heif)$/i.test(message.content.trim());
       
       return (
-        <div className="max-w-xs relative group">
+        <div className="relative group rounded-2xl overflow-hidden bg-muted/10" style={{ maxWidth: '240px' }}>
           <img 
             src={message.media_url} 
             alt="Shared image" 
-            className="w-full h-auto max-h-64 object-cover rounded-lg"
+            className="w-full h-auto max-h-[280px] md:max-h-64 object-contain cursor-pointer active:opacity-80 transition-opacity"
             loading="lazy"
+            onClick={() => window.open(message.media_url, '_blank')}
           />
           
           {/* 3-dot menu overlay */}

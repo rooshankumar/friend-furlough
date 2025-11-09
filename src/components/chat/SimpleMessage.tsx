@@ -49,21 +49,24 @@ export const SimpleMessage: React.FC<SimpleMessageProps> = ({
           {message.media_url && (
             <div>
               {message.type === 'image' ? (
-                <img 
-                  src={message.media_url} 
-                  alt="Attachment" 
-                  className="max-w-full h-auto cursor-pointer max-h-64 object-cover rounded-2xl active:opacity-80 transition-opacity"
-                  onClick={(e) => {
-                    e.preventDefault();
-                    window.open(message.media_url, '_blank');
-                  }}
-                  onTouchEnd={(e) => {
-                    e.preventDefault();
-                    e.stopPropagation();
-                    window.open(message.media_url, '_blank');
-                  }}
-                  loading="lazy"
-                />
+                <div className="relative rounded-2xl overflow-hidden bg-muted/10">
+                  <img 
+                    src={message.media_url} 
+                    alt="Attachment" 
+                    className="w-full h-auto cursor-pointer max-h-[280px] md:max-h-64 object-contain active:opacity-80 transition-opacity"
+                    onClick={(e) => {
+                      e.preventDefault();
+                      window.open(message.media_url, '_blank');
+                    }}
+                    onTouchEnd={(e) => {
+                      e.preventDefault();
+                      e.stopPropagation();
+                      window.open(message.media_url, '_blank');
+                    }}
+                    loading="lazy"
+                    style={{ maxWidth: '240px' }}
+                  />
+                </div>
               ) : message.type === 'voice' ? (
                 <div className="flex items-center gap-2 max-w-xs">
                   <div className="w-6 h-6 flex items-center justify-center">🎤</div>

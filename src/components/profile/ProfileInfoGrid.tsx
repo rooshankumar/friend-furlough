@@ -2,7 +2,7 @@ import React from 'react';
 import { Badge } from '@/components/ui/badge';
 import { CulturalBadge } from '@/components/CulturalBadge';
 import { 
-  MessageSquare, 
+  UserCircle, 
   Target, 
   Heart,
   Languages,
@@ -41,7 +41,7 @@ export const ProfileInfoGrid: React.FC<ProfileInfoGridProps> = ({
           {/* About Section */}
           <div>
             <div className="flex items-center gap-2 mb-2">
-              <MessageSquare className="h-4 w-4 text-primary" />
+              <UserCircle className="h-4 w-4 text-primary" />
               <h3 className="text-sm font-semibold text-card-foreground">About</h3>
             </div>
             <div className="bg-gradient-to-r from-primary/5 to-secondary/5 rounded-lg p-3 border border-primary/10">

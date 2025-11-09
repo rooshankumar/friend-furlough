@@ -97,15 +97,26 @@ export const ProfileHeader: React.FC<ProfileHeaderProps> = ({
           <div className="flex flex-col sm:flex-row md:flex-col items-center sm:items-start md:items-center gap-3 sm:gap-4 md:gap-3">
             <div className="relative flex-shrink-0">
               <div 
-                className="cursor-pointer"
-                onClick={() => isOwnProfile && setShowAvatarDialog(true)}
+                className="cursor-pointer group"
+                onClick={() => {
+                  if (isOwnProfile) {
+                    setShowAvatarDialog(true);
+                  } else if (profileUser.avatar_url || profileUser.profilePhoto) {
+                    navigate(`/image-viewer?url=${encodeURIComponent(profileUser.avatar_url || profileUser.profilePhoto || '')}`);
+                  }
+                }}
               >
                 <UserAvatar 
                   profile={profileUser}
                   user={isOwnProfile ? user : undefined}
-                  className="h-28 w-28 md:h-32 md:w-32 border-4 border-white shadow-lg"
-                  fallbackClassName="text-2xl md:text-3xl"
+                  className="h-40 w-40 sm:h-44 sm:w-44 md:h-36 md:w-36 border-4 border-white shadow-lg group-hover:scale-105 transition-transform"
+                  fallbackClassName="text-4xl sm:text-5xl md:text-3xl"
                 />
+                {!isOwnProfile && (profileUser.avatar_url || profileUser.profilePhoto) && (
+                  <div className="absolute inset-0 bg-black/0 group-hover:bg-black/20 rounded-full transition-colors flex items-center justify-center">
+                    <Eye className="h-6 w-6 text-white opacity-0 group-hover:opacity-100 transition-opacity" />
+                  </div>
+                )}
               </div>
               {isOwnProfile && (
                 <label htmlFor="avatar-upload">

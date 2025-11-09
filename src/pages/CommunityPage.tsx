@@ -195,13 +195,10 @@ const CommunityPage = () => {
   }, [isLoadingMore, hasMore, loadPosts]);
 
   useEffect(() => {
+    // Priority 1: Load posts first for faster initial render
     loadPosts();
-    loadSuggestedUsers();
-    loadActiveFriends();
-    loadCommunityStats();
-    loadTrendingHashtags();
     
-    // Refresh user profile to get updated avatar from database
+    // Priority 2: Load user profile
     const refreshUserProfile = async () => {
       if (user?.id) {
         const { data: profile } = await supabase
@@ -215,8 +212,17 @@ const CommunityPage = () => {
         }
       }
     };
-    
     refreshUserProfile();
+    
+    // Priority 3: Lazy load sidebar data after a delay
+    const timer = setTimeout(() => {
+      loadSuggestedUsers();
+      loadActiveFriends();
+      loadCommunityStats();
+      loadTrendingHashtags();
+    }, 500);
+    
+    return () => clearTimeout(timer);
   }, [loadPosts, user?.id]);
 
   // Apply filter when activeFilter changes
@@ -1121,8 +1127,8 @@ const CommunityPage = () => {
             </Card>
           </div>
 
-          {/* Compact Posts Feed - Mobile: No padding | Desktop: Normal padding */}
-          <div className="lg:px-3 pb-3 space-y-2 lg:space-y-3">
+          {/* Compact Posts Feed - Mobile: Full width | Desktop: Normal padding */}
+          <div className="px-0 lg:px-3 pb-3 space-y-0 lg:space-y-3">
           {posts.length === 0 ? (
             <Card className="p-8 text-center bg-card border-border/50">
               <Globe className="h-12 w-12 mx-auto mb-4 text-muted-foreground" />
@@ -1135,12 +1141,12 @@ const CommunityPage = () => {
             posts.map((post, index) => (
               <Card 
                 key={post.id} 
-                className="overflow-hidden hover:shadow-md transition-all bg-card border-border/50 animate-fade-in"
+                className="overflow-hidden hover:shadow-md transition-all bg-card border-border/50 animate-fade-in rounded-none lg:rounded-xl border-x-0 lg:border-x mb-0 lg:mb-3"
                 style={{ animationDelay: `${index * 30}ms` }}
               >
-                <div className="p-3">
+                <div className="p-4 lg:p-3">
                   {/* Compact Post Header */}
-                  <div className="flex items-center gap-2 mb-2">
+                  <div className="flex items-center gap-3 mb-3">
                     <div 
                       className="cursor-pointer shrink-0"
                       onClick={() => {
@@ -1150,14 +1156,14 @@ const CommunityPage = () => {
                       <UserAvatar 
                         profile={post.profiles}
                         size="sm"
-                        className="w-9 h-9"
+                        className="w-10 h-10 lg:w-9 lg:h-9"
                       />
                     </div>
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center justify-between">
                         <div className="flex items-center gap-2">
                           <h4 
-                            className="font-semibold text-sm cursor-pointer hover:text-primary transition-colors"
+                            className="font-semibold text-base lg:text-sm cursor-pointer hover:text-primary transition-colors"
                             onClick={() => {
                               if (post.user_id) navigate(`/profile/${post.user_id}`);
                             }}
@@ -1167,7 +1173,7 @@ const CommunityPage = () => {
                           {post.profiles?.country_flag && (
                             <span className="text-sm">{post.profiles.country_flag}</span>
                           )}
-                          <span className="text-xs text-muted-foreground">
+                          <span className="text-sm lg:text-xs text-muted-foreground">
                             • {getRelativeTime(post.created_at)}
                           </span>
                         </div>
@@ -1195,7 +1201,7 @@ const CommunityPage = () => {
 
                   {/* Post Content with Hashtags */}
                   <p 
-                    className="text-sm leading-relaxed mb-2 cursor-pointer"
+                    className="text-base lg:text-sm leading-relaxed mb-3 cursor-pointer"
                     onClick={() => navigate(`/post/${post.id}`)}
                   >
                     {renderTextWithHashtags(post.content)}
@@ -1203,13 +1209,13 @@ const CommunityPage = () => {
 
                   {/* Post Image - Responsive with aspect ratio */}
                   {post.image_url && (
-                    <div className="rounded-lg overflow-hidden mb-2 bg-muted/30 relative">
+                    <div className="rounded-lg overflow-hidden mb-3 bg-muted/30 relative">
                       <img
                         src={post.image_url}
                         alt="Post"
                         loading="lazy"
                         decoding="async"
-                        className="w-full h-auto max-h-[500px] object-contain cursor-pointer hover:opacity-95 transition-opacity"
+                        className="w-full h-auto max-h-[600px] lg:max-h-[500px] object-contain cursor-pointer hover:opacity-95 transition-opacity"
                         onClick={() => navigate(`/image-viewer?url=${encodeURIComponent(post.image_url!)}`)}
                         style={{ aspectRatio: 'auto' }}
                       />
@@ -1217,31 +1223,31 @@ const CommunityPage = () => {
                   )}
 
                   {/* Compact Post Actions */}
-                  <div className="flex items-center gap-1 pt-2 border-t border-border/50">
+                  <div className="flex items-center gap-2 pt-3 border-t border-border/50">
                     <Button
                       variant="ghost"
                       size="sm"
-                      className={`h-8 px-3 ${userReactions[`${post.id}_like`] ? 'text-red-500 hover:text-red-600' : 'hover:bg-red-500/10'}`}
+                      className={`h-10 lg:h-8 px-4 lg:px-3 ${userReactions[`${post.id}_like`] ? 'text-red-500 hover:text-red-600' : 'hover:bg-red-500/10'}`}
                       onClick={() => handleLikePost(post.id)}
                     >
-                      <Heart className={`h-3.5 w-3.5 mr-1 ${userReactions[`${post.id}_like`] ? 'fill-current' : ''}`} />
-                      <span className="text-xs font-medium">{reactions[`${post.id}_like`] || 0}</span>
+                      <Heart className={`h-5 lg:h-3.5 w-5 lg:w-3.5 mr-1.5 lg:mr-1 ${userReactions[`${post.id}_like`] ? 'fill-current' : ''}`} />
+                      <span className="text-sm lg:text-xs font-medium">{reactions[`${post.id}_like`] || 0}</span>
                     </Button>
                     <Button
                       variant="ghost"
                       size="sm"
-                      className="h-8 px-3 hover:bg-primary/10"
+                      className="h-10 lg:h-8 px-4 lg:px-3 hover:bg-primary/10"
                       onClick={() => handleToggleComments(post.id)}
                     >
-                      <MessageCircle className="h-3.5 w-3.5 mr-1" />
-                      <span className="text-xs font-medium">{commentCounts[post.id] || 0}</span>
+                      <MessageCircle className="h-5 lg:h-3.5 w-5 lg:w-3.5 mr-1.5 lg:mr-1" />
+                      <span className="text-sm lg:text-xs font-medium">{commentCounts[post.id] || 0}</span>
                     </Button>
                     <Button
                       variant="ghost"
                       size="sm"
-                      className="h-8 px-3 ml-auto"
+                      className="h-10 lg:h-8 px-4 lg:px-3 ml-auto"
                     >
-                      <Send className="h-3.5 w-3.5" />
+                      <Send className="h-5 lg:h-3.5 w-5 lg:w-3.5" />
                     </Button>
                   </div>
 

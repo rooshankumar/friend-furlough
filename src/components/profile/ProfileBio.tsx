@@ -1,7 +1,7 @@
 import React from 'react';
 import { Badge } from '@/components/ui/badge';
 import { 
-  MessageSquare, 
+  UserCircle, 
   Target, 
   Heart,
   Users,
@@ -26,7 +26,7 @@ export const ProfileBio: React.FC<ProfileBioProps> = ({
       {/* About Section */}
       <div className="mb-6">
         <div className="flex items-center gap-2 mb-3">
-          <MessageSquare className="h-5 w-5 text-primary" />
+          <UserCircle className="h-5 w-5 text-primary" />
           <h3 className="text-lg font-semibold text-card-foreground">About</h3>
         </div>
         <div className="bg-gradient-to-r from-primary/5 to-secondary/5 rounded-lg p-4 border border-primary/10">

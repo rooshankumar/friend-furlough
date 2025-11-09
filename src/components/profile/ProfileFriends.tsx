@@ -77,6 +77,7 @@ export const ProfileFriends: React.FC<ProfileFriendsProps> = ({
   const [receivedRequests, setReceivedRequests] = useState<FriendRequest[]>([]);
   const [sentRequests, setSentRequests] = useState<FriendRequest[]>([]);
   const [loading, setLoading] = useState(true);
+  const [processingRequestId, setProcessingRequestId] = useState<string | null>(null);
 
   useEffect(() => {
     if (profileUser?.id) {
@@ -264,6 +265,40 @@ export const ProfileFriends: React.FC<ProfileFriendsProps> = ({
     }
   };
 
+  const handleCancelRequest = async (requestId: string, receiverName: string) => {
+    setProcessingRequestId(requestId);
+    try {
+      // Optimistically remove from UI
+      setSentRequests(prev => prev.filter(req => req.id !== requestId));
+
+      const { error } = await (supabase as any)
+        .from('friend_requests')
+        .delete()
+        .eq('id', requestId);
+
+      if (error) throw error;
+
+      toast({
+        title: "Friend request cancelled",
+        description: `Request to ${receiverName} has been cancelled`,
+      });
+
+      // Reload to ensure consistency
+      await loadFriendsData();
+    } catch (error) {
+      console.error('Error cancelling request:', error);
+      toast({
+        title: "Failed to cancel request",
+        description: "Please try again later",
+        variant: "destructive",
+      });
+      // Reload on error to restore state
+      await loadFriendsData();
+    } finally {
+      setProcessingRequestId(null);
+    }
+  };
+
   const startChat = async (userId: string) => {
     try {
       const { data: { session } } = await supabase.auth.getSession();
@@ -323,343 +358,348 @@ export const ProfileFriends: React.FC<ProfileFriendsProps> = ({
   }
 
   return (
-    <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-      {/* Friends Section */}
-      <Card className="overflow-hidden border-border/50">
-        <div className="p-4 md:p-5 flex items-center justify-between border-b border-border/50">
-          <div className="flex items-center gap-2">
-            <Users className="h-4 w-4 text-primary" />
-            <h3 className="text-sm font-semibold text-foreground">Friends</h3>
-            <span className="text-xs text-muted-foreground">({friendsCount})</span>
-          </div>
-          
-          <div className="flex items-center gap-2">
-            {isOwnProfile && (
-              <Button 
-                variant="ghost" 
-                size="sm"
-                className="h-7 px-2"
-                onClick={loadFriendsData}
-                disabled={loading}
-              >
-                <RefreshCw className={`h-3.5 w-3.5 ${loading ? 'animate-spin' : ''}`} />
-              </Button>
-            )}
-            {friends.length > 8 && (
-              <Button 
-                variant="ghost" 
-                size="sm"
-                className="h-7 text-xs"
-                onClick={() => navigate('/friends')}
-              >
-                View All →
-              </Button>
-            )}
-          </div>
+    <Card className="overflow-hidden border-border/50">
+      {/* Header with Refresh */}
+      <div className="p-4 md:p-5 flex items-center justify-between border-b border-border/50">
+        <div className="flex items-center gap-2">
+          <Users className="h-4 w-4 text-primary" />
+          <h3 className="text-sm font-semibold text-foreground">Friends</h3>
         </div>
+        
+        {isOwnProfile && (
+          <Button 
+            variant="ghost" 
+            size="sm"
+            className="h-7 px-2"
+            onClick={loadFriendsData}
+            disabled={loading}
+          >
+            <RefreshCw className={`h-3.5 w-3.5 ${loading ? 'animate-spin' : ''}`} />
+          </Button>
+        )}
+      </div>
 
-      {/* Compact Horizontal Friends Row */}
-      {friends.length === 0 ? (
-        <div className="text-center py-6">
-          <Users className="h-10 w-10 mx-auto mb-3 text-muted-foreground opacity-50" />
-          <p className="text-sm text-muted-foreground mb-3">
-            {isOwnProfile ? 'No friends yet' : `${profileUser.name} hasn't made any friends yet`}
-          </p>
-          {isOwnProfile && (
-            <Button onClick={() => navigate('/explore')} size="sm" className="h-7 text-xs">
-              <UserPlus className="h-3 w-3 mr-1" />
-              Find Friends
-            </Button>
-          )}
-        </div>
-      ) : (
-        <>
-          {/* Horizontal Scrolling Friends */}
-          <div className="overflow-x-auto -mx-4 px-4 md:-mx-5 md:px-5">
-            <div className="flex gap-3 pb-2">
-              {friends.slice(0, 12).map((friendship) => (
-                <div 
-                  key={friendship.id}
-                  className="flex-shrink-0 w-20 cursor-pointer group"
-                  onClick={() => {
-                    if (friendship.friend_profile?.id) {
-                      navigate(`/profile/${friendship.friend_profile.id}`);
-                    }
-                  }}
-                >
-                  <div className="relative mb-2">
-                    <UserAvatar 
-                      profile={friendship.friend_profile}
-                      className="w-16 h-16 mx-auto border-2 border-border group-hover:border-primary transition-colors"
-                    />
-                    {friendship.friend_profile?.online && (
-                      <div className="absolute bottom-0 right-2 w-3 h-3 bg-green-500 rounded-full border-2 border-white"></div>
-                    )}
-                  </div>
-                  <p className="text-xs text-center font-medium line-clamp-2 group-hover:text-primary transition-colors">
-                    {friendship.friend_profile?.name}
-                  </p>
-                </div>
-              ))}
-              {friends.length > 12 && (
-                <div 
-                  className="flex-shrink-0 w-20 cursor-pointer group"
-                  onClick={() => navigate('/friends')}
-                >
-                  <div className="w-16 h-16 mx-auto mb-2 rounded-full border-2 border-dashed border-border group-hover:border-primary transition-colors flex items-center justify-center bg-muted/50">
-                    <span className="text-xs font-semibold text-muted-foreground group-hover:text-primary">+{friends.length - 12}</span>
-                  </div>
-                  <p className="text-xs text-center font-medium text-muted-foreground group-hover:text-primary transition-colors">
-                    View All
-                  </p>
-                </div>
-              )}
-            </div>
-          </div>
-          
-          {/* Friend Requests Indicators (for own profile) */}
-          {isOwnProfile && (receivedRequests.length > 0 || sentRequests.length > 0) && (
-            <div className="mt-4 pt-4 border-t border-border/50 flex items-center justify-center gap-4 text-xs">
-              {receivedRequests.length > 0 && (
-                <button 
-                  onClick={() => navigate('/friends')}
-                  className="flex items-center gap-1.5 text-primary hover:underline"
-                >
-                  <Bell className="h-3.5 w-3.5" />
-                  <span>{receivedRequests.length} new request{receivedRequests.length !== 1 ? 's' : ''}</span>
-                </button>
-              )}
-              {sentRequests.length > 0 && (
-                <button 
-                  onClick={() => navigate('/friends')}
-                  className="flex items-center gap-1.5 text-muted-foreground hover:text-primary hover:underline"
-                >
-                  <Clock className="h-3.5 w-3.5" />
-                  <span>{sentRequests.length} pending</span>
-                </button>
-              )}
-            </div>
-          )}
-        </>
-      )}
-      </Card>
-
-      {/* Friend Requests Section - Only for own profile */}
-      {isOwnProfile && receivedRequests.length > 0 && (
-        <Card className="overflow-hidden border-border/50">
-          <div className="p-4 md:p-5 flex items-center justify-between border-b border-border/50">
-            <div className="flex items-center gap-2">
-              <Bell className="h-4 w-4 text-primary" />
-              <h3 className="text-sm font-semibold text-foreground">Friend Requests</h3>
-              <span className="text-xs text-muted-foreground">({receivedRequests.length})</span>
-            </div>
-          </div>
-
-          <div className="p-4 md:p-5 space-y-3">
-            {receivedRequests.slice(0, 4).map((request) => (
-              <div key={request.id} className="flex items-center justify-between p-3 rounded-lg border border-border/50 hover:bg-muted/30 transition-colors">
-                <div className="flex items-center gap-3 flex-1 min-w-0">
-                  <div 
-                    className="cursor-pointer flex-shrink-0"
-                    onClick={() => navigate(`/profile/${request.sender_id}`)}
-                  >
-                    <UserAvatar 
-                      profile={request.sender_profile}
-                      className="w-12 h-12"
-                    />
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <h4 
-                      className="font-medium text-sm cursor-pointer hover:text-primary truncate"
-                      onClick={() => navigate(`/profile/${request.sender_id}`)}
-                    >
-                      {request.sender_profile?.name}
-                    </h4>
-                    <p className="text-xs text-muted-foreground">
-                      {request.sender_profile?.country_flag} {request.sender_profile?.country}
-                    </p>
-                  </div>
-                </div>
-                <div className="flex items-center gap-2 flex-shrink-0">
-                  <Button 
-                    size="sm"
-                    className="h-8 px-3 text-xs"
-                    onClick={() => handleAcceptRequest(request.id, request.sender_profile?.name || '')}
-                  >
-                    <Check className="h-3 w-3 mr-1" />
-                    Accept
-                  </Button>
-                  <Button 
-                    variant="outline" 
-                    size="sm"
-                    className="h-8 w-8 p-0"
-                    onClick={() => handleRejectRequest(request.id, request.sender_profile?.name || '')}
-                  >
-                    <X className="h-3 w-3" />
-                  </Button>
-                </div>
-              </div>
-            ))}
-            {receivedRequests.length > 4 && (
-              <Button 
-                variant="ghost" 
-                size="sm"
-                className="w-full h-7 text-xs"
-                onClick={() => navigate('/friends')}
-              >
-                View All Requests →
-              </Button>
-            )}
-          </div>
-        </Card>
-      )}
-
-      {/* Keep the tabs for own profile but make them collapsible */}
-      {isOwnProfile && friends.length > 0 && (receivedRequests.length > 0 || sentRequests.length > 0) && (
-        <Tabs defaultValue="friends" className="w-full mt-4 hidden">
-          <TabsList className="grid w-full grid-cols-3 mb-4">
+      {/* Tabs for own profile */}
+      {isOwnProfile ? (
+        <Tabs defaultValue="friends" className="w-full">
+          <TabsList className="grid w-full grid-cols-2 m-4 md:m-5 mb-0">
             <TabsTrigger value="friends" className="text-xs">
-              <Users className="h-3 w-3 mr-1" />
-              Friends ({friends.length})
+              <Users className="h-3.5 w-3.5 mr-1.5" />
+              Friends
+              <Badge variant="secondary" className="ml-1.5 h-4 px-1.5 text-[10px]">
+                {friends.length}
+              </Badge>
             </TabsTrigger>
-            <TabsTrigger value="received" className="text-xs">
-              <Bell className="h-3 w-3 mr-1" />
-              Requests ({receivedRequests.length})
-            </TabsTrigger>
-            <TabsTrigger value="sent" className="text-xs">
-              <Clock className="h-3 w-3 mr-1" />
-              Sent ({sentRequests.length})
+            <TabsTrigger value="requests" className="text-xs">
+              <Bell className="h-3.5 w-3.5 mr-1.5" />
+              Requests
+              {receivedRequests.length > 0 && (
+                <Badge className="ml-1.5 h-4 px-1.5 text-[10px] bg-primary">
+                  {receivedRequests.length}
+                </Badge>
+              )}
             </TabsTrigger>
           </TabsList>
 
-          <TabsContent value="friends" className="mt-0">
-            {/* Content moved to horizontal scroll above */}
+          {/* Friends Tab */}
+          <TabsContent value="friends" className="mt-0 p-4 md:p-5">
+            {friends.length === 0 ? (
+              <div className="text-center py-8">
+                <Users className="h-12 w-12 mx-auto mb-3 text-muted-foreground opacity-50" />
+                <p className="text-sm text-muted-foreground mb-3">No friends yet</p>
+                <Button onClick={() => navigate('/explore')} size="sm" className="h-8 text-xs">
+                  <UserPlus className="h-3.5 w-3.5 mr-1.5" />
+                  Find Friends
+                </Button>
+              </div>
+            ) : (
+              <>
+                {/* Horizontal Scrolling Friends */}
+                <div className="overflow-x-auto -mx-4 px-4 md:-mx-5 md:px-5">
+                  <div className="flex gap-3 pb-2">
+                    {friends.slice(0, 12).map((friendship) => (
+                      <div 
+                        key={friendship.id}
+                        className="flex-shrink-0 w-20 cursor-pointer group"
+                        onClick={() => {
+                          if (friendship.friend_profile?.id) {
+                            navigate(`/profile/${friendship.friend_profile.id}`);
+                          }
+                        }}
+                      >
+                        <div className="relative mb-2">
+                          <UserAvatar 
+                            profile={friendship.friend_profile}
+                            className="w-16 h-16 mx-auto border-2 border-border group-hover:border-primary transition-colors"
+                          />
+                          {friendship.friend_profile?.online && (
+                            <div className="absolute bottom-0 right-2 w-3 h-3 bg-green-500 rounded-full border-2 border-white"></div>
+                          )}
+                        </div>
+                        <p className="text-xs text-center font-medium line-clamp-2 group-hover:text-primary transition-colors">
+                          {friendship.friend_profile?.name}
+                        </p>
+                      </div>
+                    ))}
+                    {friends.length > 12 && (
+                      <div 
+                        className="flex-shrink-0 w-20 cursor-pointer group"
+                        onClick={() => navigate('/friends')}
+                      >
+                        <div className="w-16 h-16 mx-auto mb-2 rounded-full border-2 border-dashed border-border group-hover:border-primary transition-colors flex items-center justify-center bg-muted/50">
+                          <span className="text-xs font-semibold text-muted-foreground group-hover:text-primary">+{friends.length - 12}</span>
+                        </div>
+                        <p className="text-xs text-center font-medium text-muted-foreground group-hover:text-primary transition-colors">
+                          View All
+                        </p>
+                      </div>
+                    )}
+                  </div>
+                </div>
+                
+                {friends.length > 12 && (
+                  <div className="mt-4 pt-4 border-t border-border/50 text-center">
+                    <Button 
+                      variant="ghost" 
+                      size="sm"
+                      className="h-8 text-xs"
+                      onClick={() => navigate('/friends')}
+                    >
+                      View All Friends →
+                    </Button>
+                  </div>
+                )}
+              </>
+            )}
           </TabsContent>
 
-          <TabsContent value="received" className="mt-0 hidden">
-            {receivedRequests.length === 0 ? (
-              <div className="text-center py-8">
-                <Bell className="h-12 w-12 mx-auto mb-4 text-muted-foreground" />
-                <h4 className="font-medium mb-2">No pending requests</h4>
-                <p className="text-sm text-muted-foreground">
+          {/* Requests Tab with Nested Tabs */}
+          <TabsContent value="requests" className="mt-0">
+            {receivedRequests.length === 0 && sentRequests.length === 0 ? (
+              <div className="text-center py-8 p-4 md:p-5">
+                <Bell className="h-12 w-12 mx-auto mb-3 text-muted-foreground opacity-50" />
+                <p className="text-sm font-medium mb-1">No friend requests</p>
+                <p className="text-xs text-muted-foreground">
                   Friend requests will appear here
                 </p>
               </div>
             ) : (
-              <div className="space-y-3">
-                {receivedRequests.map((request) => (
-                  <Card key={request.id}>
-                    <CardContent className="p-4">
-                      <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-3">
-                          <div 
-                            className="cursor-pointer"
-                            onClick={() => {
-                              if (request.sender_id) {
-                                navigate(`/profile/${request.sender_id}`);
-                              }
-                            }}
-                          >
-                            <UserAvatar 
-                              profile={request.sender_profile}
-                              className="w-10 h-10"
-                            />
-                          </div>
-                          <div>
-                            <h4 
-                              className="font-medium text-sm cursor-pointer hover:text-primary"
-                              onClick={() => {
-                                if (request.sender_id) {
-                                  navigate(`/profile/${request.sender_id}`);
-                                }
-                              }}
-                            >
-                              {request.sender_profile?.name}
-                            </h4>
-                            <p className="text-xs text-muted-foreground">
-                              {request.sender_profile?.country_flag} {request.sender_profile?.country}
-                            </p>
-                          </div>
-                        </div>
-                        <div className="flex items-center gap-2">
-                          <Button 
-                            size="sm"
-                            onClick={() => handleAcceptRequest(request.id, request.sender_profile?.name || '')}
-                          >
-                            <Check className="h-3 w-3 mr-1" />
-                            Accept
-                          </Button>
-                          <Button 
-                            variant="outline" 
-                            size="sm"
-                            onClick={() => handleRejectRequest(request.id, request.sender_profile?.name || '')}
-                          >
-                            <X className="h-3 w-3" />
-                          </Button>
-                        </div>
-                      </div>
-                    </CardContent>
-                  </Card>
-                ))}
-              </div>
-            )}
-          </TabsContent>
+              <Tabs defaultValue="received" className="w-full">
+                <TabsList className="grid w-full grid-cols-2 m-4 md:m-5 mb-0">
+                  <TabsTrigger value="received" className="text-xs">
+                    <Bell className="h-3.5 w-3.5 mr-1.5" />
+                    Received
+                    {receivedRequests.length > 0 && (
+                      <Badge className="ml-1.5 h-4 px-1.5 text-[10px] bg-primary">
+                        {receivedRequests.length}
+                      </Badge>
+                    )}
+                  </TabsTrigger>
+                  <TabsTrigger value="sent" className="text-xs">
+                    <Clock className="h-3.5 w-3.5 mr-1.5" />
+                    Sent
+                    {sentRequests.length > 0 && (
+                      <Badge variant="secondary" className="ml-1.5 h-4 px-1.5 text-[10px]">
+                        {sentRequests.length}
+                      </Badge>
+                    )}
+                  </TabsTrigger>
+                </TabsList>
 
-          <TabsContent value="sent" className="mt-0 hidden">
-            {sentRequests.length === 0 ? (
-              <div className="text-center py-8">
-                <Clock className="h-12 w-12 mx-auto mb-4 text-muted-foreground" />
-                <h4 className="font-medium mb-2">No pending requests</h4>
-                <p className="text-sm text-muted-foreground">
-                  Requests you send will appear here
-                </p>
-              </div>
-            ) : (
-              <div className="space-y-3">
-                {sentRequests.map((request) => (
-                  <Card key={request.id}>
-                    <CardContent className="p-4">
-                      <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-3">
-                          <div 
-                            className="cursor-pointer"
-                            onClick={() => {
-                              if (request.receiver_id) {
-                                navigate(`/profile/${request.receiver_id}`);
-                              }
-                            }}
-                          >
-                            <UserAvatar 
-                              profile={request.receiver_profile}
-                              className="w-10 h-10"
-                            />
-                          </div>
-                          <div>
-                            <h4 
-                              className="font-medium text-sm cursor-pointer hover:text-primary"
-                              onClick={() => {
-                                if (request.receiver_id) {
-                                  navigate(`/profile/${request.receiver_id}`);
-                                }
-                              }}
+                {/* Received Requests Tab */}
+                <TabsContent value="received" className="mt-0 p-4 md:p-5">
+                  {receivedRequests.length === 0 ? (
+                    <div className="text-center py-8">
+                      <Bell className="h-12 w-12 mx-auto mb-3 text-muted-foreground opacity-50" />
+                      <p className="text-sm font-medium mb-1">No incoming requests</p>
+                      <p className="text-xs text-muted-foreground">
+                        Friend requests you receive will appear here
+                      </p>
+                    </div>
+                  ) : (
+                    <div className="space-y-2">
+                      {receivedRequests.map((request) => (
+                        <div key={request.id} className="flex items-center justify-between gap-2 p-2 md:p-3 rounded-lg border border-border/50 hover:bg-muted/30 transition-colors">
+                          <div className="flex items-center gap-2 md:gap-3 flex-1 min-w-0">
+                            <div 
+                              className="cursor-pointer flex-shrink-0 group"
+                              onClick={() => navigate(`/profile/${request.sender_id}`)}
                             >
-                              {request.receiver_profile?.name}
-                            </h4>
-                            <p className="text-xs text-muted-foreground">
-                              {request.receiver_profile?.country_flag} {request.receiver_profile?.country}
-                            </p>
+                              <UserAvatar 
+                                profile={request.sender_profile}
+                                className="w-10 h-10 md:w-12 md:h-12 ring-2 ring-transparent group-hover:ring-primary transition-all"
+                              />
+                            </div>
+                            <div className="flex-1 min-w-0">
+                              <h4 
+                                className="font-medium text-xs md:text-sm cursor-pointer hover:text-primary truncate"
+                                onClick={() => navigate(`/profile/${request.sender_id}`)}
+                              >
+                                {request.sender_profile?.name}
+                              </h4>
+                              <p className="text-[10px] md:text-xs text-muted-foreground truncate">
+                                {request.sender_profile?.country_flag} {request.sender_profile?.country}
+                              </p>
+                            </div>
+                          </div>
+                          <div className="flex items-center gap-1 md:gap-2 flex-shrink-0">
+                            <Button 
+                              size="sm"
+                              className="h-7 px-2 md:h-8 md:px-3 text-[10px] md:text-xs"
+                              onClick={() => handleAcceptRequest(request.id, request.sender_profile?.name || '')}
+                              disabled={processingRequestId === request.id}
+                            >
+                              <Check className="h-3 w-3 md:mr-1" />
+                              <span className="hidden md:inline">Accept</span>
+                            </Button>
+                            <Button 
+                              variant="outline" 
+                              size="sm"
+                              className="h-7 w-7 md:h-8 md:w-8 p-0"
+                              onClick={() => handleRejectRequest(request.id, request.sender_profile?.name || '')}
+                              disabled={processingRequestId === request.id}
+                            >
+                              <X className="h-3 w-3" />
+                            </Button>
                           </div>
                         </div>
-                        <Badge variant="secondary" className="text-xs">Pending</Badge>
-                      </div>
-                    </CardContent>
-                  </Card>
-                ))}
-              </div>
+                      ))}
+                    </div>
+                  )}
+                </TabsContent>
+
+                {/* Sent Requests Tab */}
+                <TabsContent value="sent" className="mt-0 p-4 md:p-5">
+                  {sentRequests.length === 0 ? (
+                    <div className="text-center py-8">
+                      <Clock className="h-12 w-12 mx-auto mb-3 text-muted-foreground opacity-50" />
+                      <p className="text-sm font-medium mb-1">No outgoing requests</p>
+                      <p className="text-xs text-muted-foreground">
+                        Friend requests you send will appear here
+                      </p>
+                    </div>
+                  ) : (
+                    <div className="space-y-2">
+                      {sentRequests.map((request) => (
+                        <div key={request.id} className="flex items-center justify-between gap-2 p-2 md:p-3 rounded-lg border border-border/50 hover:bg-muted/30 transition-colors">
+                          <div className="flex items-center gap-2 md:gap-3 flex-1 min-w-0">
+                            <div 
+                              className="cursor-pointer flex-shrink-0 group"
+                              onClick={() => navigate(`/profile/${request.receiver_id}`)}
+                            >
+                              <UserAvatar 
+                                profile={request.receiver_profile}
+                                className="w-10 h-10 md:w-12 md:h-12 ring-2 ring-transparent group-hover:ring-primary transition-all"
+                              />
+                            </div>
+                            <div className="flex-1 min-w-0">
+                              <h4 
+                                className="font-medium text-xs md:text-sm cursor-pointer hover:text-primary truncate"
+                                onClick={() => navigate(`/profile/${request.receiver_id}`)}
+                              >
+                                {request.receiver_profile?.name}
+                              </h4>
+                              <p className="text-[10px] md:text-xs text-muted-foreground truncate">
+                                {request.receiver_profile?.country_flag} {request.receiver_profile?.country}
+                              </p>
+                            </div>
+                          </div>
+                          <div className="flex items-center gap-1 md:gap-2 flex-shrink-0">
+                            <Badge variant="secondary" className="text-[10px] md:text-xs px-1.5 md:px-2 py-0.5">
+                              <Clock className="h-2.5 w-2.5 md:h-3 md:w-3 mr-0.5 md:mr-1" />
+                              <span className="hidden sm:inline">Pending</span>
+                            </Badge>
+                            <Button 
+                              variant="ghost" 
+                              size="sm"
+                              className="h-7 w-7 md:h-8 md:w-8 p-0 text-muted-foreground hover:text-destructive"
+                              onClick={() => handleCancelRequest(request.id, request.receiver_profile?.name || '')}
+                              disabled={processingRequestId === request.id}
+                              title="Cancel request"
+                            >
+                              <X className="h-3.5 w-3.5 md:h-4 md:w-4" />
+                            </Button>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </TabsContent>
+              </Tabs>
             )}
           </TabsContent>
         </Tabs>
+      ) : (
+        /* Non-own profile - just show friends */
+        <div className="p-4 md:p-5">
+          {friends.length === 0 ? (
+            <div className="text-center py-8">
+              <Users className="h-12 w-12 mx-auto mb-3 text-muted-foreground opacity-50" />
+              <p className="text-sm text-muted-foreground">
+                {profileUser.name} hasn't made any friends yet
+              </p>
+            </div>
+          ) : (
+            <>
+              {/* Horizontal Scrolling Friends */}
+              <div className="overflow-x-auto -mx-4 px-4 md:-mx-5 md:px-5">
+                <div className="flex gap-3 pb-2">
+                  {friends.slice(0, 12).map((friendship) => (
+                    <div 
+                      key={friendship.id}
+                      className="flex-shrink-0 w-20 cursor-pointer group"
+                      onClick={() => {
+                        if (friendship.friend_profile?.id) {
+                          navigate(`/profile/${friendship.friend_profile.id}`);
+                        }
+                      }}
+                    >
+                      <div className="relative mb-2">
+                        <UserAvatar 
+                          profile={friendship.friend_profile}
+                          className="w-16 h-16 mx-auto border-2 border-border group-hover:border-primary transition-colors"
+                        />
+                        {friendship.friend_profile?.online && (
+                          <div className="absolute bottom-0 right-2 w-3 h-3 bg-green-500 rounded-full border-2 border-white"></div>
+                        )}
+                      </div>
+                      <p className="text-xs text-center font-medium line-clamp-2 group-hover:text-primary transition-colors">
+                        {friendship.friend_profile?.name}
+                      </p>
+                    </div>
+                  ))}
+                  {friends.length > 12 && (
+                    <div 
+                      className="flex-shrink-0 w-20 cursor-pointer group"
+                      onClick={() => navigate('/friends')}
+                    >
+                      <div className="w-16 h-16 mx-auto mb-2 rounded-full border-2 border-dashed border-border group-hover:border-primary transition-colors flex items-center justify-center bg-muted/50">
+                        <span className="text-xs font-semibold text-muted-foreground group-hover:text-primary">+{friends.length - 12}</span>
+                      </div>
+                      <p className="text-xs text-center font-medium text-muted-foreground group-hover:text-primary transition-colors">
+                        View All
+                      </p>
+                    </div>
+                  )}
+                </div>
+              </div>
+              
+              {friends.length > 12 && (
+                <div className="mt-4 pt-4 border-t border-border/50 text-center">
+                  <Button 
+                    variant="ghost" 
+                    size="sm"
+                    className="h-8 text-xs"
+                    onClick={() => navigate('/friends')}
+                  >
+                    View All Friends →
+                  </Button>
+                </div>
+              )}
+            </>
+          )}
+        </div>
       )}
-    </div>
+    </Card>
   );
 };

@@ -64,18 +64,19 @@ const ImageMessage = React.memo(({
   uploadProgress?: number;
   isUploading?: boolean;
 }) => (
-  <div className="relative">
+  <div className="relative rounded-2xl overflow-hidden bg-muted/10">
     {src ? (
       <img 
         src={src} 
         alt={alt}
-        className="max-w-full h-auto cursor-pointer max-h-64 object-cover rounded-2xl"
+        className="w-full h-auto cursor-pointer max-h-[280px] md:max-h-64 object-contain active:opacity-80 transition-opacity"
         onClick={() => window.open(src, '_blank')}
         onError={(e) => {
           console.error('Image failed to load:', src);
           e.currentTarget.style.display = 'none';
         }}
         loading="lazy"
+        style={{ maxWidth: '240px' }}
       />
     ) : (
       // Placeholder while uploading

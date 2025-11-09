@@ -15,8 +15,8 @@ const config: CapacitorConfig = {
     allowMixedContent: true,
     captureInput: true,
     webContentsDebuggingEnabled: true,
-    // Splash screen configuration
-    backgroundColor: '#ffffff',
+    // Splash screen configuration - Match PWA black theme
+    backgroundColor: '#000000',
     // Enable debugging
     loggingBehavior: 'debug'
   },
@@ -24,7 +24,7 @@ const config: CapacitorConfig = {
     SplashScreen: {
       launchShowDuration: 2000,
       launchAutoHide: true,
-      backgroundColor: '#ffffff',
+      backgroundColor: '#000000',
       androidSplashResourceName: 'splash',
       androidScaleType: 'CENTER_CROP',
       showSpinner: true,

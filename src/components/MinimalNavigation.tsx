@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo } from "react";
 import { Button } from "@/components/ui/button";
-import { MessageCircle, Users, User, Search, Bell, Settings, LogOut } from "lucide-react";
+import { MessageCircle, Globe, User, Search, Bell, Settings, LogOut } from "lucide-react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
@@ -142,7 +142,7 @@ const MinimalNavigation = () => {
               className="relative group"
             >
               <Link to="/community">
-                <Users className="h-5 w-5" />
+                <Globe className="h-5 w-5" />
                 <span className="absolute left-full ml-3 px-2 py-1 bg-popover text-popover-foreground text-xs rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap pointer-events-none z-50">
                   Community
                 </span>
@@ -252,12 +252,12 @@ const MinimalNavigation = () => {
           <Link 
             to="/community" 
             className={`flex-1 mx-0.5 flex flex-col items-center space-y-0.5 py-1.5 px-1 rounded-md transition-colors touch-manipulation select-none ${
-              isActive("/community") 
-                ? "bg-primary text-primary-foreground" 
-                : "text-muted-foreground hover:text-foreground hover:bg-accent/50 active:bg-accent/70"
+              isActive("/community")
+                ? "bg-primary/10 text-primary"
+                : "text-muted-foreground hover:text-foreground hover:bg-accent"
             }`}
           >
-            <Users className="h-4 w-4" />
+            <Globe className="h-4 w-4" />
             <span className="text-[10px] font-medium">Community</span>
           </Link>
 

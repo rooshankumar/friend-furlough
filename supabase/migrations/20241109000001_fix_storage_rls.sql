@@ -13,7 +13,7 @@ ALTER TABLE storage.objects ENABLE ROW LEVEL SECURITY;
 -- Policy: Users can upload their own avatars
 -- Allows INSERT into avatars bucket where filename starts with user's ID
 CREATE POLICY "Users can upload their own avatars"
-ON storage.objects
+ON storage.objects 
 FOR INSERT
 TO authenticated
 WITH CHECK (

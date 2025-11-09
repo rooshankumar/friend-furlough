@@ -13,7 +13,6 @@ import MinimalNavigation from "./components/MinimalNavigation";
 import InstallPWA from "./components/InstallPWA";
 import PerformanceMonitor from "./components/PerformanceMonitor";
 import { useMasterOptimization } from "./hooks/useMasterOptimization";
-import { MobileConsole } from '@/components/MobileConsole';
 
 // Lazy load pages for better performance
 const HomePage = React.lazy(() => import("./pages/HomePage"));
@@ -155,7 +154,7 @@ const AppContent = () => {
 
           <Route path="/friends" element={
             <ProtectedRoute>
-              <Navigate to="/profile" replace />
+              <FriendsPage />
             </ProtectedRoute>
           } />
 
@@ -214,7 +213,6 @@ const App = () => {
           <ThemeProvider defaultTheme="system">
             <Toaster />
             <Sonner />
-            <MobileConsole />
             <AppContent />
           </ThemeProvider>
         </TooltipProvider>

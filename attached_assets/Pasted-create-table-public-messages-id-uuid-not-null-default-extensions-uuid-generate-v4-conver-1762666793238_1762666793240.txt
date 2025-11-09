@@ -1,0 +1,59 @@
+create table public.messages (
+  id uuid not null default extensions.uuid_generate_v4 (),
+  conversation_id uuid null,
+  sender_id uuid null,
+  content text not null,
+  type text null default 'text'::text,
+  language text null,
+  translation text null,
+  created_at timestamp with time zone null default now(),
+  client_id text null,
+  reply_to_message_id uuid null,
+  media_url text null,
+  constraint messages_pkey primary key (id),
+  constraint messages_conversation_id_fkey foreign KEY (conversation_id) references conversations (id) on delete CASCADE,
+  constraint messages_reply_to_message_id_fkey foreign KEY (reply_to_message_id) references messages (id) on delete set null,
+  constraint messages_sender_id_fkey foreign KEY (sender_id) references profiles (id) on delete CASCADE,
+  constraint messages_type_check check (
+    (
+      type = any (
+        array[
+          'text'::text,
+          'image'::text,
+          'file'::text,
+          'voice'::text
+        ]
+      )
+    )
+  )
+) TABLESPACE pg_default;
+
+create index IF not exists idx_messages_conversation_id on public.messages using btree (conversation_id) TABLESPACE pg_default;
+
+create index IF not exists msg_conversation_created_idx on public.messages using btree (conversation_id, created_at) TABLESPACE pg_default;
+
+create index IF not exists idx_messages_created_at on public.messages using btree (created_at desc) TABLESPACE pg_default;
+
+create unique INDEX IF not exists messages_sender_client_id_uidx on public.messages using btree (sender_id, client_id) TABLESPACE pg_default
+where
+  (client_id is not null);
+
+create index IF not exists idx_messages_client_id on public.messages using btree (client_id) TABLESPACE pg_default
+where
+  (client_id is not null);
+
+create index IF not exists idx_messages_reply_to on public.messages using btree (reply_to_message_id) TABLESPACE pg_default
+where
+  (reply_to_message_id is not null);
+
+create index IF not exists idx_messages_conversation_created on public.messages using btree (conversation_id, created_at desc) TABLESPACE pg_default;
+
+create index IF not exists idx_messages_sender on public.messages using btree (sender_id, created_at desc) TABLESPACE pg_default;
+
+create trigger on_new_message
+after INSERT on messages for EACH row
+execute FUNCTION update_conversation_timestamp ();
+
+create trigger trigger_increment_unread_count
+after INSERT on messages for EACH row
+execute FUNCTION increment_unread_count ();

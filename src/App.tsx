@@ -1,3 +1,4 @@
+
 import React, { Suspense } from 'react';
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
@@ -11,9 +12,7 @@ import ConnectionStatus from "./components/ConnectionStatus";
 import MinimalNavigation from "./components/MinimalNavigation";
 import InstallPWA from "./components/InstallPWA";
 import PerformanceMonitor from "./components/PerformanceMonitor";
-import { useAppDataPreloader } from "./hooks/useDataPreloader";
 import { useMasterOptimization } from "./hooks/useMasterOptimization";
-import { globalDataManager } from "./lib/globalDataManager";
 import { MobileConsole } from '@/components/MobileConsole';
 
 // Lazy load pages for better performance
@@ -38,13 +37,13 @@ const ImageViewerPage = React.lazy(() => import("./pages/ImageViewerPage"));
 const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
-      staleTime: 2 * 60 * 1000, // 2 minutes (reduced from 5)
-      gcTime: 5 * 60 * 1000, // 5 minutes (reduced from 10)
-      retry: 1, // Only retry once (reduced from 3)
-      retryDelay: 1000, // Fixed 1s delay
-      refetchOnWindowFocus: false, // Disable auto-refetch
-      refetchOnMount: false, // Disable mount refetch
-      refetchOnReconnect: true, // Only on reconnect
+      staleTime: 2 * 60 * 1000,
+      gcTime: 5 * 60 * 1000,
+      retry: 1,
+      retryDelay: 1000,
+      refetchOnWindowFocus: false,
+      refetchOnMount: false,
+      refetchOnReconnect: true,
     },
   },
 });
@@ -81,13 +80,9 @@ const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
 
 // Component that uses QueryClient - must be inside QueryClientProvider
 const AppContent = () => {
-  const { user } = useAuthStore();
-
-  // Master optimization hook (replaces useGlobalSync + useAppOptimization)
+  // Master optimization hook
   useMasterOptimization();
 
-  // Removed duplicate globalDataManager - already handled in useMasterOptimization
-  // Removed useAppDataPreloader - causing performance issues
   return (
     <div className="min-h-screen bg-background">
       <MinimalNavigation />
@@ -174,7 +169,6 @@ const AppContent = () => {
             </ProtectedRoute>
           } />
 
-          {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
           <Route path="*" element={<NotFound />} />
         </Routes>
       </Suspense>
@@ -187,17 +181,18 @@ const App = () => {
 
   // Initialize auth and OAuth listener on mount
   React.useEffect(() => {
+    console.log('🚀 App initializing...');
     initialize();
 
     // Initialize OAuth deep link listener for mobile
     import('@/lib/mobileAuth').then(({ initOAuthListener }) => {
       initOAuthListener();
-    });
+    }).catch(err => console.error('OAuth listener error:', err));
 
     // Initialize keyboard handling for mobile
     import('./lib/keyboardHandler').then(({ initKeyboardHandling }) => {
       initKeyboardHandling();
-    });
+    }).catch(err => console.error('Keyboard handler error:', err));
 
     // Cleanup on unmount
     return () => {
@@ -212,13 +207,16 @@ const App = () => {
 
   return (
     <QueryClientProvider client={queryClient}>
-      <TooltipProvider>
-        <ThemeProvider defaultTheme="system">
-          <Toaster />
-          <Sonner />
-          <MobileConsole />
-        </ThemeProvider>
-      </TooltipProvider>
+      <BrowserRouter>
+        <TooltipProvider>
+          <ThemeProvider defaultTheme="system">
+            <Toaster />
+            <Sonner />
+            <MobileConsole />
+            <AppContent />
+          </ThemeProvider>
+        </TooltipProvider>
+      </BrowserRouter>
     </QueryClientProvider>
   );
 };

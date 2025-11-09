@@ -41,12 +41,13 @@ export class ErrorBoundary extends Component<Props, State> {
   }
 
   componentDidCatch(error: Error, errorInfo: ErrorInfo) {
-    // Log error details to console
-    console.error('ErrorBoundary caught an error:', error, errorInfo);
-    
+    console.error('❌ Error caught by boundary:', error);
+    console.error('Error stack:', error.stack);
+    console.error('Component stack:', errorInfo.componentStack);
+
     // You can also log to an error reporting service here
     // Example: logErrorToService(error, errorInfo);
-    
+
     this.setState({
       error,
       errorInfo,
@@ -60,7 +61,7 @@ export class ErrorBoundary extends Component<Props, State> {
       error: null,
       errorInfo: null,
     });
-    
+
     // Call custom reset handler if provided
     if (this.props.onReset) {
       this.props.onReset();
@@ -169,7 +170,9 @@ export class ChatErrorBoundary extends Component<Props, State> {
   }
 
   componentDidCatch(error: Error, errorInfo: ErrorInfo) {
-    console.error('ChatErrorBoundary caught an error:', error, errorInfo);
+    console.error('❌ Error caught by boundary:', error);
+    console.error('Error stack:', error.stack);
+    console.error('Component stack:', errorInfo.componentStack);
     this.setState({ error, errorInfo });
   }
 
@@ -179,7 +182,7 @@ export class ChatErrorBoundary extends Component<Props, State> {
       error: null,
       errorInfo: null,
     });
-    
+
     if (this.props.onReset) {
       this.props.onReset();
     }
@@ -237,8 +240,8 @@ export const withErrorBoundary = <P extends object>(
       <Component {...props} />
     </ErrorBoundary>
   );
-  
+
   WrappedComponent.displayName = `withErrorBoundary(${Component.displayName || Component.name})`;
-  
+
   return WrappedComponent;
 };

@@ -20,39 +20,67 @@ interface MessageInsert {
  * This bypasses the Supabase client which may have issues on mobile
  */
 export async function insertMessageDirect(message: MessageInsert): Promise<any> {
+  console.log('🔧 Getting auth session for REST API...');
   const session = await supabase.auth.getSession();
   const token = session.data.session?.access_token;
 
   if (!token) {
+    console.error('❌ No auth token available');
     throw new Error('No auth token available');
   }
 
   const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
   const url = `${supabaseUrl}/rest/v1/messages`;
 
-  console.log('🔧 Using direct REST API insert:', url);
-
-  const response = await fetch(url, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'apikey': import.meta.env.VITE_SUPABASE_ANON_KEY,
-      'Authorization': `Bearer ${token}`,
-      'Prefer': 'return=representation'
-    },
-    body: JSON.stringify(message)
+  console.log('🔧 Using direct REST API insert:', {
+    url,
+    hasToken: !!token,
+    messageData: {
+      conversation_id: message.conversation_id,
+      type: message.type,
+      hasMediaUrl: !!message.media_url
+    }
   });
 
-  if (!response.ok) {
-    const error = await response.text();
-    console.error('❌ REST API error:', error);
-    throw new Error(`REST API error: ${response.status} - ${error}`);
-  }
+  try {
+    const response = await fetch(url, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'apikey': import.meta.env.VITE_SUPABASE_ANON_KEY,
+        'Authorization': `Bearer ${token}`,
+        'Prefer': 'return=representation'
+      },
+      body: JSON.stringify(message)
+    });
 
-  const data = await response.json();
-  console.log('✅ REST API insert successful:', data);
-  
-  return data[0]; // Supabase returns array
+    console.log('📡 REST API response status:', response.status);
+
+    if (!response.ok) {
+      const error = await response.text();
+      console.error('❌ REST API error response:', {
+        status: response.status,
+        statusText: response.statusText,
+        body: error
+      });
+      throw new Error(`REST API error: ${response.status} - ${error}`);
+    }
+
+    const data = await response.json();
+    console.log('✅ REST API insert successful:', {
+      id: data[0]?.id,
+      type: data[0]?.type,
+      hasMediaUrl: !!data[0]?.media_url
+    });
+    
+    return data[0]; // Supabase returns array
+  } catch (fetchError: any) {
+    console.error('❌ Fetch error:', {
+      message: fetchError.message,
+      name: fetchError.name
+    });
+    throw fetchError;
+  }
 }
 
 /**
@@ -77,15 +105,30 @@ export async function insertMessageWithFallback(message: MessageInsert): Promise
     const result = await Promise.race([insertPromise, timeoutPromise]) as any;
     
     if (result.error) {
+      console.error('❌ Supabase client returned error:', result.error);
       throw result.error;
     }
 
     console.log('✅ Supabase client insert successful');
     return result.data;
-  } catch (error) {
-    console.warn('⚠️ Supabase client failed, trying REST API...', error);
+  } catch (error: any) {
+    console.warn('⚠️ Supabase client failed, trying REST API...', {
+      message: error?.message,
+      name: error?.name,
+      code: error?.code
+    });
     
     // Fallback to direct REST API
-    return await insertMessageDirect(message);
+    try {
+      const result = await insertMessageDirect(message);
+      console.log('✅ REST API fallback successful!');
+      return result;
+    } catch (restError: any) {
+      console.error('❌ REST API also failed:', {
+        message: restError?.message,
+        status: restError?.status
+      });
+      throw restError;
+    }
   }
 }

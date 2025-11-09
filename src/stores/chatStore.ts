@@ -561,8 +561,7 @@ export const useChatStore = create<ChatState>((set, get) => ({
     }));
 
     try {
-      // SIMPLIFIED APPROACH: Upload directly to Cloudinary first (like community posts)
-      console.log('📤 Uploading to Cloudinary...');
+      console.log('📤 Step 1: Uploading to Cloudinary...');
       
       const { uploadToCloudinary } = await import('@/lib/cloudinaryUpload');
       
@@ -579,9 +578,10 @@ export const useChatStore = create<ChatState>((set, get) => ({
       });
 
       const mediaUrl = cloudinaryResult.secure_url;
-      console.log('✅ Cloudinary upload complete:', mediaUrl);
+      const publicId = cloudinaryResult.public_id;
+      console.log('✅ Cloudinary upload complete:', { url: mediaUrl, publicId });
 
-      // Now create message with the media URL
+      console.log('📤 Step 2: Creating message in database...');
       const { data: messageData, error: messageError } = await supabase
         .from('messages')
         .insert({
@@ -589,30 +589,49 @@ export const useChatStore = create<ChatState>((set, get) => ({
           sender_id: senderId,
           content: file.name,
           type: messageType,
-          media_url: mediaUrl,
           client_id: clientId
         })
         .select()
         .single();
 
       if (messageError) throw messageError;
+      console.log('✅ Message created:', messageData.id);
 
-      console.log('✅ Message saved to database:', messageData.id);
+      console.log('📤 Step 3: Saving attachment metadata...');
+      const { data: attachmentData, error: attachmentError } = await supabase
+        .from('attachments')
+        .insert({
+          message_id: messageData.id,
+          conversation_id: conversationId,
+          cloudinary_url: mediaUrl,
+          cloudinary_public_id: publicId,
+          file_name: file.name,
+          file_size: file.size,
+          file_type: file.type
+        })
+        .select()
+        .single();
 
-      // Replace temp message with real one
+      if (attachmentError) {
+        console.error('❌ Failed to save attachment metadata:', attachmentError);
+        throw attachmentError;
+      }
+      console.log('✅ Attachment metadata saved:', attachmentData.id);
+
+      // Replace temp message with real one INCLUDING media_url for immediate display
       set(state => ({
         messages: {
           ...state.messages,
           [conversationId]: state.messages[conversationId]?.map(msg =>
             msg.tempId === tempId 
-              ? { ...messageData, status: 'sent', uploadProgress: 100 } 
+              ? { ...messageData, media_url: mediaUrl, status: 'sent', uploadProgress: 100 } 
               : msg
           ) || []
         }
       }));
 
       // Update conversation's last message
-      await get().updateConversationLastMessage(conversationId, messageData);
+      await get().updateConversationLastMessage(conversationId, { ...messageData, media_url: mediaUrl });
 
       console.log('✅ Attachment sent successfully');
 

@@ -1,10 +1,11 @@
+// @ts-nocheck - Deno Edge Function (IDE shows false errors)
 /**
  * Insert Message Edge Function
  * 
  * This function handles message inserts for mobile clients
  * where the Supabase JS client has issues.
  * 
- * It uses the service role key to bypass RLS and insert directly.
+ * Uses user's auth token to respect RLS policies.
  */
 
 import "jsr:@supabase/functions-js/edge-runtime.d.ts"
@@ -25,6 +26,21 @@ Deno.serve(async (req) => {
   }
 
   try {
+    // Get user's auth token from request
+    const authHeader = req.headers.get('Authorization')
+    if (!authHeader) {
+      return new Response(
+        JSON.stringify({ error: 'Missing authorization header' }),
+        { 
+          status: 401,
+          headers: { 
+            'Content-Type': 'application/json',
+            'Access-Control-Allow-Origin': '*'
+          }
+        }
+      )
+    }
+
     // Parse request body
     const { conversation_id, sender_id, content, type, client_id, media_url } = await req.json()
 
@@ -44,11 +60,16 @@ Deno.serve(async (req) => {
       )
     }
 
-    // Create Supabase client with service role key
+    // Create Supabase client with user's token (respects RLS)
     const supabase = createClient(
       Deno.env.get('SUPABASE_URL') ?? '',
-      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '',
+      Deno.env.get('SUPABASE_ANON_KEY') ?? '',
       {
+        global: {
+          headers: {
+            Authorization: authHeader
+          }
+        },
         auth: {
           autoRefreshToken: false,
           persistSession: false

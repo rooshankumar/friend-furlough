@@ -24,8 +24,19 @@ export async function insertViaEdgeFunction(message: MessageInsert): Promise<any
   const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
   const functionUrl = `${supabaseUrl}/functions/v1/insert-message`;
   
+  // Get user's auth token
+  const { supabase } = await import('@/integrations/supabase/client');
+  const { data: { session } } = await supabase.auth.getSession();
+  const userToken = session?.access_token;
+  
+  if (!userToken) {
+    console.error('❌ No user token available for Edge Function');
+    throw new Error('No authentication token');
+  }
+  
   console.log('📡 Calling Edge Function:', {
     url: functionUrl,
+    hasToken: !!userToken,
     messageData: {
       conversation_id: message.conversation_id,
       type: message.type,
@@ -39,7 +50,7 @@ export async function insertViaEdgeFunction(message: MessageInsert): Promise<any
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'Authorization': `Bearer ${import.meta.env.VITE_SUPABASE_ANON_KEY}`
+        'Authorization': `Bearer ${userToken}` // Use user's token, not anon key
       },
       body: JSON.stringify(message)
     });

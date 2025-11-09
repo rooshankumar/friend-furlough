@@ -500,6 +500,7 @@ const ChatPageV2 = () => {
       return;
     }
 
+    // Validate file size
     if (file.size > 20 * 1024 * 1024) {
       toast({
         title: "File too large",
@@ -518,15 +519,20 @@ const ChatPageV2 = () => {
       return;
     }
 
+    console.log('📎 Starting attachment upload:', file.name, `${(file.size / 1024 / 1024).toFixed(2)}MB`);
     setIsUploadingAttachment(true);
 
     try {
+      // Use sendAttachment from store which handles everything
       await sendAttachment(conversationId, user.id, file);
+      
+      console.log('✅ Attachment uploaded successfully');
       toast({
         title: "Sent!",
         description: "Attachment uploaded successfully",
       });
     } catch (error: any) {
+      console.error('❌ Attachment upload failed:', error);
       toast({
         title: "Upload failed",
         description: error.message || 'Failed to upload attachment.',

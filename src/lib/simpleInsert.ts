@@ -106,11 +106,19 @@ export async function insertMessageSimple(message: MessageInsert): Promise<any> 
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), 15000); // 15s timeout
     
+    const anonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
+    
+    console.log('📡 Request headers:', {
+      hasAnonKey: !!anonKey,
+      hasToken: !!token,
+      anonKeyLength: anonKey?.length
+    });
+    
     const response = await fetch(url, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'apikey': import.meta.env.VITE_SUPABASE_ANON_KEY,
+        'apikey': anonKey,
         'Authorization': `Bearer ${token}`,
         'Prefer': 'return=representation'
       },

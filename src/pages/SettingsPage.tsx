@@ -10,7 +10,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useTheme } from '@/components/ThemeProvider';
-import { Moon, Sun, Monitor, Bell, Globe, Lock, User, Camera, Loader2, LogOut, Save, X, Plus, Languages } from 'lucide-react';
+import { Moon, Sun, Monitor, Bell, Globe, Lock, User, Camera, Loader2, LogOut, Save, X, Plus, Languages, RefreshCw, Trash } from 'lucide-react';
 import { Separator } from '@/components/ui/separator';
 import { useAuthStore } from '@/stores/authStore';
 import { useToast } from '@/hooks/use-toast';
@@ -20,6 +20,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { countries } from '@/data/countries';
 import { languages } from '@/data/languages';
 import { useQueryClient } from '@tanstack/react-query';
+import { clearCacheAndReload, getCacheInfo } from '@/lib/clearCache';
 
 export default function SettingsPage() {
   const { theme, setTheme } = useTheme();
@@ -31,6 +32,8 @@ export default function SettingsPage() {
   const [isUploading, setIsUploading] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [activeTab, setActiveTab] = useState('profile');
+  const [isClearing, setIsClearing] = useState(false);
+  const [cacheInfo, setCacheInfo] = useState<{ cacheNames: string[]; serviceWorkers: number; isActive: boolean } | null>(null);
   
   // Form state
   const [formData, setFormData] = useState({
@@ -96,6 +99,36 @@ export default function SettingsPage() {
     });
     navigate('/');
   };
+
+  const handleClearCache = async () => {
+    setIsClearing(true);
+    try {
+      toast({
+        title: "Clearing cache...",
+        description: "This will reload the page with fresh code",
+      });
+      await clearCacheAndReload();
+    } catch (error) {
+      console.error('Failed to clear cache:', error);
+      toast({
+        title: "Failed to clear cache",
+        description: "Please try manually: Settings > Clear browsing data",
+        variant: "destructive"
+      });
+      setIsClearing(false);
+    }
+  };
+
+  const loadCacheInfo = async () => {
+    const info = await getCacheInfo();
+    setCacheInfo(info);
+  };
+
+  useEffect(() => {
+    if (activeTab === 'preferences') {
+      loadCacheInfo();
+    }
+  }, [activeTab]);
 
   const handleInputChange = (field: string, value: any) => {
     setFormData(prev => ({ ...prev, [field]: value }));
@@ -577,6 +610,53 @@ export default function SettingsPage() {
                     <p className="text-sm text-muted-foreground">Notifications for friend requests</p>
                   </div>
                   <Switch defaultChecked />
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* Developer Tools */}
+            <Card className="border-blue-500/50">
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <RefreshCw className="h-5 w-5" />
+                  Developer Tools
+                </CardTitle>
+                <CardDescription>
+                  Troubleshooting tools for mobile issues
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="space-y-2">
+                  <Label>Clear App Cache</Label>
+                  <p className="text-sm text-muted-foreground">
+                    Use this if you're experiencing issues with attachments or stale code on mobile
+                  </p>
+                  {cacheInfo && (
+                    <div className="text-xs text-muted-foreground space-y-1 mt-2 p-2 bg-muted rounded">
+                      <div>Caches: {cacheInfo.cacheNames.length}</div>
+                      <div>Service Workers: {cacheInfo.serviceWorkers}</div>
+                      <div>Status: {cacheInfo.isActive ? '🟢 Active' : '⚪ Inactive'}</div>
+                    </div>
+                  )}
+                  <Button 
+                    variant="outline" 
+                    onClick={handleClearCache}
+                    disabled={isClearing}
+                    className="w-full min-h-[44px] text-base mt-2"
+                    size="lg"
+                  >
+                    {isClearing ? (
+                      <>
+                        <Loader2 className="h-5 w-5 mr-2 animate-spin" />
+                        Clearing...
+                      </>
+                    ) : (
+                      <>
+                        <Trash className="h-5 w-5 mr-2" />
+                        Clear Cache & Reload
+                      </>
+                    )}
+                  </Button>
                 </div>
               </CardContent>
             </Card>

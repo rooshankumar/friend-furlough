@@ -590,45 +590,86 @@ export const useChatStore = create<ChatState>((set, get) => ({
       let messageData: any = null;
       let messageError: any = null;
       
+      // Wrap in timeout to prevent mobile hanging
+      const createMessageWithTimeout = async () => {
+        const messagePromise = (async () => {
+          try {
+            const result = await supabase
+              .from('messages')
+              .insert({
+                conversation_id: conversationId,
+                sender_id: senderId,
+                content: file.name,
+                type: messageType,
+                client_id: clientId,
+              })
+              .select()
+              .single();
+            return { data: result.data, error: result.error };
+          } catch (e: any) {
+            return { data: null, error: e };
+          }
+        })();
+        
+        // 15 second timeout for mobile
+        const timeoutPromise = new Promise<{ data: null; error: any }>((resolve) =>
+          setTimeout(() => {
+            console.error('⏱️ Message creation timeout (15s)');
+            resolve({ data: null, error: new Error('Database timeout - please check your connection') });
+          }, 15000)
+        );
+        
+        return Promise.race([messagePromise, timeoutPromise]);
+      };
+      
       try {
-        const result = await supabase
-          .from('messages')
-          .insert({
-            conversation_id: conversationId,
-            sender_id: senderId,
-            content: file.name,
-            type: messageType,
-            client_id: clientId,
-          })
-          .select()
-          .single();
+        const result = await createMessageWithTimeout();
         messageData = result.data;
         messageError = result.error;
+        
+        console.log('📊 Message creation result:', { 
+          hasData: !!messageData, 
+          hasError: !!messageError,
+          errorCode: messageError?.code,
+          errorMessage: messageError?.message 
+        });
       } catch (e: any) {
+        console.error('❌ Message creation exception:', e);
         messageError = e;
       }
       
       // Fallback: try without client_id if it failed
       if (messageError && (messageError.code === '42703' || messageError.message?.includes('client_id'))) {
         console.warn('⚠️ client_id column missing, retrying without it...');
-        const fallback = await supabase
-          .from('messages')
-          .insert({
-            conversation_id: conversationId,
-            sender_id: senderId,
-            content: file.name,
-            type: messageType,
-          })
-          .select()
-          .single();
-        messageData = fallback.data;
-        messageError = fallback.error;
+        try {
+          const fallback = await supabase
+            .from('messages')
+            .insert({
+              conversation_id: conversationId,
+              sender_id: senderId,
+              content: file.name,
+              type: messageType,
+            })
+            .select()
+            .single();
+          messageData = fallback.data;
+          messageError = fallback.error;
+        } catch (e: any) {
+          console.error('❌ Fallback also failed:', e);
+          messageError = e;
+        }
       }
       
       if (messageError) {
         console.error('❌ Failed to create message:', messageError);
         console.error('❌ Full error:', JSON.stringify(messageError, null, 2));
-        throw new Error(`Failed to create message: ${messageError.message}`);
+        console.error('❌ Error details:', {
+          code: messageError.code,
+          message: messageError.message,
+          details: messageError.details,
+          hint: messageError.hint
+        });
+        throw new Error(`Failed to create message: ${messageError.message || 'Unknown error'}`);
       }
       
       if (!messageData) {

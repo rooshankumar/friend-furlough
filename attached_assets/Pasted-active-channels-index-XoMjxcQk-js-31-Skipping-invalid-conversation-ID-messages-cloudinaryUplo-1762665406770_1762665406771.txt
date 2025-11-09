@@ -1,0 +1,56 @@
+active channels...
+index-XoMjxcQk.js:31 ⚠️ Skipping invalid conversation ID: messages
+cloudinaryUpload-BCbp9qYH.js:1 📊 Upload progress: 17%
+index-XoMjxcQk.js:31 📊 Upload progress: 17%
+cloudinaryUpload-BCbp9qYH.js:1 📊 Upload progress: 30%
+index-XoMjxcQk.js:31 📊 Upload progress: 30%
+cloudinaryUpload-BCbp9qYH.js:1 📊 Upload progress: 42%
+index-XoMjxcQk.js:31 📊 Upload progress: 42%
+cloudinaryUpload-BCbp9qYH.js:1 📊 Upload progress: 50%
+index-XoMjxcQk.js:31 📊 Upload progress: 50%
+cloudinaryUpload-BCbp9qYH.js:1 📊 Upload progress: 57%
+index-XoMjxcQk.js:31 📊 Upload progress: 57%
+cloudinaryUpload-BCbp9qYH.js:1 📊 Upload progress: 62%
+index-XoMjxcQk.js:31 📊 Upload progress: 62%
+cloudinaryUpload-BCbp9qYH.js:1 📊 Upload progress: 65%
+index-XoMjxcQk.js:31 📊 Upload progress: 65%
+cloudinaryUpload-BCbp9qYH.js:1 📊 Upload progress: 67%
+index-XoMjxcQk.js:31 📊 Upload progress: 67%
+cloudinaryUpload-BCbp9qYH.js:1 📊 Upload progress: 75%
+index-XoMjxcQk.js:31 📊 Upload progress: 75%
+cloudinaryUpload-BCbp9qYH.js:1 📊 Upload progress: 77%
+index-XoMjxcQk.js:31 📊 Upload progress: 77%
+cloudinaryUpload-BCbp9qYH.js:1 📊 Upload progress: 80%
+index-XoMjxcQk.js:31 📊 Upload progress: 80%
+cloudinaryUpload-BCbp9qYH.js:1 📊 Upload progress: 82%
+index-XoMjxcQk.js:31 📊 Upload progress: 82%
+cloudinaryUpload-BCbp9qYH.js:1 📊 Upload progress: 87%
+index-XoMjxcQk.js:31 📊 Upload progress: 87%
+cloudinaryUpload-BCbp9qYH.js:1 📊 Upload progress: 92%
+index-XoMjxcQk.js:31 📊 Upload progress: 92%
+cloudinaryUpload-BCbp9qYH.js:1 📊 Upload progress: 95%
+index-XoMjxcQk.js:31 📊 Upload progress: 95%
+cloudinaryUpload-BCbp9qYH.js:1 📊 Upload progress: 97%
+index-XoMjxcQk.js:31 📊 Upload progress: 97%
+cloudinaryUpload-BCbp9qYH.js:1 📊 Upload progress: 100%
+index-XoMjxcQk.js:31 📊 Upload progress: 100%
+cloudinaryUpload-BCbp9qYH.js:1 ✅ Upload completed with status: 200
+index-XoMjxcQk.js:31 📊 Upload progress: 100%
+cloudinaryUpload-BCbp9qYH.js:1 ✅ Cloudinary response: {url: 'https://res.cloudinary.com/dddpigwrp/image/upload/…2665297/chat_attachments/screenshot_28_vnahcl.png', public_id: 'chat_attachments/screenshot_28_vnahcl'}
+index-XoMjxcQk.js:31 ✅ Cloudinary upload complete: {url: 'https://res.cloudinary.com/dddpigwrp/image/upload/…2665297/chat_attachments/screenshot_28_vnahcl.png', publicId: 'chat_attachments/screenshot_28_vnahcl'}
+index-XoMjxcQk.js:31 📤 Step 2: Creating message in database...
+index-XoMjxcQk.js:31 ✅ Message created: c04cdceb-814e-44bd-81bd-9c79b985e99c
+index-XoMjxcQk.js:31 📤 Step 3: Saving attachment metadata...
+index-XoMjxcQk.js:31 ✅ Attachment metadata saved: 7b7fccd1-c0ca-487c-8e5a-3678bf0aba60
+index-XoMjxcQk.js:31 ✅ Attachment sent successfully
+CompactUploadProgress-De_n2DSU.js:1 ✅ File upload completed
+index-XoMjxcQk.js:2 🎯 App lost focus
+index-XoMjxcQk.js:2 👁️ App went to background
+index-XoMjxcQk.js:2 👁️ App became visible, checking connection...
+index-XoMjxcQk.js:2 🎯 App gained focus, checking connection...
+index-XoMjxcQk.js:2 🔄 Attempting full reconnection...
+index-XoMjxcQk.js:2 🔄 Attempting full reconnection...
+index-XoMjxcQk.js:2 ✅ Realtime reconnected
+index-XoMjxcQk.js:31 🔄 Supabase reconnected, resubscribing to active channels...
+index-XoMjxcQk.js:31 ⚠️ Skipping invalid conversation ID: messages
+index-XoMjxcQk.js:2 ✅ Realtime

@@ -1,0 +1,52 @@
+Page loaded, initializing connection...
+index-Bw3XzBsg.js:31 ✅ Service Worker registered
+index-Bw3XzBsg.js:31 📭 No outbox items to process
+chat:1 Banner not shown: beforeinstallpromptevent.preventDefault() called. The page must call beforeinstallpromptevent.prompt() to show the banner.
+index-Bw3XzBsg.js:23 📥 Loading messages for conversation: 546db329-12aa-4dae-8bf3-d21f9799c3a2 (initial)
+index-Bw3XzBsg.js:31 Subscribing to messages for conversation: 546db329-12aa-4dae-8bf3-d21f9799c3a2
+index-Bw3XzBsg.js:31 Subscription status: SUBSCRIBED at 10:15:45 AM
+index-Bw3XzBsg.js:31 ✅ Successfully subscribed to messages: 546db329-12aa-4dae-8bf3-d21f9799c3a2
+index-Bw3XzBsg.js:31 ✅ Loaded 4 messages from database
+index-Bw3XzBsg.js:31 📎 Loaded 2 attachments for messages (2) [{…}, {…}]
+index-Bw3XzBsg.js:31 📦 Found 0 cached attachments for conversation
+index-Bw3XzBsg.js:2 🎯 App lost focus
+index-Bw3XzBsg.js:2 🎯 App gained focus, checking connection...
+CompactUploadProgress-D2-YWkJn.js:1 📎 File selected: {name: 'screenshot (24).png', size: '1.00MB', type: 'image/png'}
+CompactUploadProgress-D2-YWkJn.js:1 📤 Calling onFileSelect...
+ChatPageV2-D-qj0ye0.js:1 📎 Starting attachment upload: screenshot (24).png 1.00MB
+index-Bw3XzBsg.js:31 📎 sendAttachment called: {conversationId: '546db329-12aa-4dae-8bf3-d21f9799c3a2', file: 'screenshot (24).png', type: 'image'}
+index-Bw3XzBsg.js:31 📤 Starting upload with new attachment service...
+index-Bw3XzBsg.js:2 🔄 Attempting full reconnection...
+index-Bw3XzBsg.js:31 ✅ Message created in database: 8034a195-7261-46df-9db2-3e48e8ebf432
+attachmentService-DNjyFiWt.js:1 📎 Starting attachment upload: {fileName: 'screenshot (24).png', fileSize: '1.00MB', fileType: 'image/png', conversationId: '546db329-12aa-4dae-8bf3-d21f9799c3a2', messageId: '8034a195-7261-46df-9db2-3e48e8ebf432'}
+index-Bw3XzBsg.js:31 📊 Upload progress: 5%
+attachmentService-DNjyFiWt.js:1 📐 Image metadata: {width: 1280, height: 720}
+index-Bw3XzBsg.js:31 📊 Upload progress: 10%
+attachmentService-DNjyFiWt.js:1 📤 Uploading to Cloudinary (mobile: false)...
+index-Bw3XzBsg.js:31 📊 Upload progress: 18%
+index-Bw3XzBsg.js:31 📊 Upload progress: 34%
+index-Bw3XzBsg.js:2 ✅ Auth session refreshed
+index-Bw3XzBsg.js:31 📊 Upload progress: 17.2%
+index-Bw3XzBsg.js:31 📊 Upload progress: 18.8%
+index-Bw3XzBsg.js:2 ✅ Realtime reconnected
+index-Bw3XzBsg.js:31 🔄 Supabase reconnected, resubscribing to active channels...
+index-Bw3XzBsg.js:31 ⚠️ Skipping invalid conversation ID: messages
+index-Bw3XzBsg.js:31 📊 Upload progress: 25.200000000000003%
+index-Bw3XzBsg.js:31 📊 Upload progress: 41.2%
+index-Bw3XzBsg.js:31 📊 Upload progress: 48.400000000000006%
+index-Bw3XzBsg.js:31 📊 Upload progress: 67.6%
+index-Bw3XzBsg.js:31 📊 Upload progress: 85.2%
+index-Bw3XzBsg.js:31 📊 Upload progress: 90%
+index-Bw3XzBsg.js:31 📊 Upload progress: 90%
+attachmentService-DNjyFiWt.js:1 ✅ Cloudinary upload successful
+attachmentService-DNjyFiWt.js:1 ✅ File uploaded via cloudinary: https://res.cloudinary.com/dddpigwrp/image/upload/v1762663554/chat_attachments/screenshot_24_huv5rx.png
+attachmentService-DNjyFiWt.js:1 📋 Cloudinary public_id: chat_attachments/screenshot_24_huv5rx
+index-Bw3XzBsg.js:31 📊 Upload progress: 90%
+attachmentService-DNjyFiWt.js:1 ✅ Attachment metadata saved to database: f2f23e75-3dcb-42bf-a987-5ace763fa2eb
+index-Bw3XzBsg.js:31 📊 Upload progress: 100%
+index-Bw3XzBsg.js:31 ✅ Attachment uploaded and saved to database: f2f23e75-3dcb-42bf-a987-5ace763fa2eb
+index-Bw3XzBsg.js:31 ✅ Message updated with media URL
+index-Bw3XzBsg.js:31 ✅ Attachment sent successfully
+ChatPageV2-D-qj0ye0.js:1 ✅ Attachment uploaded successfully
+CompactUploadProgress-D2-YWkJn.js:1 ✅ File upload completed
+index-Bw3XzBsg.js:2 🎯 App lost focus

@@ -20,21 +20,53 @@ interface MessageInsert {
  */
 function getCachedAuthToken(): string | null {
   try {
-    // Supabase stores session in localStorage with this key pattern
-    const keys = Object.keys(localStorage);
-    const authKey = keys.find(key => key.includes('supabase.auth.token'));
+    console.log('🔍 Looking for cached auth token...');
     
-    if (authKey) {
-      const authData = localStorage.getItem(authKey);
-      if (authData) {
-        const parsed = JSON.parse(authData);
-        const token = parsed?.access_token || parsed?.currentSession?.access_token;
-        console.log('✅ Found cached auth token');
-        return token;
+    // Supabase stores session with this key pattern
+    const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
+    const projectRef = supabaseUrl?.split('//')[1]?.split('.')[0]; // Extract project ref from URL
+    
+    // Try multiple possible key patterns
+    const possibleKeys = [
+      `sb-${projectRef}-auth-token`,
+      `supabase.auth.token`,
+      'sb-auth-token'
+    ];
+    
+    console.log('🔍 Checking keys:', possibleKeys);
+    
+    // Also check all localStorage keys
+    const allKeys = Object.keys(localStorage);
+    console.log('📦 All localStorage keys:', allKeys.filter(k => k.includes('auth') || k.includes('sb-')));
+    
+    // Try to find any key with auth token
+    for (const key of allKeys) {
+      if (key.includes('auth-token') || key.includes('supabase')) {
+        try {
+          const data = localStorage.getItem(key);
+          if (data) {
+            const parsed = JSON.parse(data);
+            
+            // Try different token paths
+            const token = 
+              parsed?.access_token || 
+              parsed?.currentSession?.access_token ||
+              parsed?.session?.access_token ||
+              parsed?.user?.access_token;
+            
+            if (token && typeof token === 'string' && token.length > 20) {
+              console.log('✅ Found cached auth token in key:', key);
+              return token;
+            }
+          }
+        } catch (e) {
+          // Skip invalid JSON
+        }
       }
     }
     
-    console.warn('⚠️ No cached auth token found');
+    console.warn('⚠️ No cached auth token found in localStorage');
+    console.warn('Available keys:', allKeys);
     return null;
   } catch (error) {
     console.error('❌ Error getting cached token:', error);

@@ -532,7 +532,6 @@ export const useChatStore = create<ChatState>((set, get) => ({
   },
 
   sendAttachment: async (conversationId: string, senderId: string, file: File) => {
-    // Create temporary message for optimistic update
     const tempId = `temp_${Date.now()}_${Math.random()}`;
     const clientId = generateClientId();
     const messageType = file.type.startsWith('image/') ? 'image' : 
@@ -554,7 +553,6 @@ export const useChatStore = create<ChatState>((set, get) => ({
       uploadProgress: 0
     };
 
-    // Add optimistic message to UI
     set(state => ({
       messages: {
         ...state.messages,
@@ -563,12 +561,27 @@ export const useChatStore = create<ChatState>((set, get) => ({
     }));
 
     try {
-      console.log('📤 Starting upload with new attachment service...');
+      // SIMPLIFIED APPROACH: Upload directly to Cloudinary first (like community posts)
+      console.log('📤 Uploading to Cloudinary...');
+      
+      const { uploadToCloudinary } = await import('@/lib/cloudinaryUpload');
+      
+      const cloudinaryResult = await uploadToCloudinary(file, (progress) => {
+        console.log(`📊 Upload progress: ${progress}%`);
+        set(state => ({
+          messages: {
+            ...state.messages,
+            [conversationId]: state.messages[conversationId]?.map(msg =>
+              msg.tempId === tempId ? { ...msg, uploadProgress: progress } : msg
+            ) || []
+          }
+        }));
+      });
 
-      // Import the new attachment service
-      const { uploadAttachment } = await import('@/lib/attachmentService');
+      const mediaUrl = cloudinaryResult.secure_url;
+      console.log('✅ Cloudinary upload complete:', mediaUrl);
 
-      // Step 1: Create message in database first (to get message_id for attachment)
+      // Now create message with the media URL
       const { data: messageData, error: messageError } = await supabase
         .from('messages')
         .insert({
@@ -576,6 +589,7 @@ export const useChatStore = create<ChatState>((set, get) => ({
           sender_id: senderId,
           content: file.name,
           type: messageType,
+          media_url: mediaUrl,
           client_id: clientId
         })
         .select()
@@ -583,83 +597,28 @@ export const useChatStore = create<ChatState>((set, get) => ({
 
       if (messageError) throw messageError;
 
-      console.log('✅ Message created in database:', messageData.id);
+      console.log('✅ Message saved to database:', messageData.id);
 
-      // Update optimistic message with real ID
+      // Replace temp message with real one
       set(state => ({
         messages: {
           ...state.messages,
           [conversationId]: state.messages[conversationId]?.map(msg =>
-            msg.tempId === tempId ? { ...msg, id: messageData.id } : msg
-          ) || []
-        }
-      }));
-
-      // Step 2: Upload attachment with proper metadata to attachments table
-      const attachmentResult = await uploadAttachment(
-        file,
-        conversationId,
-        senderId,
-        messageData.id, // Link to message
-        (progress) => {
-          console.log(`📊 Upload progress: ${progress}%`);
-          set(state => ({
-            messages: {
-              ...state.messages,
-              [conversationId]: state.messages[conversationId]?.map(msg =>
-                msg.id === messageData.id || msg.tempId === tempId 
-                  ? { ...msg, uploadProgress: progress } 
-                  : msg
-              ) || []
-            }
-          }));
-        }
-      );
-
-      console.log('✅ Attachment uploaded and saved to database:', attachmentResult.attachmentId);
-
-      // Step 3: Update message with media_url for backward compatibility
-      const { error: updateError } = await supabase
-        .from('messages')
-        .update({ media_url: attachmentResult.cloudinaryUrl })
-        .eq('id', messageData.id);
-
-      if (updateError) {
-        console.warn('⚠️ Failed to update message media_url:', updateError);
-        // Not critical - attachment is already saved to attachments table
-      }
-
-      console.log('✅ Message updated with media URL');
-
-      // Replace temp message with complete data
-      set(state => ({
-        messages: {
-          ...state.messages,
-          [conversationId]: state.messages[conversationId]?.map(msg =>
-            msg.tempId === tempId || msg.id === messageData.id
-              ? { 
-                  ...messageData, 
-                  media_url: attachmentResult.cloudinaryUrl,
-                  status: 'sent',
-                  uploadProgress: 100
-                } 
+            msg.tempId === tempId 
+              ? { ...messageData, status: 'sent', uploadProgress: 100 } 
               : msg
           ) || []
         }
       }));
 
       // Update conversation's last message
-      await get().updateConversationLastMessage(conversationId, {
-        ...messageData,
-        media_url: attachmentResult.cloudinaryUrl
-      });
+      await get().updateConversationLastMessage(conversationId, messageData);
 
       console.log('✅ Attachment sent successfully');
 
     } catch (error: any) {
       console.error('❌ Failed to send attachment:', error);
 
-      // Mark message as failed with retry option
       set(state => ({
         messages: {
           ...state.messages,
@@ -668,21 +627,6 @@ export const useChatStore = create<ChatState>((set, get) => ({
           ) || []
         }
       }));
-
-      // Add to upload queue for retry if network error
-      try {
-        const { addToQueue } = await import('@/lib/uploadQueue');
-        await addToQueue(
-          conversationId,
-          senderId,
-          file,
-          error.message || 'Upload failed',
-          undefined // messageId not yet created in this flow
-        );
-        console.log('📥 Failed upload added to retry queue');
-      } catch (queueError) {
-        console.error('❌ Failed to add to upload queue:', queueError);
-      }
 
       throw error;
     }

@@ -87,21 +87,21 @@ const InstallPWA = () => {
 
   return (
     <>
-      {/* Mobile Banner - Bottom */}
-      <div className="md:hidden fixed bottom-16 left-0 right-0 z-40 bg-gradient-cultural text-white p-4 shadow-lg">
-        <div className="flex items-center justify-between gap-3">
-          <div className="flex-1">
-            <p className="font-semibold text-sm">Install roshLingua</p>
+      {/* Mobile Banner - Top */}
+      <div className="md:hidden fixed top-0 left-0 right-0 z-50 bg-gradient-cultural text-white p-3 shadow-lg">
+        <div className="flex items-center justify-between gap-2">
+          <div className="flex-1 min-w-0">
+            <p className="font-semibold text-sm truncate">Install roshLingua</p>
             <p className="text-xs opacity-90">Get the full app experience</p>
           </div>
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 flex-shrink-0">
             <Button
               onClick={handleInstallClick}
               size="sm"
               variant="secondary"
-              className="flex items-center gap-1"
+              className="flex items-center gap-1 h-8 text-xs"
             >
-              <Download className="h-4 w-4" />
+              <Download className="h-3 w-3" />
               Install
             </Button>
             <Button
@@ -115,6 +115,9 @@ const InstallPWA = () => {
           </div>
         </div>
       </div>
+
+      {/* Spacer for mobile to push content down */}
+      <div className="md:hidden h-[68px]" aria-hidden="true" />
 
       {/* Desktop Banner - Top Right */}
       <div className="hidden md:block fixed top-4 right-4 z-40 bg-card border border-border shadow-lg rounded-lg p-4 max-w-sm">

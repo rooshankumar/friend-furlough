@@ -184,13 +184,16 @@ export const useAuthStore = create<AuthState>()(
             password,
             options: {
               data: { name },
-              emailRedirectTo: `${window.location.origin}/`
+              emailRedirectTo: `${window.location.origin}/onboarding/cultural-profile`
             }
           });
 
           if (error) throw error;
 
           if (data.user) {
+            // Check if email confirmation is required
+            const emailConfirmationRequired = !data.session;
+
             // Create profile record immediately
             const { error: profileError } = await supabase
               .from('profiles')
@@ -204,6 +207,21 @@ export const useAuthStore = create<AuthState>()(
             if (profileError) {
               console.error('Profile creation error:', profileError);
               // Continue anyway - profile might be created by trigger
+            }
+
+            // If email confirmation is required, don't set as authenticated
+            if (emailConfirmationRequired) {
+              set({
+                user: null,
+                session: null,
+                profile: null,
+                isAuthenticated: false,
+                isLoading: false,
+                onboardingStep: 1,
+                onboardingCompleted: false
+              });
+              // Throw special error to show email confirmation message
+              throw new Error('CONFIRM_EMAIL');
             }
 
             // Fetch the profile
@@ -305,7 +323,16 @@ export const useAuthStore = create<AuthState>()(
         const { user, profile } = get();
         if (!user) return;
 
-        const isComplete = profile && profile.country && profile.name;
+        // Check if core fields are filled: name, country, age, gender
+        const isComplete = profile && profile.name && profile.country && profile.age && profile.gender;
+
+        if (isComplete) {
+          // Update database
+          await supabase
+            .from('profiles')
+            .update({ onboarding_completed: true })
+            .eq('id', user.id);
+        }
 
         set({
           onboardingCompleted: isComplete ? true : false,

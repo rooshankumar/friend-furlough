@@ -51,11 +51,20 @@ const SignUpPage = () => {
       });
       navigate('/onboarding/cultural-profile');
     } catch (error) {
-      toast({
-        title: "Sign up failed",
-        description: error instanceof Error ? error.message : "Something went wrong",
-        variant: "destructive",
-      });
+      // Check if email confirmation is required
+      if (error instanceof Error && error.message === 'CONFIRM_EMAIL') {
+        toast({
+          title: "Check your email! 📧",
+          description: "We've sent you a confirmation link. Click it to complete your registration and start your cultural journey.",
+        });
+        navigate('/auth/signin');
+      } else {
+        toast({
+          title: "Sign up failed",
+          description: error instanceof Error ? error.message : "Something went wrong",
+          variant: "destructive",
+        });
+      }
     }
   };
 

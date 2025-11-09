@@ -19,8 +19,8 @@ import { supabase } from '@/integrations/supabase/client';
 
 const culturalProfileSchema = z.object({
   country: z.string().min(1, 'Please select your country'),
-  city: z.string().min(2, 'City must be at least 2 characters'),
-  nativeLanguages: z.array(z.string()).min(1, 'Please select at least one native language'),
+  city: z.string().optional(),
+  nativeLanguages: z.array(z.string()).optional(),
   age: z.number().min(16, 'You must be at least 16 years old').max(100, 'Please enter a valid age'),
   gender: z.string().min(1, 'Please select your gender'),
 });
@@ -50,7 +50,7 @@ const CulturalProfilePage = () => {
       city: (profile as any)?.city || localStorage.getItem('onboarding_city') || '',
       nativeLanguages: [],
       age: profile?.age || (localStorage.getItem('onboarding_age') ? parseInt(localStorage.getItem('onboarding_age')!) : undefined),
-      gender: (profile?.gender as string) || localStorage.getItem('onboarding_gender') || 'prefer-not-to-say',
+      gender: (profile?.gender as string) || localStorage.getItem('onboarding_gender') || '',
     },
   });
 
@@ -169,16 +169,15 @@ const CulturalProfilePage = () => {
         avatar_url: avatarUrl
       });
 
-      // Save native languages to languages table
-      // First, delete existing native languages for this user
-      await supabase
-        .from('languages')
-        .delete()
-        .eq('user_id', profile.id)
-        .eq('is_native', true);
+      // Save native languages to languages table (optional)
+      if (data.nativeLanguages && data.nativeLanguages.length > 0) {
+        // First, delete existing native languages for this user
+        await supabase
+          .from('languages')
+          .delete()
+          .eq('user_id', profile.id)
+          .eq('is_native', true);
 
-      // Insert new native languages
-      if (data.nativeLanguages.length > 0) {
         const languageRecords = data.nativeLanguages.map(langName => ({
           user_id: profile.id,
           language_code: langName.toLowerCase().replace(/\s+/g, '_'),
@@ -194,7 +193,7 @@ const CulturalProfilePage = () => {
 
         if (langError) {
           console.error('Error saving languages:', langError);
-          throw langError;
+          // Don't throw - languages are optional
         }
       }
 
@@ -205,12 +204,16 @@ const CulturalProfilePage = () => {
       localStorage.removeItem('onboarding_gender');
       localStorage.removeItem('onboarding_country_data');
 
-      setOnboardingStep(3);
-      toast({
-        title: "Cultural profile updated! 🌍",
-        description: "Now let's set up your language learning goals.",
+      // Mark onboarding as complete - core fields are done
+      await updateProfile({
+        onboarding_completed: true
       });
-      navigate('/onboarding/learning-goals');
+
+      toast({
+        title: "Welcome to roshLingua! 🎉",
+        description: "Your profile is complete. Start exploring!",
+      });
+      navigate('/explore');
     } catch (error) {
       console.error('Onboarding error:', error);
       toast({
@@ -307,7 +310,7 @@ const CulturalProfilePage = () => {
                     name="country"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel className="text-sm">Country</FormLabel>
+                        <FormLabel className="text-sm">Country *</FormLabel>
                         <FormControl>
                           <CountrySelector
                             value={field.value}
@@ -329,7 +332,7 @@ const CulturalProfilePage = () => {
                     name="city"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel className="text-sm">City</FormLabel>
+                        <FormLabel className="text-sm">City (optional)</FormLabel>
                         <FormControl>
                           <Input placeholder="Your city" {...field} className="h-9" />
                         </FormControl>
@@ -344,7 +347,7 @@ const CulturalProfilePage = () => {
                     name="nativeLanguages"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel className="text-sm">Native Language(s)</FormLabel>
+                        <FormLabel className="text-sm">Native Language(s) (optional)</FormLabel>
                         <FormControl>
                           <LanguageSelector
                             selectedLanguages={field.value}
@@ -366,7 +369,7 @@ const CulturalProfilePage = () => {
                       name="age"
                       render={({ field }) => (
                         <FormItem>
-                          <FormLabel className="text-sm">Age</FormLabel>
+                          <FormLabel className="text-sm">Age *</FormLabel>
                           <FormControl>
                             <Input
                               type="number"
@@ -390,7 +393,7 @@ const CulturalProfilePage = () => {
                       name="gender"
                       render={({ field }) => (
                         <FormItem>
-                          <FormLabel className="text-sm">Gender</FormLabel>
+                          <FormLabel className="text-sm">Gender *</FormLabel>
                           <Select onValueChange={field.onChange} defaultValue={field.value}>
                             <FormControl>
                               <SelectTrigger className="h-9">

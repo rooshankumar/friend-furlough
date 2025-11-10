@@ -69,6 +69,7 @@ interface EnhancedMessageV2Props {
   message: any;
   isOwnMessage: boolean;
   otherUser?: any;
+  isLastMessage?: boolean;
   onRetry?: (message: any) => void;
   onRemove?: (message: any) => void;
   onReact?: (messageId: string, reaction: string) => void;
@@ -82,6 +83,7 @@ const EnhancedMessageV2: React.FC<EnhancedMessageV2Props> = ({
   message,
   isOwnMessage,
   otherUser,
+  isLastMessage = false,
   onRetry,
   onRemove,
   onReact,
@@ -246,7 +248,7 @@ const EnhancedMessageV2: React.FC<EnhancedMessageV2Props> = ({
 
             {/* Time and Status */}
             <div 
-              className="absolute bottom-1 right-2 flex items-center gap-1"
+              className="absolute bottom-1 right-2 flex items-center gap-1.5"
               style={{
                 color: isOwnMessage ? 'rgba(255,255,255,0.8)' : 'rgba(28,30,33,0.6)'
               }}
@@ -258,26 +260,9 @@ const EnhancedMessageV2: React.FC<EnhancedMessageV2Props> = ({
                   hour12: false 
                 })}
               </span>
-              {/* Show avatar for read messages (own messages only) */}
-              {isOwnMessage && message.status === 'read' && otherUser && (
-                <Avatar className="h-3.5 w-3.5 ring-1 ring-white/20">
-                  <AvatarImage src={otherUser.avatar_url} />
-                  <AvatarFallback className="bg-white/20 text-[8px]">
-                    {otherUser.name?.[0] || '?'}
-                  </AvatarFallback>
-                </Avatar>
-              )}
-              {/* Show double tick for delivered (not read yet) */}
-              {isOwnMessage && message.status === 'delivered' && (
-                <svg className="w-3.5 h-3.5" viewBox="0 0 16 16" fill="currentColor">
-                  <path d="M15.01 3.316l-.478-.372a.365.365 0 0 0-.51.063L8.666 9.88a.32.32 0 0 1-.484.033l-.358-.325a.32.32 0 0 0-.484.032l-.378.483a.418.418 0 0 0 .036.54l1.32 1.267a.32.32 0 0 0 .484-.034l6.272-8.048a.366.366 0 0 0-.064-.512zm-4.1 0l-.478-.372a.365.365 0 0 0-.51.063L4.566 9.88a.32.32 0 0 1-.484.033L1.891 7.769a.366.366 0 0 0-.515.006l-.423.433a.364.364 0 0 0 .006.514l3.258 3.185c.143.14.361.125.484-.033l6.272-8.048a.365.365 0 0 0-.063-.51z"/>
-                </svg>
-              )}
-              {/* Show single tick for sending */}
-              {isOwnMessage && message.status === 'sending' && (
-                <svg className="w-3 h-3" viewBox="0 0 16 16" fill="currentColor">
-                  <path d="M15.01 3.316l-.478-.372a.365.365 0 0 0-.51.063L8.666 9.88a.32.32 0 0 1-.484.033l-.358-.325a.32.32 0 0 0-.484.032l-.378.483a.418.418 0 0 0 .036.54l1.32 1.267a.32.32 0 0 0 .484-.034l6.272-8.048a.366.366 0 0 0-.064-.512z"/>
-                </svg>
+              {/* Show "Seen" only on the last message if read (own messages only) */}
+              {isOwnMessage && isLastMessage && message.status === 'read' && (
+                <span className="text-[10px]">Seen</span>
               )}
             </div>
           </div>
@@ -321,7 +306,6 @@ const ChatPageV2 = () => {
   const [recordingDuration, setRecordingDuration] = useState(0);
   const [searchQuery, setSearchQuery] = useState('');
   const [showSearch, setShowSearch] = useState(false);
-  const [isTyping, setIsTyping] = useState(false);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
   const [isUploadingAttachment, setIsUploadingAttachment] = useState(false);
@@ -366,6 +350,8 @@ const ChatPageV2 = () => {
     unsubscribeFromMessages,
     deleteConversation,
     removeTempMessage,
+    broadcastTyping,
+    typingUsers,
   } = useChatStore();
 
   const currentConversation = useMemo(() => 
@@ -409,6 +395,54 @@ const ChatPageV2 = () => {
       unsubscribeFromMessages();
     };
   }, [conversationId, user?.id]);
+
+  // Mark messages as read when viewing them
+  useEffect(() => {
+    if (!conversationId || !user || conversationMessages.length === 0) return;
+
+    const markMessagesAsRead = async () => {
+      // Get all messages from other users that need to be marked as read
+      const messagesToMark = conversationMessages.filter(
+        msg => msg.sender_id !== user.id && msg.status !== 'read'
+      );
+
+      if (messagesToMark.length === 0) return;
+
+      console.log(`📖 Marking ${messagesToMark.length} messages as read...`);
+
+      // Mark each message as read
+      let markedCount = 0;
+      for (const message of messagesToMark) {
+        try {
+          await supabase
+            .from('message_reads')
+            .insert({
+              message_id: message.id,
+              user_id: user.id,
+              read_at: new Date().toISOString()
+            });
+          markedCount++;
+        } catch (error: any) {
+          // Ignore duplicate key errors (already marked as read)
+          if (error.code !== '23505') {
+            console.error('Error marking message as read:', error);
+          }
+        }
+      }
+
+      if (markedCount > 0) {
+        console.log(`✅ Marked ${markedCount} messages as read`);
+        // Reload messages to get updated status
+        setTimeout(() => {
+          loadMessages(conversationId);
+        }, 300);
+      }
+    };
+
+    // Delay marking as read to ensure user actually sees the messages
+    const timer = setTimeout(markMessagesAsRead, 500);
+    return () => clearTimeout(timer);
+  }, [conversationId, user, conversationMessages, loadMessages]);
 
   useEffect(() => {
     // Auto-scroll to bottom for new messages
@@ -853,7 +887,8 @@ const ChatPageV2 = () => {
                       )}
                     </div>
                     <p className="text-xs text-muted-foreground truncate">
-                      {isTyping ? (
+                      {conversationId && typingUsers[conversationId] && user && 
+                       Object.keys(typingUsers[conversationId]).some(userId => userId !== user.id) ? (
                         <span className="flex items-center gap-1">
                           <span className="animate-pulse">typing</span>
                           <span className="flex gap-0.5">
@@ -953,24 +988,58 @@ const ChatPageV2 = () => {
                 isRefreshing={messagesPullToRefresh.isRefreshing}
                 threshold={80}
               />
-              {filteredMessages.map((message) => (
-                <EnhancedMessageV2
-                  key={message.id}
-                  message={message}
-                  isOwnMessage={message.sender_id === user?.id}
-                  otherUser={otherParticipant?.profiles}
-                  onReply={handleReply}
-                  onReact={handleReact}
-                  onCopy={handleCopyMessage}
-                  onDelete={handleDeleteMessage}
-                  onRetry={handleRetryUpload}
-                  onRemove={handleRemoveFailedUpload}
-                  onImageClick={setViewingImage}
-                />
-              ))}
+              {filteredMessages.map((message, index) => {
+                // Find the last message from current user
+                const isOwnMessage = message.sender_id === user?.id;
+                const isLastOwnMessage = isOwnMessage && 
+                  index === filteredMessages.length - 1 - 
+                  [...filteredMessages].reverse().findIndex(m => m.sender_id === user?.id);
+                
+                return (
+                  <EnhancedMessageV2
+                    key={message.id}
+                    message={message}
+                    isOwnMessage={isOwnMessage}
+                    isLastMessage={isLastOwnMessage}
+                    otherUser={otherParticipant?.profiles}
+                    onReply={handleReply}
+                    onReact={handleReact}
+                    onCopy={handleCopyMessage}
+                    onDelete={handleDeleteMessage}
+                    onRetry={handleRetryUpload}
+                    onRemove={handleRemoveFailedUpload}
+                    onImageClick={setViewingImage}
+                  />
+                );
+              })}
               <div ref={messagesEndRef} />
             </div>
           </ChatErrorBoundary>
+
+          {/* Typing Indicator - Only show OTHER users typing */}
+          {conversationId && typingUsers[conversationId] && user && (() => {
+            const otherUsersTyping = Object.entries(typingUsers[conversationId])
+              .filter(([userId]) => userId !== user.id)
+              .map(([_, userName]) => userName);
+            
+            if (otherUsersTyping.length === 0) return null;
+            
+            return (
+              <div className="px-4 py-2 flex items-center gap-2 text-sm text-muted-foreground">
+                <div className="flex gap-1">
+                  <div className="w-2 h-2 bg-primary rounded-full animate-bounce" style={{ animationDelay: '0ms' }} />
+                  <div className="w-2 h-2 bg-primary rounded-full animate-bounce" style={{ animationDelay: '150ms' }} />
+                  <div className="w-2 h-2 bg-primary rounded-full animate-bounce" style={{ animationDelay: '300ms' }} />
+                </div>
+                <span>
+                  {otherUsersTyping.length === 1 
+                    ? `${otherUsersTyping[0]} is typing...`
+                    : `${otherUsersTyping[0]} and ${otherUsersTyping.length - 1} other${otherUsersTyping.length > 2 ? 's' : ''} are typing...`
+                  }
+                </span>
+              </div>
+            );
+          })()}
 
           {/* Message Input - Enhanced Mobile - FIXED POSITION */}
           <div className="flex-shrink-0 border-t border-border/50 bg-background/95 backdrop-blur-md p-2 md:p-4 safe-bottom sticky bottom-0 z-10">
@@ -1055,14 +1124,14 @@ const ChatPageV2 = () => {
                 value={newMessage}
                 onChange={(e) => {
                   setNewMessage(e.target.value);
-                  // Broadcast typing indicator
-                  if (conversationId && user) {
-                    setIsTyping(true);
+                  // Broadcast typing indicator to other participants
+                  if (conversationId && user && profile) {
+                    broadcastTyping(conversationId, user.id, profile.name || 'User', true);
                     if (typingTimeoutRef.current) {
                       clearTimeout(typingTimeoutRef.current);
                     }
                     typingTimeoutRef.current = setTimeout(() => {
-                      setIsTyping(false);
+                      broadcastTyping(conversationId, user.id, profile.name || 'User', false);
                     }, 2000);
                   }
                 }}

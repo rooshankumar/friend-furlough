@@ -283,21 +283,38 @@ export const useChatStore = create<ChatState>((set, get) => ({
         (participants || []).map(p => [p.user_id, p.profiles?.name || 'User'])
       );
 
+      // Get message read receipts for all messages
+      const messageIds = (data || []).map(m => m.id);
+      const { data: messageReads } = await supabase
+        .from('message_reads')
+        .select('message_id, user_id')
+        .in('message_id', messageIds);
+
+      console.log(`📖 Found ${messageReads?.length || 0} read receipts for ${messageIds.length} messages`);
+
+      // Create a map of message_id -> array of user_ids who read it
+      const readByMap = new Map<string, string[]>();
+      (messageReads || []).forEach(read => {
+        if (!readByMap.has(read.message_id)) {
+          readByMap.set(read.message_id, []);
+        }
+        readByMap.get(read.message_id)!.push(read.user_id);
+      });
+
       // Add status and populate reply_to data
       const messagesWithStatus = (data || []).map((message, index) => {
         let status: MessageStatus = 'delivered'; // Default for received messages
 
         if (message.sender_id === user?.id) {
-          // For sent messages, determine read status
-          // Check if there's a newer message from someone else (indicates they've read this message)
-          const laterMessages = (data || []).slice(index + 1);
-          const hasLaterReplyFromOthers = laterMessages.some(laterMsg => 
-            laterMsg.sender_id !== user.id && 
-            new Date(laterMsg.created_at) > new Date(message.created_at)
-          );
-
-          // Also check the message_reads table for explicit read status
-          status = hasLaterReplyFromOthers ? 'read' : 'delivered';
+          // For sent messages, check if other participants have read it
+          const readByUsers = readByMap.get(message.id) || [];
+          const readByOthers = readByUsers.some(userId => userId !== user.id);
+          
+          status = readByOthers ? 'read' : 'delivered';
+          
+          if (readByOthers) {
+            console.log(`✅ Message ${message.id.slice(0, 8)} marked as READ by other user`);
+          }
         }
 
         // Populate reply_to data if message is a reply

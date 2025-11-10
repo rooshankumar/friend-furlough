@@ -145,65 +145,85 @@ const EnhancedMessageV2: React.FC<EnhancedMessageV2Props> = ({
       <div className={`flex flex-col ${isOwnMessage ? 'items-end' : 'items-start'} max-w-[75%] relative`}>
         {/* Image Message */}
         {message.type === 'image' ? (
-          <div className="relative group">
-            {message.media_url ? (
-              <div 
-                onClick={() => onImageClick?.(message.media_url!)}
-                className="cursor-pointer hover:opacity-90 transition-opacity"
-              >
-                <B2Image 
-                  src={message.media_url} 
-                  alt="Shared image"
-                  loading="lazy"
-                  className="max-w-[280px] rounded-lg"
-                />
-              </div>
-            ) : (
-              // Placeholder while uploading
-              <div className="w-48 h-48 bg-muted/20 rounded-2xl flex items-center justify-center">
-                <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
-              </div>
-            )}
-
-            {/* Upload Progress Overlay */}
-            {message.status === 'sending' && message.uploadProgress !== undefined && message.uploadProgress < 100 && (
-              <div className="absolute inset-0 bg-black/40 rounded-2xl flex items-center justify-center backdrop-blur-sm">
-                <CompactUploadProgress progress={message.uploadProgress} size={48} strokeWidth={4} />
-              </div>
-            )}
-
-            {/* Failed Upload Overlay with Retry and Remove */}
-            {message.status === 'failed' && (
-              <div className="absolute inset-0 bg-red-500/40 rounded-2xl flex flex-col items-center justify-center backdrop-blur-sm gap-2 p-3 text-center">
-                <div className="text-white text-sm font-semibold">Upload Failed</div>
-                <div className="text-white/90 text-xs">This failed upload will disappear in 30s</div>
-                <div className="flex gap-2 mt-1">
-                  <Button
-                    size="sm"
-                    variant="secondary"
-                    className="h-8 text-xs"
-                    onClick={() => onRetry?.(message)}
-                  >
-                    Retry
-                  </Button>
-                  <Button
-                    size="sm"
-                    variant="destructive"
-                    className="h-8 text-xs"
-                    onClick={() => onRemove?.(message)}
-                  >
-                    Remove now
-                  </Button>
+          <>
+            <div className="relative group">
+              {message.media_url ? (
+                <div 
+                  onClick={() => onImageClick?.(message.media_url!)}
+                  className="cursor-pointer hover:opacity-90 transition-opacity"
+                >
+                  <B2Image 
+                    src={message.media_url} 
+                    alt="Shared image"
+                    loading="lazy"
+                    className="max-w-[280px] rounded-lg"
+                  />
                 </div>
-              </div>
-            )}
-          </div>
+              ) : (
+                // Placeholder while uploading
+                <div className="w-48 h-48 bg-muted/20 rounded-2xl flex items-center justify-center">
+                  <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+                </div>
+              )}
+
+              {/* Upload Progress Overlay */}
+              {message.status === 'sending' && message.uploadProgress !== undefined && message.uploadProgress < 100 && (
+                <div className="absolute inset-0 bg-black/40 rounded-2xl flex items-center justify-center backdrop-blur-sm">
+                  <CompactUploadProgress progress={message.uploadProgress} size={48} strokeWidth={4} />
+                </div>
+              )}
+
+              {/* Failed Upload Overlay with Retry and Remove */}
+              {message.status === 'failed' && (
+                <div className="absolute inset-0 bg-red-500/40 rounded-2xl flex flex-col items-center justify-center backdrop-blur-sm gap-2 p-3 text-center">
+                  <div className="text-white text-sm font-semibold">Upload Failed</div>
+                  <div className="text-white/90 text-xs">This failed upload will disappear in 30s</div>
+                  <div className="flex gap-2 mt-1">
+                    <Button
+                      size="sm"
+                      variant="secondary"
+                      className="h-8 text-xs"
+                      onClick={() => onRetry?.(message)}
+                    >
+                      Retry
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="destructive"
+                      className="h-8 text-xs"
+                      onClick={() => onRemove?.(message)}
+                    >
+                      Remove now
+                    </Button>
+                  </div>
+                </div>
+              )}
+            </div>
+            {/* Timestamp for image */}
+            <span className="text-[10px] text-muted-foreground mt-1">
+              {new Date(message.created_at).toLocaleTimeString('en-US', { 
+                hour: '2-digit', 
+                minute: '2-digit',
+                hour12: false 
+              })}
+            </span>
+          </>
         ) : message.type === 'voice' && message.media_url ? (
-          /* Voice Message - Modern Waveform */
-          <VoiceMessagePlayer 
-            audioUrl={message.media_url}
-            isOwnMessage={isOwnMessage}
-          />
+          <>
+            {/* Voice Message - Modern Waveform */}
+            <VoiceMessagePlayer 
+              audioUrl={message.media_url}
+              isOwnMessage={isOwnMessage}
+            />
+            {/* Timestamp for voice */}
+            <span className="text-[10px] text-muted-foreground mt-1">
+              {new Date(message.created_at).toLocaleTimeString('en-US', { 
+                hour: '2-digit', 
+                minute: '2-digit',
+                hour12: false 
+              })}
+            </span>
+          </>
         ) : (
           /* Text Message Bubble */
           <div
@@ -990,7 +1010,7 @@ const ChatPageV2 = () => {
             fallbackMessage="Unable to display messages"
             onReset={() => conversationId && loadMessages(conversationId)}
           >
-            <div ref={messagesPullToRefresh.containerRef} className="messages-container flex-1 overflow-y-auto p-4 space-y-3 relative" style={{ WebkitOverflowScrolling: 'touch' }}>
+            <div ref={messagesPullToRefresh.containerRef} className="messages-container flex-1 overflow-y-auto p-4 space-y-1.5 relative" style={{ WebkitOverflowScrolling: 'touch' }}>
               <PullToRefreshIndicator 
                 pullDistance={messagesPullToRefresh.pullDistance}
                 isRefreshing={messagesPullToRefresh.isRefreshing}

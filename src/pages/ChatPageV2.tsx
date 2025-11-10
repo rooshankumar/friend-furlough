@@ -410,23 +410,28 @@ const ChatPageV2 = () => {
 
       console.log(`📖 Marking ${messagesToMark.length} messages as read...`);
 
-      // Mark each message as read
+      // Mark each message as read using upsert to avoid conflicts
       let markedCount = 0;
       for (const message of messagesToMark) {
         try {
-          await supabase
+          const { error } = await supabase
             .from('message_reads')
-            .insert({
+            .upsert({
               message_id: message.id,
               user_id: user.id,
               read_at: new Date().toISOString()
+            }, {
+              onConflict: 'message_id,user_id',
+              ignoreDuplicates: true
             });
-          markedCount++;
-        } catch (error: any) {
-          // Ignore duplicate key errors (already marked as read)
-          if (error.code !== '23505') {
+          
+          if (!error) {
+            markedCount++;
+          } else {
             console.error('Error marking message as read:', error);
           }
+        } catch (error: any) {
+          console.error('Error marking message as read:', error);
         }
       }
 

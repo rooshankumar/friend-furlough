@@ -246,7 +246,7 @@ const EnhancedMessageV2: React.FC<EnhancedMessageV2Props> = ({
               {message.content}
             </p>
 
-            {/* Time and Status */}
+            {/* Time only */}
             <div 
               className="absolute bottom-1 right-2 flex items-center gap-1.5"
               style={{
@@ -260,11 +260,14 @@ const EnhancedMessageV2: React.FC<EnhancedMessageV2Props> = ({
                   hour12: false 
                 })}
               </span>
-              {/* Show "Seen" only on the last message if read (own messages only) */}
-              {isOwnMessage && isLastMessage && message.status === 'read' && (
-                <span className="text-[10px]">Seen</span>
-              )}
             </div>
+          </div>
+        )}
+        
+        {/* Show "Seen" below the last message if read (own messages only) */}
+        {isOwnMessage && isLastMessage && message.status === 'read' && (
+          <div className="flex justify-end mt-1">
+            <span className="text-[11px] text-muted-foreground">Seen</span>
           </div>
         )}
 
@@ -993,30 +996,43 @@ const ChatPageV2 = () => {
                 isRefreshing={messagesPullToRefresh.isRefreshing}
                 threshold={80}
               />
-              {filteredMessages.map((message, index) => {
-                // Find the last message from current user
-                const isOwnMessage = message.sender_id === user?.id;
-                const isLastOwnMessage = isOwnMessage && 
-                  index === filteredMessages.length - 1 - 
-                  [...filteredMessages].reverse().findIndex(m => m.sender_id === user?.id);
+              {(() => {
+                // Find the index of the last message from current user
+                let lastOwnMessageIndex = -1;
+                for (let i = filteredMessages.length - 1; i >= 0; i--) {
+                  if (filteredMessages[i].sender_id === user?.id) {
+                    lastOwnMessageIndex = i;
+                    break;
+                  }
+                }
                 
-                return (
-                  <EnhancedMessageV2
-                    key={message.id}
-                    message={message}
-                    isOwnMessage={isOwnMessage}
-                    isLastMessage={isLastOwnMessage}
-                    otherUser={otherParticipant?.profiles}
-                    onReply={handleReply}
-                    onReact={handleReact}
-                    onCopy={handleCopyMessage}
-                    onDelete={handleDeleteMessage}
-                    onRetry={handleRetryUpload}
-                    onRemove={handleRemoveFailedUpload}
-                    onImageClick={setViewingImage}
-                  />
-                );
-              })}
+                // Check if the very last message in the conversation is from current user
+                const lastMessageInConversation = filteredMessages[filteredMessages.length - 1];
+                const isLastMessageFromCurrentUser = lastMessageInConversation?.sender_id === user?.id;
+                
+                return filteredMessages.map((message, index) => {
+                  const isOwnMessage = message.sender_id === user?.id;
+                  // Only show "Seen" if this is the last message from current user AND it's the last message overall
+                  const isLastOwnMessage = isOwnMessage && index === lastOwnMessageIndex && isLastMessageFromCurrentUser;
+                  
+                  return (
+                    <EnhancedMessageV2
+                      key={message.id}
+                      message={message}
+                      isOwnMessage={isOwnMessage}
+                      isLastMessage={isLastOwnMessage}
+                      otherUser={otherParticipant?.profiles}
+                      onReply={handleReply}
+                      onReact={handleReact}
+                      onCopy={handleCopyMessage}
+                      onDelete={handleDeleteMessage}
+                      onRetry={handleRetryUpload}
+                      onRemove={handleRemoveFailedUpload}
+                      onImageClick={setViewingImage}
+                    />
+                  );
+                });
+              })()}
               <div ref={messagesEndRef} />
             </div>
           </ChatErrorBoundary>

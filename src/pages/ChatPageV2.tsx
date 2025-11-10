@@ -63,6 +63,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { supabase } from '@/integrations/supabase/client';
+import { formatLastSeen, isUserOnline } from '@/lib/timeUtils';
 
 // Enhanced Message Component with Reactions
 interface EnhancedMessageV2Props {
@@ -227,7 +228,7 @@ const EnhancedMessageV2: React.FC<EnhancedMessageV2Props> = ({
         ) : (
           /* Text Message Bubble */
           <div
-            className={`relative rounded-2xl px-3 py-2 ${
+            className={`relative rounded-2xl px-2.5 py-1 ${
               isOwnMessage ? 'rounded-br-md' : 'rounded-bl-md'
             } transition-all duration-200 hover:shadow-md`}
             style={{
@@ -262,7 +263,7 @@ const EnhancedMessageV2: React.FC<EnhancedMessageV2Props> = ({
             )}
 
             {/* Message Content */}
-            <p className="text-sm leading-relaxed pr-16 whitespace-pre-wrap">
+            <p className="text-[15px] leading-relaxed pr-16 whitespace-pre-wrap">
               {message.content}
             </p>
 
@@ -359,6 +360,7 @@ const ChatPageV2 = () => {
   });
   const recordingTimerRef = useRef<NodeJS.Timeout | null>(null);
   const typingTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const [, forceUpdate] = useState({});
 
   const { 
     conversations, 
@@ -418,6 +420,44 @@ const ChatPageV2 = () => {
       unsubscribeFromMessages();
     };
   }, [conversationId, user?.id]);
+
+  // Subscribe to other user's online status changes
+  useEffect(() => {
+    if (!otherParticipant?.user_id) return;
+
+    const profileChannel = supabase
+      .channel(`profile:${otherParticipant.user_id}`)
+      .on(
+        'postgres_changes',
+        {
+          event: 'UPDATE',
+          schema: 'public',
+          table: 'profiles',
+          filter: `id=eq.${otherParticipant.user_id}`
+        },
+        (payload) => {
+          console.log('👤 User online status changed:', payload.new);
+          // Reload conversations to get updated profile data
+          if (user?.id) {
+            loadConversations(user.id);
+          }
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(profileChannel);
+    };
+  }, [otherParticipant?.user_id, user?.id, loadConversations]);
+
+  // Update last seen time every minute
+  useEffect(() => {
+    const interval = setInterval(() => {
+      forceUpdate({});
+    }, 60000); // Update every 60 seconds
+
+    return () => clearInterval(interval);
+  }, []);
 
   // Mark messages as read when viewing them
   useEffect(() => {
@@ -901,7 +941,7 @@ const ChatPageV2 = () => {
                         {otherParticipant?.profiles?.name?.[0] || '?'}
                       </AvatarFallback>
                     </Avatar>
-                    {otherParticipant?.profiles?.online && (
+                    {isUserOnline(otherParticipant?.profiles?.last_seen) && (
                       <span className="absolute bottom-0 right-0 h-2.5 w-2.5 md:h-3.5 md:w-3.5 bg-green-500 rounded-full border-2 border-background" />
                     )}
                   </div>
@@ -926,7 +966,7 @@ const ChatPageV2 = () => {
                           </span>
                         </span>
                       ) : (
-                        otherParticipant?.profiles?.online ? 'Online' : 'Offline'
+                        formatLastSeen(otherParticipant?.profiles?.last_seen)
                       )}
                     </p>
                   </div>

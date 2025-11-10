@@ -13,6 +13,7 @@ import MinimalNavigation from "./components/MinimalNavigation";
 import InstallPWA from "./components/InstallPWA";
 import PerformanceMonitor from "./components/PerformanceMonitor";
 import { useMasterOptimization } from "./hooks/useMasterOptimization";
+import { useActivityTracker } from "./hooks/useActivityTracker";
 
 // Lazy load pages for better performance
 const HomePage = React.lazy(() => import("./pages/HomePage"));
@@ -24,6 +25,7 @@ const ProfilePage = React.lazy(() => import("./pages/ProfilePage"));
 const SettingsPage = React.lazy(() => import("./pages/SettingsPage"));
 const EventsPage = React.lazy(() => import("./pages/EventsPage"));
 const FriendsPage = React.lazy(() => import("./pages/FriendsPage"));
+const NotificationsPage = React.lazy(() => import("./pages/NotificationsPage"));
 const NotFound = React.lazy(() => import("./pages/NotFound"));
 const SignUpPage = React.lazy(() => import("./pages/auth/SignUpPage"));
 const SignInPage = React.lazy(() => import("./pages/auth/SignInPage"));
@@ -82,6 +84,9 @@ const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
 const AppContent = () => {
   // Master optimization hook
   useMasterOptimization();
+  
+  // Track user activity and auto-logout after 24h inactivity
+  useActivityTracker();
 
   return (
     <div className="min-h-screen bg-background">
@@ -155,6 +160,12 @@ const AppContent = () => {
           <Route path="/friends" element={
             <ProtectedRoute>
               <FriendsPage />
+            </ProtectedRoute>
+          } />
+
+          <Route path="/notifications" element={
+            <ProtectedRoute>
+              <NotificationsPage />
             </ProtectedRoute>
           } />
 

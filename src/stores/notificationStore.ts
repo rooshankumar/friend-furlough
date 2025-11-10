@@ -1,5 +1,6 @@
 import { create } from 'zustand';
 import { supabase } from '@/integrations/supabase/client';
+import { playNotificationSound, showBrowserNotification } from '@/lib/notificationHelpers';
 
 interface Notification {
   id: string;
@@ -138,6 +139,24 @@ export const useNotificationStore = create<NotificationState>((set, get) => ({
             notifications: [newNotification, ...state.notifications],
             unreadCount: state.unreadCount + 1
           }));
+          
+          // Get notification settings from localStorage
+          const settings = JSON.parse(localStorage.getItem('notificationSettings') || '{"soundEnabled": true, "pushEnabled": true}');
+          
+          // Play sound if enabled
+          if (settings.soundEnabled) {
+            playNotificationSound();
+          }
+          
+          // Show browser notification if enabled
+          if (settings.pushEnabled) {
+            showBrowserNotification(newNotification.title, {
+              body: newNotification.message,
+              icon: '/icon-192.png',
+              badge: '/icon-192.png',
+              tag: newNotification.id,
+            });
+          }
         }
       )
       .on(

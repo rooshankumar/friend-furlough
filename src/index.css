@@ -5,6 +5,20 @@
 @tailwind components;
 @tailwind utilities;
 
+/* Capacitor Mobile App Fixes */
+@supports (-webkit-touch-callout: none) {
+  /* Prevent overscroll bounce on iOS/Android for better pull-to-refresh */
+  body {
+    overscroll-behavior-y: contain;
+    -webkit-overflow-scrolling: touch;
+  }
+  
+  /* Prevent pull-to-refresh on specific scrollable containers */
+  .prevent-overscroll {
+    overscroll-behavior: contain;
+  }
+}
+
 /* roshLingua Cultural Exchange Platform Design System
 All colors MUST be HSL. Cultural, warm, and inclusive design.
 */

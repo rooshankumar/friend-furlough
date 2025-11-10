@@ -10,7 +10,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useTheme } from '@/components/ThemeProvider';
-import { Moon, Sun, Monitor, Bell, Globe, Lock, User, Camera, Loader2, LogOut, Save, X, Plus, Languages, RefreshCw, Trash } from 'lucide-react';
+import { Moon, Sun, Monitor, Bell, Globe, Lock, User, Camera, Loader2, LogOut, Save, X, Plus, Languages, RefreshCw, Trash, Download, Wifi, WifiOff, Clock } from 'lucide-react';
 import { Separator } from '@/components/ui/separator';
 import { useAuthStore } from '@/stores/authStore';
 import { useToast } from '@/hooks/use-toast';
@@ -21,6 +21,8 @@ import { countries } from '@/data/countries';
 import { languages } from '@/data/languages';
 import { useQueryClient } from '@tanstack/react-query';
 import { clearCacheAndReload, getCacheInfo } from '@/lib/clearCache';
+import { useOfflineSync } from '@/hooks/useOfflineSync';
+import { formatDistanceToNow } from 'date-fns';
 
 export default function SettingsPage() {
   const { theme, setTheme } = useTheme();
@@ -33,7 +35,18 @@ export default function SettingsPage() {
   const [isSaving, setIsSaving] = useState(false);
   const [activeTab, setActiveTab] = useState('profile');
   const [isClearing, setIsClearing] = useState(false);
-  const [cacheInfo, setCacheInfo] = useState<{ cacheNames: string[]; serviceWorkers: number; isActive: boolean } | null>(null);
+  const [cacheInfo, setCacheInfo] = useState<{ cacheNames: string[]; serviceWorkers: number; isActive: boolean; indexedDBs: number; localStorageSize: number; sessionStorageSize: number; totalSizeBytes: number; totalSizeFormatted: string } | null>(null);
+  
+  // Offline sync
+  const { isPreloading, hasCache, lastSync, syncNow } = useOfflineSync();
+  
+  // Notification settings state
+  const [notificationSettings, setNotificationSettings] = useState({
+    pushEnabled: true,
+    messageAlerts: true,
+    friendRequests: true,
+    soundEnabled: true
+  });
   
   // Form state
   const [formData, setFormData] = useState({
@@ -99,6 +112,30 @@ export default function SettingsPage() {
     });
     navigate('/');
   };
+
+  const handleNotificationSettingChange = (setting: keyof typeof notificationSettings, value: boolean) => {
+    setNotificationSettings(prev => ({ ...prev, [setting]: value }));
+    
+    // Save to localStorage
+    const settings = { ...notificationSettings, [setting]: value };
+    localStorage.setItem('notificationSettings', JSON.stringify(settings));
+    
+    toast({
+      title: "Settings updated",
+      description: `${setting === 'pushEnabled' ? 'Push notifications' : 
+                     setting === 'messageAlerts' ? 'Message alerts' : 
+                     setting === 'friendRequests' ? 'Friend request notifications' :
+                     'Notification sound'} ${value ? 'enabled' : 'disabled'}`,
+    });
+  };
+
+  // Load notification settings from localStorage
+  useEffect(() => {
+    const saved = localStorage.getItem('notificationSettings');
+    if (saved) {
+      setNotificationSettings(JSON.parse(saved));
+    }
+  }, []);
 
   const handleClearCache = async () => {
     setIsClearing(true);
@@ -282,35 +319,36 @@ export default function SettingsPage() {
 
   return (
     <div className="min-h-screen md:ml-16 bg-gradient-subtle pb-20 md:pb-4 overflow-auto">
-      <div className="p-4 md:p-8 max-w-5xl mx-auto">
-        <div className="hidden md:block mb-6">
-          <h1 className="text-3xl font-bold">Settings</h1>
-          <p className="text-muted-foreground">Manage your profile and preferences</p>
+      <div className="p-3 sm:p-4 md:p-8 max-w-5xl mx-auto">
+        <div className="mb-4 md:mb-6">
+          <h1 className="text-2xl md:text-3xl font-bold">Settings</h1>
+          <p className="text-sm md:text-base text-muted-foreground">Manage your profile and preferences</p>
         </div>
 
-        <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4">
-          <TabsList className="grid w-full grid-cols-2">
-            <TabsTrigger value="profile" className="text-sm">
-              <User className="h-4 w-4 mr-2" />
-              Profile & Languages
+        <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-3 md:space-y-4">
+          <TabsList className="grid w-full grid-cols-2 h-auto">
+            <TabsTrigger value="profile" className="text-xs sm:text-sm py-2 sm:py-2.5">
+              <User className="h-3 w-3 sm:h-4 sm:w-4 mr-1 sm:mr-2" />
+              <span className="hidden xs:inline">Profile & Languages</span>
+              <span className="xs:hidden">Profile</span>
             </TabsTrigger>
-            <TabsTrigger value="preferences" className="text-sm">
-              <Lock className="h-4 w-4 mr-2" />
+            <TabsTrigger value="preferences" className="text-xs sm:text-sm py-2 sm:py-2.5">
+              <Lock className="h-3 w-3 sm:h-4 sm:w-4 mr-1 sm:mr-2" />
               Preferences
             </TabsTrigger>
           </TabsList>
 
           {/* Profile & Languages Tab */}
-          <TabsContent value="profile" className="space-y-4">
+          <TabsContent value="profile" className="space-y-3 md:space-y-4">
             {/* Avatar */}
             <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <User className="h-5 w-5" />
+              <CardHeader className="pb-3 md:pb-6">
+                <CardTitle className="flex items-center gap-2 text-base md:text-lg">
+                  <User className="h-4 w-4 md:h-5 md:w-5" />
                   Profile Picture
                 </CardTitle>
               </CardHeader>
-              <CardContent>
+              <CardContent className="space-y-3 md:space-y-4">
                 <div className="flex items-center gap-4">
                   <Avatar className="h-20 w-20">
                     <AvatarImage src={profile?.avatar_url || user?.user_metadata?.avatar_url} />
@@ -593,7 +631,21 @@ export default function SettingsPage() {
                     <Label>Push Notifications</Label>
                     <p className="text-sm text-muted-foreground">Receive notifications on this device</p>
                   </div>
-                  <Switch defaultChecked />
+                  <Switch 
+                    checked={notificationSettings.pushEnabled}
+                    onCheckedChange={(checked) => handleNotificationSettingChange('pushEnabled', checked)}
+                  />
+                </div>
+                <Separator />
+                <div className="flex items-center justify-between py-2">
+                  <div>
+                    <Label>Notification Sound</Label>
+                    <p className="text-sm text-muted-foreground">Play sound when receiving notifications</p>
+                  </div>
+                  <Switch 
+                    checked={notificationSettings.soundEnabled}
+                    onCheckedChange={(checked) => handleNotificationSettingChange('soundEnabled', checked)}
+                  />
                 </div>
                 <Separator />
                 <div className="flex items-center justify-between py-2">
@@ -601,7 +653,10 @@ export default function SettingsPage() {
                     <Label>Message Alerts</Label>
                     <p className="text-sm text-muted-foreground">Get notified of new messages</p>
                   </div>
-                  <Switch defaultChecked />
+                  <Switch 
+                    checked={notificationSettings.messageAlerts}
+                    onCheckedChange={(checked) => handleNotificationSettingChange('messageAlerts', checked)}
+                  />
                 </div>
                 <Separator />
                 <div className="flex items-center justify-between py-2">
@@ -609,40 +664,73 @@ export default function SettingsPage() {
                     <Label>Friend Requests</Label>
                     <p className="text-sm text-muted-foreground">Notifications for friend requests</p>
                   </div>
-                  <Switch defaultChecked />
+                  <Switch 
+                    checked={notificationSettings.friendRequests}
+                    onCheckedChange={(checked) => handleNotificationSettingChange('friendRequests', checked)}
+                  />
                 </div>
               </CardContent>
             </Card>
 
-            {/* Developer Tools */}
-            <Card className="border-blue-500/50">
+            {/* Data & Storage */}
+            <Card>
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
                   <RefreshCw className="h-5 w-5" />
-                  Developer Tools
+                  Data & Storage
                 </CardTitle>
                 <CardDescription>
-                  Troubleshooting tools for mobile issues
+                  Manage your app data and storage
                 </CardDescription>
               </CardHeader>
               <CardContent className="space-y-4">
+                {/* Offline Access */}
                 <div className="space-y-2">
-                  <Label>Clear App Cache</Label>
-                  <p className="text-sm text-muted-foreground">
-                    Use this if you're experiencing issues with attachments or stale code on mobile
-                  </p>
-                  {cacheInfo && (
-                    <div className="text-xs text-muted-foreground space-y-1 mt-2 p-2 bg-muted rounded">
-                      <div>Caches: {cacheInfo.cacheNames.length}</div>
-                      <div>Service Workers: {cacheInfo.serviceWorkers}</div>
-                      <div>Status: {cacheInfo.isActive ? '🟢 Active' : '⚪ Inactive'}</div>
-                    </div>
-                  )}
+                  <Label>Download for Offline Access</Label>
+                  <Button 
+                    variant="outline" 
+                    onClick={async () => {
+                      await syncNow();
+                      toast({
+                        title: "Download complete",
+                        description: "Your data is ready for offline use",
+                      });
+                    }}
+                    disabled={isPreloading}
+                    className="w-full min-h-[44px] text-base"
+                    size="lg"
+                  >
+                    {isPreloading ? (
+                      <>
+                        <Loader2 className="h-5 w-5 mr-2 animate-spin" />
+                        Downloading...
+                      </>
+                    ) : (
+                      <>
+                        <Download className="h-5 w-5 mr-2" />
+                        Download Data
+                      </>
+                    )}
+                  </Button>
+                </div>
+                
+                <Separator />
+                
+                {/* Clear Cache */}
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between">
+                    <Label>Clear App Cache</Label>
+                    {cacheInfo && (
+                      <span className="text-xs text-muted-foreground font-medium">
+                        {cacheInfo.totalSizeFormatted}
+                      </span>
+                    )}
+                  </div>
                   <Button 
                     variant="outline" 
                     onClick={handleClearCache}
                     disabled={isClearing}
-                    className="w-full min-h-[44px] text-base mt-2"
+                    className="w-full min-h-[44px] text-base"
                     size="lg"
                   >
                     {isClearing ? (
@@ -653,7 +741,7 @@ export default function SettingsPage() {
                     ) : (
                       <>
                         <Trash className="h-5 w-5 mr-2" />
-                        Clear Cache & Reload
+                        Clear Cache
                       </>
                     )}
                   </Button>

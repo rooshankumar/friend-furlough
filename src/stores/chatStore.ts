@@ -4,6 +4,7 @@ import { connectionManager, supabaseWrapper } from '@/lib/connectionManager';
 import { outbox, OutboxItem } from '@/lib/db/outbox';
 import { messagesCache } from '@/lib/db/messagesCache';
 import { attachmentCache } from '@/lib/attachmentCache';
+import { offlineCache } from '@/lib/offlineCache';
 import { toast } from 'sonner';
 
 type MessageStatus = 'sending' | 'sent' | 'delivered' | 'read' | 'failed';
@@ -91,28 +92,50 @@ export const useChatStore = create<ChatState>((set, get) => ({
     set({ isLoading: true });
 
     try {
-      const result = await supabaseWrapper.withRetry(async () => {
-        // Optimized: Single query to get user's conversations with participants
-        const { data: userParticipants, error: participantError } = await supabase
-          .from('conversation_participants')
-          .select(`
-            conversation_id,
-            unread_count,
-            conversations!inner (
-              id,
-              created_at,
-              updated_at,
-              is_language_exchange,
-              language
-            )
-          `)
-          .eq('user_id', userId);
+      let userParticipants = null;
 
-        if (participantError) throw participantError;
-        return userParticipants;
-      }, 'load conversations');
+      try {
+        // Try to fetch from network first
+        const result = await supabaseWrapper.withRetry(async () => {
+          // Optimized: Single query to get user's conversations with participants
+          const { data: userParticipants, error: participantError } = await supabase
+            .from('conversation_participants')
+            .select(`
+              conversation_id,
+              unread_count,
+              conversations!inner (
+                id,
+                created_at,
+                updated_at,
+                is_language_exchange,
+                language
+              )
+            `)
+            .eq('user_id', userId);
 
-      const userParticipants = result;
+          if (participantError) throw participantError;
+          return userParticipants;
+        }, 'load conversations');
+
+        userParticipants = result;
+      } catch (networkError) {
+        console.log('📡 Network failed, trying offline cache...');
+        
+        // Fallback to cached conversations
+        try {
+          await offlineCache.init();
+          const cachedConversations = await offlineCache.getAll('conversations');
+          
+          if (cachedConversations.length > 0) {
+            console.log(`✅ Loaded ${cachedConversations.length} conversations from offline cache`);
+            set({ conversations: cachedConversations, isLoading: false });
+            toast.info('Offline Mode - Showing cached conversations');
+            return;
+          }
+        } catch (cacheError) {
+          console.error('❌ Cache also failed:', cacheError);
+        }
+      }
 
       if (!userParticipants || userParticipants.length === 0) {
         console.log('ℹ️ No conversations found');
@@ -235,30 +258,58 @@ export const useChatStore = create<ChatState>((set, get) => ({
       const state = get();
       const existingMessages = state.messages[conversationId] || [];
 
-      // For loading more, get messages older than the oldest current message
-      let query = supabase
-        .from('messages')
-        .select(`
-          id,
-          conversation_id,
-          sender_id,
-          content,
-          created_at,
-          type,
-          reply_to_message_id,
-          media_url
-        `)
-        .eq('conversation_id', conversationId)
-        .order('created_at', { ascending: false }) // Get newest first
-        .limit(limit);
+      let data = null;
+      let error = null;
 
-      // If loading more, get messages older than the oldest we have
-      if (loadMore && existingMessages.length > 0) {
-        const oldestMessage = existingMessages[0]; // First message is oldest
-        query = query.lt('created_at', oldestMessage.created_at);
+      try {
+        // Try to fetch from network first
+        let query = supabase
+          .from('messages')
+          .select(`
+            id,
+            conversation_id,
+            sender_id,
+            content,
+            created_at,
+            type,
+            reply_to_message_id,
+            media_url
+          `)
+          .eq('conversation_id', conversationId)
+          .order('created_at', { ascending: false }) // Get newest first
+          .limit(limit);
+
+        // If loading more, get messages older than the oldest we have
+        if (loadMore && existingMessages.length > 0) {
+          const oldestMessage = existingMessages[0]; // First message is oldest
+          query = query.lt('created_at', oldestMessage.created_at);
+        }
+
+        const response = await query;
+        data = response.data;
+        error = response.error;
+      } catch (networkError) {
+        console.log('📡 Network failed, trying offline cache...');
+        
+        // Fallback to cached messages
+        try {
+          await offlineCache.init();
+          const cachedMessages = await offlineCache.getAll('messages');
+          
+          // Filter messages for this conversation
+          data = cachedMessages
+            .filter((msg: any) => msg.conversation_id === conversationId)
+            .sort((a: any, b: any) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
+            .slice(0, limit);
+          
+          if (data.length > 0) {
+            console.log(`✅ Loaded ${data.length} messages from offline cache`);
+            toast.info('Offline Mode - Showing cached messages');
+          }
+        } catch (cacheError) {
+          console.error('❌ Cache also failed:', cacheError);
+        }
       }
-
-      const { data, error } = await query;
 
       if (error) {
         console.error('❌ Error loading messages:', error);

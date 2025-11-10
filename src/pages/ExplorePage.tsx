@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuthStore } from '@/stores/authStore';
@@ -6,6 +6,7 @@ import { useExploreStore } from '@/stores/exploreStore';
 import { useProfileReactionStore } from '@/stores/profileReactionStore';
 import { useDebounce } from '@/hooks/useDebounce';
 import { usePullToRefresh } from '@/hooks/usePullToRefresh';
+import { useBatchPresence } from '@/hooks/useBatchPresence';
 import { PullToRefreshIndicator } from '@/components/PullToRefresh';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -41,6 +42,12 @@ export default function ExplorePage() {
   
   // Debounce search to reduce API calls
   const debouncedSearchTerm = useDebounce(localSearchTerm, 300);
+  
+  // Get user IDs for presence tracking
+  const userIds = useMemo(() => displayedUsers.map(u => u.id), [displayedUsers]);
+  
+  // Track online presence for all displayed users
+  const { isUserOnline } = useBatchPresence(userIds);
   
   // Pull-to-refresh for users
   const usersPullToRefresh = usePullToRefresh({
@@ -604,8 +611,8 @@ export default function ExplorePage() {
                       <AvatarImage src={profile.avatar_url} />
                       <AvatarFallback>{profile.name?.[0] || '?'}</AvatarFallback>
                     </Avatar>
-                    {profile.online && (
-                      <span className="absolute bottom-0 right-0 h-3 w-3 bg-green-500 rounded-full border-2 border-background" />
+                    {isUserOnline(profile.id) && (
+                      <span className="absolute bottom-0 right-0 h-3 w-3 bg-green-500 rounded-full border-2 border-background animate-pulse" />
                     )}
                   </div>
 

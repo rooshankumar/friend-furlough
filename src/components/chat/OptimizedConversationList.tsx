@@ -17,6 +17,7 @@ interface ConversationItemProps {
   currentUserId?: string;
   isActive?: boolean;
   isDesktop?: boolean;
+  isUserOnline?: (userId: string) => boolean;
 }
 
 // Memoized individual conversation item
@@ -24,7 +25,8 @@ const ConversationItem = React.memo<ConversationItemProps>(({
   conversation,
   currentUserId,
   isActive = false,
-  isDesktop = false
+  isDesktop = false,
+  isUserOnline
 }) => {
   const otherUser = React.useMemo(() => 
     conversation.participants.find(p => p.user_id !== currentUserId),
@@ -57,8 +59,8 @@ const ConversationItem = React.memo<ConversationItemProps>(({
                 {participantProfile?.name?.[0] || '?'}
               </AvatarFallback>
             </Avatar>
-            {participantProfile?.online && (
-              <span className={`absolute bottom-0 right-0 ${isDesktop ? 'h-2.5 w-2.5' : 'h-3 w-3'} bg-green-500 rounded-full border-2 border-background`} />
+            {isUserOnline && otherUser?.user_id && isUserOnline(otherUser.user_id) && (
+              <span className={`absolute bottom-0 right-0 ${isDesktop ? 'h-2.5 w-2.5' : 'h-3 w-3'} bg-green-500 rounded-full border-2 border-background animate-pulse`} />
             )}
           </div>
           <div className="flex-1 min-w-0">
@@ -114,6 +116,7 @@ interface OptimizedConversationListProps {
   currentUserId?: string;
   activeConversationId?: string;
   isDesktop?: boolean;
+  isUserOnline?: (userId: string) => boolean;
 }
 
 // Main optimized conversation list with virtual scrolling for large lists
@@ -121,7 +124,8 @@ export const OptimizedConversationList = React.memo<OptimizedConversationListPro
   conversations,
   currentUserId,
   activeConversationId,
-  isDesktop = false
+  isDesktop = false,
+  isUserOnline
 }) => {
   const containerHeight = 600; // Approximate height
   const itemHeight = isDesktop ? 80 : 100; // Approximate item height
@@ -146,6 +150,7 @@ export const OptimizedConversationList = React.memo<OptimizedConversationListPro
             currentUserId={currentUserId}
             isActive={conversation.id === activeConversationId}
             isDesktop={isDesktop}
+            isUserOnline={isUserOnline}
           />
         ))}
       </div>
@@ -169,6 +174,7 @@ export const OptimizedConversationList = React.memo<OptimizedConversationListPro
               currentUserId={currentUserId}
               isActive={conversation.id === activeConversationId}
               isDesktop={isDesktop}
+              isUserOnline={isUserOnline}
             />
           ))}
         </div>

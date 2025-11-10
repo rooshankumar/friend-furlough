@@ -2,10 +2,11 @@ import React, { memo, useMemo, useEffect } from 'react';
 import { Button } from "@/components/ui/button";
 import { CulturalBadge } from "@/components/CulturalBadge";
 import { Globe, MessageCircle, Users, Heart, Languages, MapPin } from "lucide-react";
-import { Link } from "react-router-dom";
+import { Link, Navigate } from "react-router-dom";
 import roshLinguaLogo from "@/assets/roshlingua-logo.png";
 import { useHomePageOptimization } from "@/hooks/usePageOptimization";
 import { LazyImage } from "@/components/optimized/LazyImage";
+import { useAuthStore } from "@/stores/authStore";
 
 // Memoized feature card component
 const FeatureCard = memo<{
@@ -52,6 +53,14 @@ const TestimonialCard = memo<{
 TestimonialCard.displayName = 'TestimonialCard';
 
 const HomePage = () => {
+  // Check if user is authenticated and redirect to explore
+  const { isAuthenticated, onboardingCompleted } = useAuthStore();
+  
+  // Redirect authenticated users to explore page
+  if (isAuthenticated && onboardingCompleted) {
+    return <Navigate to="/explore" replace />;
+  }
+  
   // Performance optimization
   const { trackMetric, preloadData } = useHomePageOptimization();
 

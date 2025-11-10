@@ -6,6 +6,11 @@ interface UsePullToRefreshOptions {
   disabled?: boolean;
 }
 
+// Check if running in Capacitor
+const isCapacitor = () => {
+  return !!(window as any).Capacitor;
+};
+
 export const usePullToRefresh = ({
   onRefresh,
   threshold = 80,
@@ -16,6 +21,7 @@ export const usePullToRefresh = ({
   const [isRefreshing, setIsRefreshing] = useState(false);
   
   const startY = useRef(0);
+  const currentY = useRef(0);
   const containerRef = useRef<HTMLDivElement>(null);
 
   const handleTouchStart = useCallback((e: TouchEvent) => {
@@ -24,9 +30,11 @@ export const usePullToRefresh = ({
     const container = containerRef.current;
     if (!container) return;
     
-    // Only trigger if scrolled to top
-    if (container.scrollTop === 0) {
+    // Only trigger if scrolled to top (with small tolerance for Capacitor)
+    const scrollTop = container.scrollTop;
+    if (scrollTop <= 5) {
       startY.current = e.touches[0].clientY;
+      currentY.current = e.touches[0].clientY;
       setIsPulling(true);
     }
   }, [disabled, isRefreshing]);
@@ -41,22 +49,26 @@ export const usePullToRefresh = ({
       return;
     }
 
-    const currentY = e.touches[0].clientY;
-    const distance = Math.max(0, currentY - startY.current);
+    currentY.current = e.touches[0].clientY;
+    const distance = Math.max(0, currentY.current - startY.current);
     
-    // Only activate pull-to-refresh if pulling down significantly
-    if (distance > 30) {
-      // Apply resistance effect
-      const resistedDistance = Math.min(distance * 0.4, threshold * 1.2);
+    // More aggressive pull detection for Capacitor
+    const minPullDistance = isCapacitor() ? 20 : 30;
+    
+    if (distance > minPullDistance) {
+      // Apply resistance effect (less resistance on Capacitor for better feel)
+      const resistanceFactor = isCapacitor() ? 0.5 : 0.4;
+      const resistedDistance = Math.min(distance * resistanceFactor, threshold * 1.2);
       setPullDistance(resistedDistance);
 
-      // Only prevent default if actively pulling to refresh
-      if (resistedDistance > 20) {
+      // Prevent default to stop overscroll bounce on iOS/Android
+      if (resistedDistance > 15) {
         e.preventDefault();
+        e.stopPropagation();
       }
     } else {
       // Allow normal scrolling for small movements
-      if (distance < 15) {
+      if (distance < 10) {
         setIsPulling(false);
         setPullDistance(0);
       }

@@ -26,6 +26,7 @@ import {
 } from 'lucide-react';
 import { User } from '@/types';
 import { useToast } from '@/hooks/use-toast';
+import { usePresence, getOnlineStatus } from '@/hooks/usePresence';
 
 interface ProfileHeaderProps {
   profileUser: User;
@@ -57,6 +58,10 @@ export const ProfileHeader: React.FC<ProfileHeaderProps> = ({
   const navigate = useNavigate();
   const { toast } = useToast();
   const [showAvatarDialog, setShowAvatarDialog] = useState(false);
+  
+  // Get real-time presence status
+  const { presence } = usePresence(profileUser?.id);
+  const { isOnline, status } = getOnlineStatus(presence);
 
   const handleReport = () => {
     toast({
@@ -147,10 +152,16 @@ export const ProfileHeader: React.FC<ProfileHeaderProps> = ({
             </div>
             
             {/* Online Status - Mobile/Tablet */}
-            <div className="flex sm:hidden md:flex items-center gap-2">
-              <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>
-              <span className="text-xs text-muted-foreground">Online</span>
-            </div>
+            {!isOwnProfile && (
+              <div className="flex sm:hidden md:flex items-center gap-2">
+                <div className={`w-2 h-2 rounded-full ${
+                  isOnline ? 'bg-green-500 animate-pulse' : 
+                  status === 'away' ? 'bg-yellow-500' : 
+                  'bg-gray-400'
+                }`}></div>
+                <span className="text-xs text-muted-foreground capitalize">{status}</span>
+              </div>
+            )}
           </div>
 
           {/* Profile Info - Compact Horizontal */}
@@ -162,10 +173,16 @@ export const ProfileHeader: React.FC<ProfileHeaderProps> = ({
                     {profileUser.name}
                   </h1>
                   {/* Online Status - Desktop */}
-                  <div className="hidden sm:flex md:hidden items-center gap-1.5">
-                    <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>
-                    <span className="text-xs text-muted-foreground">Online</span>
-                  </div>
+                  {!isOwnProfile && (
+                    <div className="hidden sm:flex md:hidden items-center gap-1.5">
+                      <div className={`w-2 h-2 rounded-full ${
+                        isOnline ? 'bg-green-500 animate-pulse' : 
+                        status === 'away' ? 'bg-yellow-500' : 
+                        'bg-gray-400'
+                      }`}></div>
+                      <span className="text-xs text-muted-foreground capitalize">{status}</span>
+                    </div>
+                  )}
                 </div>
                 
                 {/* Compact Info Pills */}
@@ -217,17 +234,17 @@ export const ProfileHeader: React.FC<ProfileHeaderProps> = ({
               <div className="flex items-center gap-1.5 flex-wrap sm:flex-nowrap">
                 {isOwnProfile ? (
                   <>
-                    <div className="flex items-center gap-1.5 px-3 py-1.5 bg-red-50 rounded-lg border border-red-200">
-                      <Heart className="h-3.5 w-3.5 text-red-500 fill-current" />
-                      <span className="text-xs font-medium text-red-700">
+                    <div className="flex items-center gap-2 px-3 py-2 bg-red-50 rounded-lg border border-red-200">
+                      <Heart className="h-5 w-5 text-red-500 fill-current" />
+                      <span className="text-sm font-medium text-red-700">
                         {reactions[profileUser.id] || 0}
                       </span>
                     </div>
-                    <Button variant="ghost" size="sm" onClick={() => navigate('/settings')} className="h-8 px-2">
-                      <Settings className="h-3.5 w-3.5" />
+                    <Button variant="ghost" size="sm" onClick={() => navigate('/settings')} className="h-9 px-3">
+                      <Settings className="h-5 w-5" />
                     </Button>
-                    <Button variant="ghost" size="sm" onClick={handleShare} className="h-8 px-2">
-                      <Share className="h-3.5 w-3.5" />
+                    <Button variant="ghost" size="sm" onClick={handleShare} className="h-9 px-3">
+                      <Share className="h-5 w-5" />
                     </Button>
                   </>
                 ) : (
@@ -236,10 +253,10 @@ export const ProfileHeader: React.FC<ProfileHeaderProps> = ({
                       variant="ghost" 
                       size="sm"
                       onClick={onHeartReaction}
-                      className={`h-8 px-2 ${userReactions[profileUser.id] ? 'text-red-500' : 'text-muted-foreground'}`}
+                      className={`h-9 px-3 ${userReactions[profileUser.id] ? 'text-red-500' : 'text-muted-foreground'}`}
                     >
-                      <Heart className={`h-3.5 w-3.5 ${userReactions[profileUser.id] ? 'fill-current' : ''}`} />
-                      <span className="text-xs ml-1">{reactions[profileUser.id] || 0}</span>
+                      <Heart className={`h-5 w-5 ${userReactions[profileUser.id] ? 'fill-current' : ''}`} />
+                      <span className="text-sm ml-1.5">{reactions[profileUser.id] || 0}</span>
                     </Button>
                     <Button size="sm" className="bg-gradient-cultural text-white h-8 text-xs" onClick={onStartConversation}>
                       <MessageCircle className="h-3.5 w-3.5 mr-1" />

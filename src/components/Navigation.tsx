@@ -162,6 +162,25 @@ const Navigation = () => {
             </Button>
 
             <Button
+              variant={isActive("/notifications") ? "cultural" : "ghost"}
+              size="icon"
+              asChild
+              className="relative group"
+            >
+              <Link to="/notifications" className="relative inline-flex">
+                <Bell className="h-5 w-5" />
+                {unreadCount > 0 && (
+                  <span className="absolute -top-0.5 -right-0.5 flex h-4 w-4 items-center justify-center rounded-full bg-red-500 text-[10px] font-semibold text-white shadow-sm">
+                    {unreadCount > 9 ? '9+' : unreadCount}
+                  </span>
+                )}
+                <span className="absolute left-full ml-2 px-2 py-1 bg-popover text-popover-foreground text-xs rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap pointer-events-none">
+                  Notifications {unreadCount > 0 && `(${unreadCount})`}
+                </span>
+              </Link>
+            </Button>
+
+            <Button
               variant={isActive("/profile") ? "cultural" : "ghost"}
               size="icon"
               asChild
@@ -374,14 +393,21 @@ const Navigation = () => {
             </Button>
 
             <Button
-              variant={isActive("/settings") ? "cultural" : "ghost"}
+              variant={isActive("/notifications") ? "cultural" : "ghost"}
               size="sm"
               asChild
-              className="flex-1 mx-1 hover:bg-accent/50 active:bg-accent/70 transition-colors"
+              className="flex-1 mx-1 hover:bg-accent/50 active:bg-accent/70 transition-colors relative"
             >
-              <Link to="/settings" className="flex flex-col items-center space-y-1 py-2">
-                <Settings className="h-5 w-5" />
-                <span className="text-xs">Settings</span>
+              <Link to="/notifications" className="flex flex-col items-center space-y-1 py-2">
+                <div className="relative inline-flex">
+                  <Bell className="h-5 w-5" />
+                  {unreadCount > 0 && (
+                    <span className="absolute -top-1 -right-1 flex h-4 w-4 items-center justify-center rounded-full bg-red-500 text-[9px] font-semibold text-white shadow-sm">
+                      {unreadCount > 9 ? '9+' : unreadCount}
+                    </span>
+                  )}
+                </div>
+                <span className="text-xs">Notifications</span>
               </Link>
             </Button>
           </div>

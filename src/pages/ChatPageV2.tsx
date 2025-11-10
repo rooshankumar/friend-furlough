@@ -16,6 +16,7 @@ import { isMobileApp } from '@/lib/mobileFilePicker';
 import MobileFileInput from '@/components/MobileFileInput';
 import { B2Image } from '@/components/B2Image';
 import { ImageViewer } from '@/components/chat/ImageViewer';
+import { ImageGrid } from '@/components/chat/ImageGrid';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import { usePerformanceMonitor } from '@/hooks/usePerformanceOptimization';
 import { useAuthStore } from '@/stores/authStore';
@@ -24,6 +25,8 @@ import { useConnectionStatus } from '@/hooks/useConnectionStatus';
 import { useMessageDeduplication } from '@/hooks/useMessageDeduplication';
 import { useVirtualScroll } from '@/hooks/useVirtualScroll';
 import { usePullToRefresh } from '@/hooks/usePullToRefresh';
+import { useBatchPresence } from '@/hooks/useBatchPresence';
+import { usePresence, getOnlineStatus } from '@/hooks/usePresence';
 import { PullToRefreshIndicator } from '@/components/PullToRefresh';
 import { OptimizedConversationList } from '@/components/chat/OptimizedConversationList';
 import { ChatErrorBoundary } from '@/components/ErrorBoundary';
@@ -389,6 +392,23 @@ const ChatPageV2 = () => {
     [conversationId, messages]
   );
 
+  // Get other participant from current conversation
+  const otherParticipant = useMemo(() => 
+    currentConversation?.participants?.find(p => p.user_id !== user?.id),
+    [currentConversation, user?.id]
+  );
+
+  // Track presence for current chat partner
+  const { presence: currentUserPresence } = usePresence(otherParticipant?.user_id);
+  const { isOnline: isCurrentUserOnline } = getOnlineStatus(currentUserPresence);
+
+  // Track presence for all conversation participants
+  const conversationUserIds = useMemo(() => 
+    conversations.flatMap(c => c.participants?.map(p => p.user_id) || []).filter(id => id !== user?.id),
+    [conversations, user?.id]
+  );
+  const { isUserOnline } = useBatchPresence(conversationUserIds);
+
   const filteredMessages = useMemo(() => {
     if (!searchQuery.trim()) return conversationMessages;
     const query = searchQuery.toLowerCase();
@@ -397,10 +417,53 @@ const ChatPageV2 = () => {
     );
   }, [conversationMessages, searchQuery]);
 
-  const otherParticipant = useMemo(() => 
-    currentConversation?.participants.find(p => p.user_id !== user?.id),
-    [currentConversation?.participants, user?.id]
-  );
+  // Group consecutive image messages from the same sender
+  const groupedMessages = useMemo(() => {
+    const grouped: any[] = [];
+    let currentImageGroup: any[] = [];
+    let currentSender: string | null = null;
+
+    filteredMessages.forEach((message, index) => {
+      // Check if this is an image message from the same sender
+      if (message.type === 'image' && message.sender_id === currentSender) {
+        currentImageGroup.push(message);
+      } else {
+        // Push previous image group if it exists
+        if (currentImageGroup.length > 0) {
+          grouped.push({
+            type: 'image_group',
+            messages: currentImageGroup,
+            sender_id: currentSender,
+            created_at: currentImageGroup[0].created_at,
+            id: `group_${currentImageGroup[0].id}`
+          });
+          currentImageGroup = [];
+        }
+
+        // Start new group or add regular message
+        if (message.type === 'image') {
+          currentImageGroup = [message];
+          currentSender = message.sender_id;
+        } else {
+          grouped.push(message);
+          currentSender = null;
+        }
+      }
+    });
+
+    // Don't forget the last group
+    if (currentImageGroup.length > 0) {
+      grouped.push({
+        type: 'image_group',
+        messages: currentImageGroup,
+        sender_id: currentSender,
+        created_at: currentImageGroup[0].created_at,
+        id: `group_${currentImageGroup[0].id}`
+      });
+    }
+
+    return grouped;
+  }, [filteredMessages]);
 
   // Load conversations and messages
   useEffect(() => {
@@ -421,43 +484,7 @@ const ChatPageV2 = () => {
     };
   }, [conversationId, user?.id]);
 
-  // Subscribe to other user's online status changes
-  useEffect(() => {
-    if (!otherParticipant?.user_id) return;
-
-    const profileChannel = supabase
-      .channel(`profile:${otherParticipant.user_id}`)
-      .on(
-        'postgres_changes',
-        {
-          event: 'UPDATE',
-          schema: 'public',
-          table: 'profiles',
-          filter: `id=eq.${otherParticipant.user_id}`
-        },
-        (payload) => {
-          console.log('👤 User online status changed:', payload.new);
-          // Reload conversations to get updated profile data
-          if (user?.id) {
-            loadConversations(user.id);
-          }
-        }
-      )
-      .subscribe();
-
-    return () => {
-      supabase.removeChannel(profileChannel);
-    };
-  }, [otherParticipant?.user_id, user?.id, loadConversations]);
-
-  // Update last seen time every minute
-  useEffect(() => {
-    const interval = setInterval(() => {
-      forceUpdate({});
-    }, 60000); // Update every 60 seconds
-
-    return () => clearInterval(interval);
-  }, []);
+  // Note: Online status is now tracked via usePresence hook above
 
   // Mark messages as read when viewing them
   useEffect(() => {
@@ -853,6 +880,7 @@ const ChatPageV2 = () => {
                 conversations={conversations}
                 currentUserId={user?.id}
                 isDesktop={false}
+                isUserOnline={isUserOnline}
               />
             </ChatErrorBoundary>
           </div>
@@ -914,6 +942,7 @@ const ChatPageV2 = () => {
                 currentUserId={user?.id}
                 activeConversationId={conversationId}
                 isDesktop={true}
+                isUserOnline={isUserOnline}
               />
             </div>
           </ChatErrorBoundary>
@@ -941,8 +970,8 @@ const ChatPageV2 = () => {
                         {otherParticipant?.profiles?.name?.[0] || '?'}
                       </AvatarFallback>
                     </Avatar>
-                    {isUserOnline(otherParticipant?.profiles?.last_seen) && (
-                      <span className="absolute bottom-0 right-0 h-2.5 w-2.5 md:h-3.5 md:w-3.5 bg-green-500 rounded-full border-2 border-background" />
+                    {isCurrentUserOnline && (
+                      <span className="absolute bottom-0 right-0 h-2.5 w-2.5 md:h-3.5 md:w-3.5 bg-green-500 rounded-full border-2 border-background animate-pulse" />
                     )}
                   </div>
                   <div className="flex-1 min-w-0">
@@ -965,8 +994,12 @@ const ChatPageV2 = () => {
                             <span className="w-1 h-1 bg-primary rounded-full animate-bounce" style={{ animationDelay: '300ms' }}></span>
                           </span>
                         </span>
+                      ) : isCurrentUserOnline ? (
+                        <span className="text-green-500 font-medium">online</span>
+                      ) : currentUserPresence?.last_seen ? (
+                        `last seen ${formatLastSeen(currentUserPresence.last_seen)}`
                       ) : (
-                        formatLastSeen(otherParticipant?.profiles?.last_seen)
+                        'offline'
                       )}
                     </p>
                   </div>
@@ -1059,26 +1092,71 @@ const ChatPageV2 = () => {
               {(() => {
                 // Find the index of the last message from current user
                 let lastOwnMessageIndex = -1;
-                for (let i = filteredMessages.length - 1; i >= 0; i--) {
-                  if (filteredMessages[i].sender_id === user?.id) {
+                for (let i = groupedMessages.length - 1; i >= 0; i--) {
+                  if (groupedMessages[i].sender_id === user?.id) {
                     lastOwnMessageIndex = i;
                     break;
                   }
                 }
                 
                 // Check if the very last message in the conversation is from current user
-                const lastMessageInConversation = filteredMessages[filteredMessages.length - 1];
+                const lastMessageInConversation = groupedMessages[groupedMessages.length - 1];
                 const isLastMessageFromCurrentUser = lastMessageInConversation?.sender_id === user?.id;
                 
-                return filteredMessages.map((message, index) => {
-                  const isOwnMessage = message.sender_id === user?.id;
-                  // Only show "Seen" if this is the last message from current user AND it's the last message overall
+                return groupedMessages.map((item, index) => {
+                  const isOwnMessage = item.sender_id === user?.id;
                   const isLastOwnMessage = isOwnMessage && index === lastOwnMessageIndex && isLastMessageFromCurrentUser;
                   
+                  // Handle image groups
+                  if (item.type === 'image_group') {
+                    return (
+                      <div key={item.id} className={`flex items-end gap-2 mb-4 ${isOwnMessage ? 'flex-row-reverse' : 'flex-row'}`}>
+                        {/* Avatar for received messages */}
+                        {!isOwnMessage && (
+                          <Avatar className="h-8 w-8 mt-auto">
+                            <AvatarImage src={otherParticipant?.profiles?.avatar_url} />
+                            <AvatarFallback className="bg-gradient-cultural text-white text-xs">
+                              {otherParticipant?.profiles?.name?.[0] || '?'}
+                            </AvatarFallback>
+                          </Avatar>
+                        )}
+                        
+                        <div className={`flex flex-col ${isOwnMessage ? 'items-end' : 'items-start'}`}>
+                          <ImageGrid 
+                            images={item.messages}
+                            onImageClick={setViewingImage}
+                            onRetry={handleRetryUpload}
+                            onRemove={handleRemoveFailedUpload}
+                            isOwnMessage={isOwnMessage}
+                          />
+                          <span className="text-[10px] text-muted-foreground mt-1">
+                            {new Date(item.created_at).toLocaleTimeString('en-US', { 
+                              hour: '2-digit', 
+                              minute: '2-digit',
+                              hour12: false 
+                            })}
+                          </span>
+                          {isLastOwnMessage && item.messages[item.messages.length - 1]?.status === 'read' && (
+                            <div className="flex items-center gap-1 mt-1">
+                              <Avatar className="h-3.5 w-3.5">
+                                <AvatarImage src={otherParticipant?.profiles?.avatar_url} />
+                                <AvatarFallback className="bg-gradient-cultural text-white text-[8px]">
+                                  {otherParticipant?.profiles?.name?.[0] || '?'}
+                                </AvatarFallback>
+                              </Avatar>
+                              <span className="text-[10px] text-muted-foreground">Seen</span>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    );
+                  }
+                  
+                  // Handle regular messages
                   return (
                     <EnhancedMessageV2
-                      key={message.id}
-                      message={message}
+                      key={item.id}
+                      message={item}
                       isOwnMessage={isOwnMessage}
                       isLastMessage={isLastOwnMessage}
                       otherUser={otherParticipant?.profiles}

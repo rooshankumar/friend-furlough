@@ -46,6 +46,7 @@ interface AuthState {
   isLoading: boolean;
   onboardingStep: number;
   onboardingCompleted: boolean;
+  lastActivity: number;
 
   // Actions
   initialize: () => Promise<void>;
@@ -56,6 +57,8 @@ interface AuthState {
   updateProfile: (updates: Partial<Profile>) => Promise<void>;
   setOnboardingStep: (step: number) => void;
   completeOnboarding: () => Promise<void>;
+  updateLastActivity: () => void;
+  checkInactivityLogout: () => void;
 }
 
 export const useAuthStore = create<AuthState>()(
@@ -68,6 +71,7 @@ export const useAuthStore = create<AuthState>()(
       isLoading: true,
       onboardingStep: 1,
       onboardingCompleted: false,
+      lastActivity: Date.now(),
 
       initialize: async () => {
         set({ isLoading: true });
@@ -338,6 +342,23 @@ export const useAuthStore = create<AuthState>()(
           onboardingCompleted: isComplete ? true : false,
           onboardingStep: 1
         });
+      },
+
+      updateLastActivity: () => {
+        set({ lastActivity: Date.now() });
+      },
+
+      checkInactivityLogout: () => {
+        const { lastActivity, isAuthenticated, signOut } = get();
+        if (!isAuthenticated) return;
+
+        const ONE_DAY = 24 * 60 * 60 * 1000; // 24 hours in milliseconds
+        const inactiveDuration = Date.now() - lastActivity;
+
+        if (inactiveDuration > ONE_DAY) {
+          console.log('🔐 Auto-logout due to 24h inactivity');
+          signOut();
+        }
       }
     }),
     {
@@ -349,6 +370,7 @@ export const useAuthStore = create<AuthState>()(
         isAuthenticated: state.isAuthenticated,
         onboardingStep: state.onboardingStep,
         onboardingCompleted: state.onboardingCompleted,
+        lastActivity: state.lastActivity,
       }),
     }
   )

@@ -14,6 +14,9 @@ import {
 import { useAuthStore } from "@/stores/authStore";
 import { useNotificationStore } from "@/stores/notificationStore";
 import { useChatStore } from "@/stores/chatStore";
+import { useUpdatePresence } from "@/hooks/usePresence";
+import { useOfflineSync } from "@/hooks/useOfflineSync";
+import NotificationDropdown from "@/components/NotificationDropdown";
 import roshLinguaLogo from "@/assets/roshlingua-logo.png";
 
 const MinimalNavigation = () => {
@@ -23,8 +26,14 @@ const MinimalNavigation = () => {
   
   // Check if user is in a chat conversation (hide mobile nav)
   const isInChatConversation = location.pathname.startsWith('/chat/') && location.pathname !== '/chat';
-  const { unreadCount, loadNotifications, subscribeToNotifications } = useNotificationStore();
+  const { unreadCount, loadNotifications, subscribeToNotifications, markAllAsRead } = useNotificationStore();
   const { conversations, loadConversations } = useChatStore();
+  
+  // Track user's online presence
+  useUpdatePresence(user?.id);
+  
+  // Auto-sync data for offline access
+  useOfflineSync();
 
   const isActive = (path: string) => location.pathname === path || location.pathname.startsWith(path);
   
@@ -50,6 +59,13 @@ const MinimalNavigation = () => {
       navigate('/');
     } catch (error) {
       console.error('Sign out error:', error);
+    }
+  };
+
+  const handleNotificationClick = () => {
+    // Mark all notifications as read when clicking notification nav
+    if (unreadCount > 0) {
+      markAllAsRead();
     }
   };
 
@@ -163,23 +179,44 @@ const MinimalNavigation = () => {
                 </span>
               </Link>
             </Button>
+
+            {/* Settings */}
+            <Button
+              variant={isActive("/settings") ? "cultural" : "ghost"}
+              size="icon"
+              asChild
+              className="relative group"
+            >
+              <Link to="/settings">
+                <Settings className="h-5 w-5" />
+                <span className="absolute left-full ml-3 px-2 py-1 bg-popover text-popover-foreground text-xs rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap pointer-events-none z-50">
+                  Settings
+                </span>
+              </Link>
+            </Button>
           </div>
 
           {/* Bottom Section */}
           <div className="flex-1"></div>
           <div className="flex flex-col space-y-2">
             {/* Notifications */}
-            <Button variant="ghost" size="icon" className="relative group">
-              <Bell className="h-5 w-5" />
-              {unreadCount > 0 && (
-                <Badge className="absolute -top-1 -right-1 h-4 w-4 flex items-center justify-center p-0 text-[10px]">
-                  {unreadCount > 9 ? '9+' : unreadCount}
-                </Badge>
-              )}
-              <span className="absolute left-full ml-3 px-2 py-1 bg-popover text-popover-foreground text-xs rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap pointer-events-none z-50">
-                Notifications
-              </span>
-            </Button>
+            <NotificationDropdown>
+              <Button 
+                variant={isActive("/notifications") ? "cultural" : "ghost"}
+                size="icon" 
+                className="relative group"
+              >
+                <Bell className="h-5 w-5" />
+                {unreadCount > 0 && (
+                  <Badge className="absolute -top-1 -right-1 h-4 w-4 flex items-center justify-center p-0 text-[10px]">
+                    {unreadCount > 9 ? '9+' : unreadCount}
+                  </Badge>
+                )}
+                <span className="absolute left-full ml-3 px-2 py-1 bg-popover text-popover-foreground text-xs rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap pointer-events-none z-50">
+                  Notifications {unreadCount > 0 && `(${unreadCount})`}
+                </span>
+              </Button>
+            </NotificationDropdown>
 
             {/* User Menu */}
             <DropdownMenu>
@@ -274,17 +311,25 @@ const MinimalNavigation = () => {
             <span className="text-[10px] font-medium">Profile</span>
           </Link>
 
-          {/* Settings */}
+          {/* Notifications */}
           <Link 
-            to="/settings" 
-            className={`flex-1 mx-0.5 flex flex-col items-center space-y-0.5 py-1.5 px-1 rounded-md transition-colors touch-manipulation select-none ${
-              isActive("/settings") 
+            to="/notifications" 
+            onClick={handleNotificationClick}
+            className={`flex-1 mx-0.5 flex flex-col items-center space-y-0.5 py-1.5 px-1 rounded-md transition-colors touch-manipulation select-none relative ${
+              isActive("/notifications") 
                 ? "bg-primary text-primary-foreground" 
                 : "text-muted-foreground hover:text-foreground hover:bg-accent/50 active:bg-accent/70"
             }`}
           >
-            <Settings className="h-4 w-4" />
-            <span className="text-[10px] font-medium">Settings</span>
+            <div className="relative inline-flex">
+              <Bell className="h-4 w-4" />
+              {unreadCount > 0 && (
+                <Badge className="absolute -top-1 -right-1 h-3 w-3 flex items-center justify-center p-0 text-[8px] bg-red-500 text-white">
+                  {unreadCount > 9 ? '9+' : unreadCount}
+                </Badge>
+              )}
+            </div>
+            <span className="text-[10px] font-medium">Alerts</span>
           </Link>
         </div>
       </nav>

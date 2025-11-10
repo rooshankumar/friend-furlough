@@ -26,6 +26,7 @@ import { PullToRefreshIndicator } from '@/components/PullToRefresh';
 import { uploadAvatar } from '@/lib/storage';
 import { mobileUploadHelper, getMobileInputAttributes, getMobileErrorMessage } from '@/lib/mobileUploadHelper';
 import { supabase } from '@/integrations/supabase/client';
+import { getCachedOrFetch, offlineCache } from '@/lib/offlineCache';
 
 const ProfilePage = () => {
   const { userId } = useParams();
@@ -124,28 +125,53 @@ const ProfilePage = () => {
         return;
       }
 
-      // Batch all data requests in parallel
-      const [profileData, languagesData, postsData] = await Promise.all([
-        // Profile data
-        (async () => {
-          const { fetchProfileById } = await import('@/integrations/supabase/fetchProfileById');
-          return fetchProfileById(targetUserId);
-        })(),
-        // Languages data
-        supabase
-          .from('languages')
-          .select('language_name, is_native, is_learning')
-          .eq('user_id', targetUserId),
-        // Posts data
-        supabase
-          .from('community_posts')
-          .select('*, profiles!community_posts_user_id_fkey(name, avatar_url, country_flag)')
-          .eq('user_id', targetUserId)
-          .order('created_at', { ascending: false })
-      ]);
+      let profileData = null;
+      let languagesData = null;
+      let postsData = null;
+
+      try {
+        // Try to fetch from network first
+        [profileData, languagesData, postsData] = await Promise.all([
+          // Profile data
+          (async () => {
+            const { fetchProfileById } = await import('@/integrations/supabase/fetchProfileById');
+            return fetchProfileById(targetUserId);
+          })(),
+          // Languages data
+          supabase
+            .from('languages')
+            .select('language_name, is_native, is_learning')
+            .eq('user_id', targetUserId),
+          // Posts data
+          supabase
+            .from('community_posts')
+            .select('*, profiles!community_posts_user_id_fkey(name, avatar_url, country_flag)')
+            .eq('user_id', targetUserId)
+            .order('created_at', { ascending: false })
+        ]);
+      } catch (networkError) {
+        console.log('📡 Network failed, trying offline cache...');
+        
+        // Fallback to cached data
+        try {
+          await offlineCache.init();
+          profileData = await offlineCache.get('profiles', targetUserId);
+          
+          if (profileData) {
+            console.log('✅ Loaded profile from offline cache');
+            toast({
+              title: "Offline Mode",
+              description: "Showing cached data",
+              variant: "default"
+            });
+          }
+        } catch (cacheError) {
+          console.error('❌ Cache also failed:', cacheError);
+        }
+      }
 
       if (!profileData) {
-        setError('Profile not found');
+        setError('Unable to load profile. Please check your connection.');
         return;
       }
 
@@ -160,13 +186,22 @@ const ProfilePage = () => {
       setProfileUser(fullProfile);
 
       // Set languages
-      if (languagesData.data) {
+      if (languagesData?.data) {
         setNativeLanguages(languagesData.data.filter(l => l.is_native).map(l => l.language_name));
         setLearningLanguages(languagesData.data.filter(l => l.is_learning).map(l => l.language_name));
+      } else if (profileData.nativeLanguages || profileData.learningLanguages) {
+        // Fallback to cached profile data
+        setNativeLanguages(profileData.nativeLanguages || []);
+        setLearningLanguages(profileData.learningLanguages || []);
       }
 
       // Set posts
-      setUserPosts(postsData.data || []);
+      if (postsData?.data) {
+        setUserPosts(postsData.data);
+      } else if (profileData.posts) {
+        // Fallback to cached posts
+        setUserPosts(profileData.posts || []);
+      }
 
       // Set interests from profile
       setCulturalInterests(profileData.culturalInterests || []);
@@ -202,6 +237,34 @@ const ProfilePage = () => {
       if (!isOwnProfile) {
         const status = await checkFriendStatus(targetUserId);
         setFriendStatus(status);
+        
+        // Track profile view (only for other users' profiles)
+        try {
+          // Check if already viewed today
+          const today = new Date();
+          today.setHours(0, 0, 0, 0);
+          
+          const { data: existingView } = await (supabase as any)
+            .from('profile_views')
+            .select('id')
+            .eq('profile_id', targetUserId)
+            .eq('viewer_id', authUser.id)
+            .gte('viewed_at', today.toISOString())
+            .single();
+          
+          // Only insert if no view today
+          if (!existingView) {
+            await (supabase as any)
+              .from('profile_views')
+              .insert({
+                profile_id: targetUserId,
+                viewer_id: authUser.id
+              });
+          }
+        } catch (viewError) {
+          // Silently fail - profile view tracking is non-critical
+          console.log('Profile view tracking:', viewError);
+        }
       }
 
     } catch (error: any) {

@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import { isMobileApp } from '@/lib/mobileFilePicker';
 import MobileFileInput from '@/components/MobileFileInput';
 import { supabase } from '@/integrations/supabase/client';
@@ -6,6 +6,7 @@ import { useAuthStore } from '@/stores/authStore';
 import { usePostReactionStore } from '@/stores/postReactionStore';
 import { usePostCommentStore } from '@/stores/postCommentStore';
 import { usePullToRefresh } from '@/hooks/usePullToRefresh';
+import { useBatchPresence } from '@/hooks/useBatchPresence';
 import { PullToRefreshIndicator } from '@/components/PullToRefresh';
 import { CompactUploadProgress } from '@/components/CompactUploadProgress';
 import { Card } from '@/components/ui/card';
@@ -105,6 +106,15 @@ const CommunityPage = () => {
   const [isLoadingMore, setIsLoadingMore] = useState(false);
   const [userProfile, setUserProfile] = useState<any>(null);
   const POSTS_PER_PAGE = 20;
+  
+  // Get user IDs from posts for presence tracking
+  const postUserIds = useMemo(() => 
+    [...new Set(filteredPosts.map(p => p.user_id).filter(Boolean))],
+    [filteredPosts]
+  );
+  
+  // Track online presence for all post authors
+  const { isUserOnline } = useBatchPresence(postUserIds);
   
   // Pull-to-refresh for posts
   const postsPullToRefresh = usePullToRefresh({
@@ -1148,7 +1158,7 @@ const CommunityPage = () => {
                   {/* Compact Post Header */}
                   <div className="flex items-center gap-3 mb-3">
                     <div 
-                      className="cursor-pointer shrink-0"
+                      className="cursor-pointer shrink-0 relative"
                       onClick={() => {
                         if (post.user_id) navigate(`/profile/${post.user_id}`);
                       }}
@@ -1158,6 +1168,9 @@ const CommunityPage = () => {
                         size="sm"
                         className="w-10 h-10 lg:w-9 lg:h-9"
                       />
+                      {post.user_id && isUserOnline(post.user_id) && (
+                        <span className="absolute bottom-0 right-0 h-3 w-3 bg-green-500 rounded-full border-2 border-background animate-pulse" />
+                      )}
                     </div>
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center justify-between">

@@ -13,11 +13,11 @@ export const isMobileApp = () => {
   return Capacitor.isNativePlatform();
 };
 
-// Use custom scheme for mobile OAuth (more reliable than App Links)
-// For web, use the standard Supabase callback
+// Use custom scheme for mobile OAuth
+// For web, use the Vercel deployment URL
 const REDIRECT_URL = isMobileApp() 
   ? 'com.roshlingua.app://login-callback'
-  : 'https://bblrxervgwkphkctdghe.supabase.co/auth/v1/callback';
+  : 'https://roshlingua.vercel.app/auth/callback';
 
 /**
  * Initialize OAuth deep link listener

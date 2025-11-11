@@ -427,14 +427,30 @@ const ProfilePage = () => {
       if (convError) throw convError;
 
       // Add participants
-      const { error: participantsError } = await supabase
+      const { data: participants, error: participantsError } = await supabase
         .from('conversation_participants')
         .insert([
           { conversation_id: conversation.id, user_id: authUser!.id },
           { conversation_id: conversation.id, user_id: profileUser.id }
-        ]);
+        ])
+        .select();
 
       if (participantsError) throw participantsError;
+
+      // Verify participants were added
+      const { data: verifyParticipants } = await supabase
+        .from('conversation_participants')
+        .select('user_id')
+        .eq('conversation_id', conversation.id);
+
+      console.log('✅ Participants verified:', verifyParticipants);
+
+      // Reload conversations to get participant details before navigating
+      const { loadConversations } = await import('@/stores/chatStore').then(m => m.useChatStore.getState());
+      await loadConversations(authUser!.id);
+
+      // Small delay to ensure state is updated
+      await new Promise(resolve => setTimeout(resolve, 300));
 
       navigate(`/chat/${conversation.id}`);
     } catch (error: any) {

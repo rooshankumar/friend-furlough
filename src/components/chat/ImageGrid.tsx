@@ -30,7 +30,7 @@ export const ImageGrid: React.FC<ImageGridProps> = ({
   if (imageCount === 1) {
     const image = images[0];
     return (
-      <div className="relative group max-w-[280px]">
+      <div className="relative group max-w-[240px]">
         {image.media_url ? (
           <div 
             onClick={() => onImageClick?.(image.media_url!)}
@@ -62,7 +62,7 @@ export const ImageGrid: React.FC<ImageGridProps> = ({
   // Two images - side by side with max height
   if (imageCount === 2) {
     return (
-      <div className="grid grid-cols-2 gap-1 max-w-[280px] max-h-[140px]">
+      <div className="grid grid-cols-2 gap-1 max-w-[240px] max-h-[140px]">
         {images.map((image) => (
           <div key={image.id} className="relative group h-full">
             {image.media_url ? (
@@ -100,7 +100,7 @@ export const ImageGrid: React.FC<ImageGridProps> = ({
   // Three images - 1 large + 2 small with max height
   if (imageCount === 3) {
     return (
-      <div className="grid grid-cols-2 gap-1 max-w-[280px] max-h-[180px]">
+      <div className="grid grid-cols-2 gap-1 max-w-[240px] max-h-[180px]">
         {/* First image takes full left side */}
         <div className="relative group row-span-2 h-full">
           {images[0].media_url ? (
@@ -166,7 +166,7 @@ export const ImageGrid: React.FC<ImageGridProps> = ({
 
   // Four or more images - 2x2 grid with max height (show +N for more)
   return (
-    <div className="grid grid-cols-2 gap-1 max-w-[280px] max-h-[180px]">
+    <div className="grid grid-cols-2 gap-1 max-w-[240px] max-h-[180px]">
       {images.slice(0, 4).map((image, index) => (
         <div key={image.id} className="relative group h-full">
           {image.media_url ? (

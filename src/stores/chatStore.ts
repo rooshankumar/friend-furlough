@@ -456,6 +456,19 @@ export const useChatStore = create<ChatState>((set, get) => ({
       throw new Error('Missing required message data');
     }
 
+    // Verify user is a participant in the conversation (prevents 403 errors)
+    const { data: participant, error: participantError } = await supabase
+      .from('conversation_participants')
+      .select('user_id')
+      .eq('conversation_id', conversationId)
+      .eq('user_id', senderId)
+      .maybeSingle();
+
+    if (participantError || !participant) {
+      console.error('❌ User is not a participant in this conversation:', { conversationId, senderId });
+      throw new Error('You are not a participant in this conversation. Please refresh and try again.');
+    }
+
     const messageType = mediaUrl ? 
       (mediaUrl.includes('.jpg') || mediaUrl.includes('.jpeg') || mediaUrl.includes('.png') || mediaUrl.includes('.gif') || mediaUrl.includes('.webp') ? 'image' : 
        mediaUrl.includes('.webm') || mediaUrl.includes('.mp3') || mediaUrl.includes('.wav') ? 'voice' : 'file') : 'text';
@@ -1140,12 +1153,19 @@ export const useChatStore = create<ChatState>((set, get) => ({
           }, 3000);
         }
       })
-      .subscribe((status) => {
+      .subscribe((status, err) => {
         console.log('Subscription status:', status, 'at', new Date().toLocaleTimeString());
 
         if (status === 'SUBSCRIBED') {
           console.log('✅ Successfully subscribed to messages:', conversationId);
           set({ activeChannel: channel });
+        } else if (status === 'CHANNEL_ERROR') {
+          console.error('❌ Channel error:', err);
+          console.error('❌ Make sure Realtime is enabled for messages table in Supabase dashboard!');
+        } else if (status === 'TIMED_OUT') {
+          console.error('❌ Subscription timed out');
+        } else if (status === 'CLOSED') {
+          console.warn('⚠️ Channel closed');
         }
         // Removed automatic reconnection - let the global connection manager handle it
       });

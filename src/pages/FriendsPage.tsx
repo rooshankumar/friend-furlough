@@ -372,12 +372,13 @@ const FriendsPage = () => {
       }
 
       // Add participants
-      const { error: participantError } = await supabase
+      const { data: participants, error: participantError } = await supabase
         .from('conversation_participants')
         .insert([
           { conversation_id: conversation.id, user_id: session.user.id },
           { conversation_id: conversation.id, user_id: userId }
-        ]);
+        ])
+        .select();
 
       if (participantError) {
         console.error('Participant creation error:', participantError);
@@ -388,6 +389,21 @@ const FriendsPage = () => {
         });
         return;
       }
+
+      // Verify participants were added
+      const { data: verifyParticipants } = await supabase
+        .from('conversation_participants')
+        .select('user_id')
+        .eq('conversation_id', conversation.id);
+
+      console.log('✅ Participants verified:', verifyParticipants);
+
+      // Reload conversations to get participant details before navigating
+      const { loadConversations } = await import('@/stores/chatStore').then(m => m.useChatStore.getState());
+      await loadConversations(session.user.id);
+
+      // Small delay to ensure state is updated
+      await new Promise(resolve => setTimeout(resolve, 300));
 
       toast({
         title: 'Conversation started!',

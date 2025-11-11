@@ -146,7 +146,7 @@ const EnhancedMessageV2: React.FC<EnhancedMessageV2Props> = ({
         </Avatar>
       )}
 
-      <div className={`flex flex-col ${isOwnMessage ? 'items-end' : 'items-start'} max-w-[75%] relative`}>
+      <div className={`flex flex-col gap-1 ${isOwnMessage ? 'items-end' : 'items-start'} max-w-[75%] relative`}>
         {/* Image Message */}
         {message.type === 'image' ? (
           <>
@@ -160,7 +160,7 @@ const EnhancedMessageV2: React.FC<EnhancedMessageV2Props> = ({
                     src={message.media_url} 
                     alt="Shared image"
                     loading="lazy"
-                    className="max-w-[280px] rounded-lg"
+                    className="max-w-[240px] rounded-lg"
                   />
                 </div>
               ) : (
@@ -997,7 +997,7 @@ const ChatPageV2 = () => {
                       ) : isCurrentUserOnline ? (
                         <span className="text-green-500 font-medium">online</span>
                       ) : currentUserPresence?.last_seen ? (
-                        `last seen ${formatLastSeen(currentUserPresence.last_seen)}`
+                        formatLastSeen(currentUserPresence.last_seen)
                       ) : (
                         'offline'
                       )}
@@ -1083,7 +1083,7 @@ const ChatPageV2 = () => {
             fallbackMessage="Unable to display messages"
             onReset={() => conversationId && loadMessages(conversationId)}
           >
-            <div ref={messagesPullToRefresh.containerRef} className="messages-container flex-1 overflow-y-auto p-4 space-y-1.5 relative" style={{ WebkitOverflowScrolling: 'touch' }}>
+            <div ref={messagesPullToRefresh.containerRef} className="messages-container flex-1 overflow-y-auto p-4 space-y-2 relative" style={{ WebkitOverflowScrolling: 'touch' }}>
               <PullToRefreshIndicator 
                 pullDistance={messagesPullToRefresh.pullDistance}
                 isRefreshing={messagesPullToRefresh.isRefreshing}
@@ -1110,7 +1110,7 @@ const ChatPageV2 = () => {
                   // Handle image groups
                   if (item.type === 'image_group') {
                     return (
-                      <div key={item.id} className={`flex items-end gap-2 mb-4 ${isOwnMessage ? 'flex-row-reverse' : 'flex-row'}`}>
+                      <div key={item.id} className={`flex items-end gap-2 ${isOwnMessage ? 'flex-row-reverse' : 'flex-row'}`}>
                         {/* Avatar for received messages */}
                         {!isOwnMessage && (
                           <Avatar className="h-8 w-8 mt-auto">

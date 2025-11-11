@@ -91,10 +91,11 @@ export const initOAuthListener = () => {
             
             console.log('📍 Redirecting to:', redirectPath, { onboardingCompleted });
             
-            // Small delay before navigation
+            // Force reload to pick up new session
             setTimeout(() => {
               window.location.href = redirectPath;
-            }, 500);
+              window.location.reload();
+            }, 300);
           }
         } else {
           console.warn('⚠️ No tokens found in callback URL');
@@ -136,7 +137,8 @@ export const initOAuthListener = () => {
                 
                 setTimeout(() => {
                   window.location.href = redirectPath;
-                }, 500);
+                  window.location.reload();
+                }, 300);
               }
             }
           } else {

@@ -33,12 +33,9 @@ const config: CapacitorConfig = {
     },
     // Optimize keyboard behavior for better UX
     Keyboard: {
-      resize: 'native', // Use native keyboard behavior for suggestions
+      resize: 'body', // Use body resize for better keyboard suggestions
       style: 'dark',
-      resizeOnFullScreen: true,
-      // Enable keyboard suggestions and autocomplete
-      accessoryBarVisible: true,
-      hideFormAccessoryBar: false
+      resizeOnFullScreen: true
     },
     // File handling plugins
     FilePicker: {

@@ -73,18 +73,27 @@ const MinimalNavigation = () => {
 
   // Handle tap-to-refresh on navigation
   const handleRefresh = async () => {
-    toast.success('Refreshing...', { duration: 1000 });
+    // Show loading spinner instead of toast
+    const loadingToast = toast.loading('Refreshing...');
     
-    // Reload data based on current page
-    if (user?.id) {
-      await Promise.all([
-        loadNotifications(user.id),
-        loadConversations(user.id),
-      ]);
+    try {
+      // Reload data based on current page
+      if (user?.id) {
+        await Promise.all([
+          loadNotifications(user.id),
+          loadConversations(user.id),
+        ]);
+      }
+      
+      // Dismiss loading and reload
+      toast.dismiss(loadingToast);
+      
+      // Reload the current page
+      window.location.reload();
+    } catch (error) {
+      toast.dismiss(loadingToast);
+      console.error('Refresh error:', error);
     }
-    
-    // Reload the current page
-    window.location.reload();
   };
 
   // Enable double-tap on nav to refresh (mobile)

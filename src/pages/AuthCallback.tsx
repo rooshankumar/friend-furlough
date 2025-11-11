@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { Capacitor } from '@capacitor/core';
 import { LoadingSpinner } from '@/components/LoadingStates';
+import { useAuthStore } from '@/stores/authStore';
 
 /**
  * OAuth Callback Handler
@@ -10,6 +11,7 @@ import { LoadingSpinner } from '@/components/LoadingStates';
  */
 const AuthCallback = () => {
   const navigate = useNavigate();
+  const { initialize } = useAuthStore();
 
   useEffect(() => {
     const handleCallback = async () => {
@@ -44,6 +46,9 @@ const AuthCallback = () => {
 
           console.log('✅ Session set successfully!', data.user?.email);
           
+          // Re-initialize auth store to pick up the new session
+          await initialize();
+          
           // Check if user has completed onboarding
           const { data: profile } = await supabase
             .from('profiles')
@@ -62,7 +67,7 @@ const AuthCallback = () => {
             window.location.href = `com.roshlingua.app://login-callback#access_token=${accessToken}&refresh_token=${refreshToken}`;
           } else {
             // On web, navigate based on onboarding status
-            navigate(redirectPath);
+            navigate(redirectPath, { replace: true });
           }
         } else {
           console.error('❌ No tokens found in callback');

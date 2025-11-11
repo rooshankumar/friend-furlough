@@ -48,11 +48,13 @@ export default defineConfig(({ mode }) => ({
         // Better caching via manual chunking
         manualChunks: (id) => {
           if (id.includes("node_modules")) {
-            // Keep all React-related packages together
-            if (id.includes("react") || 
-                id.includes("react-dom") || 
+            // Keep all React-related packages together (CRITICAL for avoiding undefined errors)
+            if (id.includes("/react/") || 
+                id.includes("/react-dom/") || 
                 id.includes("react/jsx-runtime") ||
-                id.includes("scheduler")) {
+                id.includes("/scheduler/") ||
+                id.includes("react-is") ||
+                id.includes("use-sync-external-store")) {
               return "vendor-react";
             }
             if (id.includes("@radix-ui")) return "vendor-radix";

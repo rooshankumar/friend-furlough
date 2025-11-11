@@ -240,11 +240,13 @@ const ProfilePage = () => {
         
         // Track profile view (only for other users' profiles)
         try {
+          console.log('📊 Tracking profile view:', { profile_id: targetUserId, viewer_id: authUser.id });
+          
           // Check if already viewed today
           const today = new Date();
           today.setHours(0, 0, 0, 0);
           
-          const { data: existingView } = await (supabase as any)
+          const { data: existingView, error: checkError } = await (supabase as any)
             .from('profile_views')
             .select('id')
             .eq('profile_id', targetUserId)
@@ -252,18 +254,33 @@ const ProfilePage = () => {
             .gte('viewed_at', today.toISOString())
             .single();
           
+          if (checkError && checkError.code !== 'PGRST116') {
+            // PGRST116 = no rows found, which is expected
+            console.error('❌ Error checking existing view:', checkError);
+          }
+          
           // Only insert if no view today
           if (!existingView) {
-            await (supabase as any)
+            console.log('✅ No view today, inserting new view...');
+            const { data: insertData, error: insertError } = await (supabase as any)
               .from('profile_views')
               .insert({
                 profile_id: targetUserId,
                 viewer_id: authUser.id
-              });
+              })
+              .select();
+            
+            if (insertError) {
+              console.error('❌ Error inserting profile view:', insertError);
+            } else {
+              console.log('✅ Profile view recorded:', insertData);
+            }
+          } else {
+            console.log('ℹ️ Already viewed today, skipping insert');
           }
         } catch (viewError) {
           // Silently fail - profile view tracking is non-critical
-          console.log('Profile view tracking:', viewError);
+          console.error('❌ Profile view tracking error:', viewError);
         }
       }
 

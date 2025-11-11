@@ -13,11 +13,9 @@ export const isMobileApp = () => {
   return Capacitor.isNativePlatform();
 };
 
-// Use custom scheme for OAuth redirect on mobile
-// For Android, use app link format that matches AndroidManifest.xml intent filter
-const REDIRECT_URL = isMobileApp() 
-  ? 'com.roshlingua.app://oauth-callback'
-  : 'https://bblrxervgwkphkctdghe.supabase.co/auth/v1/callback';
+// Always use HTTPS redirect URL for OAuth (required by Google)
+// Android App Links will intercept this URL and redirect to the app
+const REDIRECT_URL = 'https://bblrxervgwkphkctdghe.supabase.co/auth/v1/callback';
 
 /**
  * Initialize OAuth deep link listener
@@ -32,9 +30,9 @@ export const initOAuthListener = () => {
   App.addListener('appUrlOpen', async (data) => {
     console.log('🔗 Deep link received:', data.url);
     
-    // Check if this is a Supabase OAuth callback (both HTTPS and custom scheme)
-    if (data.url.includes('supabase.co/auth/v1/callback') || data.url.includes('oauth-callback')) {
-      console.log('OAuth callback detected, processing session...');
+    // Check if this is a Supabase OAuth callback
+    if (data.url.includes('supabase.co/auth/v1/callback')) {
+      console.log('✅ OAuth callback detected, processing session...');
       
       try {
         console.log('🔐 Processing OAuth callback URL:', data.url);
@@ -53,9 +51,12 @@ export const initOAuthListener = () => {
         const accessToken = hashParams.get('access_token');
         const refreshToken = hashParams.get('refresh_token');
         
-        console.log('🔑 Tokens found:', { 
+        console.log('🔑 Token extraction:', { 
           hasAccessToken: !!accessToken, 
-          hasRefreshToken: !!refreshToken 
+          hasRefreshToken: !!refreshToken,
+          hashFragment: url.hash,
+          searchParams: url.search,
+          fullUrl: data.url
         });
         
         if (accessToken && refreshToken) {
@@ -83,8 +84,35 @@ export const initOAuthListener = () => {
           }
         } else {
           console.warn('⚠️ No tokens found in callback URL');
-          await Browser.close().catch(() => {});
-          alert('Login failed: No authentication tokens received');
+          console.log('📋 Full URL for debugging:', data.url);
+          
+          // Try alternative parsing - sometimes the URL structure is different
+          const urlString = data.url;
+          const accessTokenMatch = urlString.match(/access_token=([^&]+)/);
+          const refreshTokenMatch = urlString.match(/refresh_token=([^&]+)/);
+          
+          if (accessTokenMatch && refreshTokenMatch) {
+            console.log('✅ Found tokens using regex fallback');
+            await Browser.close().catch(() => {});
+            
+            const { error } = await supabase.auth.setSession({
+              access_token: accessTokenMatch[1],
+              refresh_token: refreshTokenMatch[1],
+            });
+            
+            if (error) {
+              console.error('❌ Error setting session (fallback):', error);
+              alert('Login failed: ' + error.message);
+            } else {
+              console.log('✅ Session set successfully (fallback)!');
+              setTimeout(() => {
+                window.location.href = '/dashboard';
+              }, 500);
+            }
+          } else {
+            await Browser.close().catch(() => {});
+            alert('Login failed: No authentication tokens received');
+          }
         }
       } catch (error) {
         console.error('❌ Error processing OAuth callback:', error);

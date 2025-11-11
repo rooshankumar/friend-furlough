@@ -33,10 +33,10 @@ const config: CapacitorConfig = {
     },
     // Optimize keyboard behavior for better UX
     Keyboard: {
-      resize: 'ionic', // Better resize behavior
+      resize: 'native', // Use native keyboard behavior for suggestions
       style: 'dark',
       resizeOnFullScreen: true,
-      // Additional keyboard optimization
+      // Enable keyboard suggestions and autocomplete
       accessoryBarVisible: true,
       hideFormAccessoryBar: false
     },

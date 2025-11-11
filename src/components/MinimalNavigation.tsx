@@ -16,8 +16,10 @@ import { useNotificationStore } from "@/stores/notificationStore";
 import { useChatStore } from "@/stores/chatStore";
 import { useUpdatePresence } from "@/hooks/usePresence";
 import { useOfflineSync } from "@/hooks/useOfflineSync";
+import { useGlobalTapToRefresh } from "@/hooks/useTapToRefresh";
 import NotificationDropdown from "@/components/NotificationDropdown";
 import roshLinguaLogo from "@/assets/roshlingua-logo.png";
+import { toast } from "sonner";
 
 const MinimalNavigation = () => {
   const location = useLocation();
@@ -69,6 +71,30 @@ const MinimalNavigation = () => {
     }
   };
 
+  // Handle tap-to-refresh on navigation
+  const handleRefresh = async () => {
+    toast.success('Refreshing...', { duration: 1000 });
+    
+    // Reload data based on current page
+    if (user?.id) {
+      await Promise.all([
+        loadNotifications(user.id),
+        loadConversations(user.id),
+      ]);
+    }
+    
+    // Reload the current page
+    window.location.reload();
+  };
+
+  // Enable double-tap on nav to refresh (mobile)
+  useGlobalTapToRefresh({
+    onRefresh: handleRefresh,
+    tapCount: 2,
+    tapTimeout: 500,
+    enabled: isAuthenticated,
+  });
+
   if (!isAuthenticated) {
     return (
       // Unauthenticated Header
@@ -102,7 +128,7 @@ const MinimalNavigation = () => {
   return (
     <>
       {/* Desktop Sidebar - Minimal */}
-      <nav className="hidden md:flex fixed left-0 top-0 h-full w-16 bg-card/95 backdrop-blur-sm border-r border-border/50 z-40">
+      <nav data-tap-refresh className="hidden md:flex fixed left-0 top-0 h-full w-16 bg-card/95 backdrop-blur-sm border-r border-border/50 z-40">
         <div className="flex flex-col items-center py-4 space-y-4 w-full">
           {/* Logo */}
           <Link to="/" className="group mb-2">
@@ -250,7 +276,7 @@ const MinimalNavigation = () => {
 
       {/* Compact Mobile Bottom Navigation - Essential Only (Hidden in chat conversations) */}
       {!isInChatConversation && (
-        <nav className="md:hidden fixed bottom-0 left-0 right-0 z-50 border-t border-border/50 bg-card/95 backdrop-blur-sm">
+        <nav data-tap-refresh className="md:hidden fixed bottom-0 left-0 right-0 z-50 border-t border-border/50 bg-card/95 backdrop-blur-sm">
         <div className="flex items-center justify-around py-1 px-1">
           {/* Explore */}
           <Link 

@@ -23,6 +23,7 @@ import { useQueryClient } from '@tanstack/react-query';
 import { clearCacheAndReload, getCacheInfo } from '@/lib/clearCache';
 import { useOfflineSync } from '@/hooks/useOfflineSync';
 import { formatDistanceToNow } from 'date-fns';
+import NotificationSettings from '@/components/NotificationSettings';
 
 export default function SettingsPage() {
   const { theme, setTheme } = useTheme();
@@ -326,15 +327,21 @@ export default function SettingsPage() {
         </div>
 
         <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-3 md:space-y-4">
-          <TabsList className="grid w-full grid-cols-2 h-auto">
+          <TabsList className="grid w-full grid-cols-3 h-auto">
             <TabsTrigger value="profile" className="text-xs sm:text-sm py-2 sm:py-2.5">
               <User className="h-3 w-3 sm:h-4 sm:w-4 mr-1 sm:mr-2" />
-              <span className="hidden xs:inline">Profile & Languages</span>
+              <span className="hidden xs:inline">Profile</span>
               <span className="xs:hidden">Profile</span>
+            </TabsTrigger>
+            <TabsTrigger value="notifications" className="text-xs sm:text-sm py-2 sm:py-2.5">
+              <Bell className="h-3 w-3 sm:h-4 sm:w-4 mr-1 sm:mr-2" />
+              <span className="hidden xs:inline">Notifications</span>
+              <span className="xs:hidden">Alerts</span>
             </TabsTrigger>
             <TabsTrigger value="preferences" className="text-xs sm:text-sm py-2 sm:py-2.5">
               <Lock className="h-3 w-3 sm:h-4 sm:w-4 mr-1 sm:mr-2" />
-              Preferences
+              <span className="hidden xs:inline">Preferences</span>
+              <span className="xs:hidden">Prefs</span>
             </TabsTrigger>
           </TabsList>
 
@@ -541,6 +548,11 @@ export default function SettingsPage() {
               {isSaving ? <Loader2 className="h-5 w-5 mr-2 animate-spin" /> : <Save className="h-5 w-5 mr-2" />}
               Save Profile & Languages
             </Button>
+          </TabsContent>
+
+          {/* Notifications Tab */}
+          <TabsContent value="notifications" className="space-y-4">
+            <NotificationSettings />
           </TabsContent>
 
           {/* Preferences Tab */}

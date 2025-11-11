@@ -41,18 +41,25 @@ export default defineConfig(({ mode }) => ({
     minify: "esbuild",
     cssMinify: true,
     chunkSizeWarningLimit: 1000,
-
+    sourcemap: false, // Disable source maps in production for smaller size
+    
     rollupOptions: {
       output: {
         // Better caching via manual chunking
         manualChunks: (id) => {
           if (id.includes("node_modules")) {
-            if (id.includes("react") || id.includes("react-dom")) return "vendor";
-            if (id.includes("@radix-ui")) return "radix-vendor";
-            if (id.includes("@supabase")) return "supabase-vendor";
-            return "vendor";
+            if (id.includes("react") || id.includes("react-dom")) return "vendor-react";
+            if (id.includes("@radix-ui")) return "vendor-radix";
+            if (id.includes("@supabase")) return "vendor-supabase";
+            if (id.includes("lucide-react")) return "vendor-icons";
+            if (id.includes("date-fns")) return "vendor-utils";
+            return "vendor-other";
           }
         },
+        // Optimize chunk file names
+        chunkFileNames: 'assets/[name]-[hash].js',
+        entryFileNames: 'assets/[name]-[hash].js',
+        assetFileNames: 'assets/[name]-[hash].[ext]',
       },
     },
 
@@ -60,6 +67,10 @@ export default defineConfig(({ mode }) => ({
       include: [/node_modules/],
       transformMixedEsModules: true,
     },
+    
+    // Additional optimizations
+    reportCompressedSize: true,
+    assetsInlineLimit: 4096, // Inline assets smaller than 4kb
   },
 
   optimizeDeps: {

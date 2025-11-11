@@ -13,9 +13,11 @@ export const isMobileApp = () => {
   return Capacitor.isNativePlatform();
 };
 
-// Always use HTTPS redirect URL for OAuth (required by Google)
-// Android App Links will intercept this URL and redirect to the app
-const REDIRECT_URL = 'https://bblrxervgwkphkctdghe.supabase.co/auth/v1/callback';
+// Use custom scheme for mobile OAuth (more reliable than App Links)
+// For web, use the standard Supabase callback
+const REDIRECT_URL = isMobileApp() 
+  ? 'com.roshlingua.app://login-callback'
+  : 'https://bblrxervgwkphkctdghe.supabase.co/auth/v1/callback';
 
 /**
  * Initialize OAuth deep link listener
@@ -30,8 +32,8 @@ export const initOAuthListener = () => {
   App.addListener('appUrlOpen', async (data) => {
     console.log('🔗 Deep link received:', data.url);
     
-    // Check if this is a Supabase OAuth callback
-    if (data.url.includes('supabase.co/auth/v1/callback')) {
+    // Check if this is an OAuth callback (custom scheme or Supabase URL)
+    if (data.url.includes('login-callback') || data.url.includes('supabase.co/auth/v1/callback')) {
       console.log('✅ OAuth callback detected, processing session...');
       
       try {

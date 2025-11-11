@@ -79,9 +79,21 @@ export const initOAuthListener = () => {
           } else {
             console.log('✅ Session set successfully!', sessionData.user?.email);
             
+            // Check onboarding status and redirect appropriately
+            const { data: profile } = await supabase
+              .from('profiles')
+              .select('onboarding_completed')
+              .eq('id', sessionData.user.id)
+              .single();
+
+            const onboardingCompleted = profile?.onboarding_completed || false;
+            const redirectPath = onboardingCompleted ? '/explore' : '/onboarding/cultural-profile';
+            
+            console.log('📍 Redirecting to:', redirectPath, { onboardingCompleted });
+            
             // Small delay before navigation
             setTimeout(() => {
-              window.location.href = '/dashboard';
+              window.location.href = redirectPath;
             }, 500);
           }
         } else {
@@ -107,9 +119,25 @@ export const initOAuthListener = () => {
               alert('Login failed: ' + error.message);
             } else {
               console.log('✅ Session set successfully (fallback)!');
-              setTimeout(() => {
-                window.location.href = '/dashboard';
-              }, 500);
+              
+              // Check onboarding status and redirect appropriately
+              const { data: sessionData } = await supabase.auth.getSession();
+              if (sessionData.session?.user) {
+                const { data: profile } = await supabase
+                  .from('profiles')
+                  .select('onboarding_completed')
+                  .eq('id', sessionData.session.user.id)
+                  .single();
+
+                const onboardingCompleted = profile?.onboarding_completed || false;
+                const redirectPath = onboardingCompleted ? '/explore' : '/onboarding/cultural-profile';
+                
+                console.log('📍 Redirecting to:', redirectPath, { onboardingCompleted });
+                
+                setTimeout(() => {
+                  window.location.href = redirectPath;
+                }, 500);
+              }
             }
           } else {
             await Browser.close().catch(() => {});

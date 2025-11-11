@@ -44,13 +44,25 @@ const AuthCallback = () => {
 
           console.log('✅ Session set successfully!', data.user?.email);
           
+          // Check if user has completed onboarding
+          const { data: profile } = await supabase
+            .from('profiles')
+            .select('onboarding_completed')
+            .eq('id', data.user.id)
+            .single();
+
+          const onboardingCompleted = profile?.onboarding_completed || false;
+          const redirectPath = onboardingCompleted ? '/explore' : '/onboarding/cultural-profile';
+          
+          console.log('📍 Redirecting to:', redirectPath, { onboardingCompleted });
+          
           // If on mobile, use deep link to return to app
           if (Capacitor.isNativePlatform()) {
             // Redirect to custom scheme with tokens
             window.location.href = `com.roshlingua.app://login-callback#access_token=${accessToken}&refresh_token=${refreshToken}`;
           } else {
-            // On web, just navigate to home
-            navigate('/');
+            // On web, navigate based on onboarding status
+            navigate(redirectPath);
           }
         } else {
           console.error('❌ No tokens found in callback');

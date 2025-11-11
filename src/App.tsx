@@ -34,6 +34,7 @@ const CulturalProfilePage = React.lazy(() => import("./pages/onboarding/Cultural
 const LearningGoalsPage = React.lazy(() => import("./pages/onboarding/LearningGoalsPage"));
 const ImageViewerPage = React.lazy(() => import("./pages/ImageViewerPage"));
 const ClearSessionPage = React.lazy(() => import("./pages/ClearSessionPage"));
+const AuthCallback = React.lazy(() => import("./pages/AuthCallback"));
 
 // Optimized QueryClient for fast initial load
 const queryClient = new QueryClient({
@@ -101,6 +102,7 @@ const AppContent = () => {
           {/* Authentication Routes */}
           <Route path="/auth/signup" element={<SignUpPage />} />
           <Route path="/auth/signin" element={<SignInPage />} />
+          <Route path="/auth/callback" element={<AuthCallback />} />
           <Route path="/auth/clear-session" element={<ClearSessionPage />} />
 
           {/* Onboarding Routes */}

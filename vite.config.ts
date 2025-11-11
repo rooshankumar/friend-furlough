@@ -41,33 +41,13 @@ export default defineConfig(({ mode }) => ({
     minify: "esbuild",
     cssMinify: true,
     chunkSizeWarningLimit: 1000,
-    sourcemap: false, // Disable source maps in production for smaller size
+    sourcemap: false,
     
     rollupOptions: {
       output: {
-        // Better caching via manual chunking
-        manualChunks: (id) => {
-          if (id.includes("node_modules")) {
-            // Keep all React-related packages together (CRITICAL for avoiding undefined errors)
-            if (id.includes("/react/") || 
-                id.includes("/react-dom/") || 
-                id.includes("react/jsx-runtime") ||
-                id.includes("/scheduler/") ||
-                id.includes("react-is") ||
-                id.includes("use-sync-external-store")) {
-              return "vendor-react";
-            }
-            if (id.includes("@radix-ui")) return "vendor-radix";
-            if (id.includes("@supabase")) return "vendor-supabase";
-            if (id.includes("lucide-react")) return "vendor-icons";
-            if (id.includes("date-fns")) return "vendor-utils";
-            return "vendor-other";
-          }
-        },
-        // Optimize chunk file names
-        chunkFileNames: 'assets/[name]-[hash].js',
-        entryFileNames: 'assets/[name]-[hash].js',
-        assetFileNames: 'assets/[name]-[hash].[ext]',
+        // Disable manual chunking - let Vite handle it automatically
+        // This prevents React module resolution issues
+        manualChunks: undefined,
       },
     },
 
@@ -92,7 +72,8 @@ export default defineConfig(({ mode }) => ({
       "date-fns",
       "lucide-react",
     ],
-    exclude: ["@radix-ui/react-tooltip"], // Load on demand
+    // Force all Radix UI packages to use the same React instance
+    force: true,
   },
 
   ...(mode === "development" && {

@@ -48,7 +48,13 @@ export default defineConfig(({ mode }) => ({
         // Better caching via manual chunking
         manualChunks: (id) => {
           if (id.includes("node_modules")) {
-            if (id.includes("react") || id.includes("react-dom")) return "vendor-react";
+            // Keep all React-related packages together
+            if (id.includes("react") || 
+                id.includes("react-dom") || 
+                id.includes("react/jsx-runtime") ||
+                id.includes("scheduler")) {
+              return "vendor-react";
+            }
             if (id.includes("@radix-ui")) return "vendor-radix";
             if (id.includes("@supabase")) return "vendor-supabase";
             if (id.includes("lucide-react")) return "vendor-icons";

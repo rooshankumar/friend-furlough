@@ -29,10 +29,10 @@ const FeatureCard = memo<{
   title: string;
   description: string;
 }>(({ icon, title, description }) => (
-  <div className="text-center p-4 md:p-6 rounded-lg border bg-white hover:shadow-lg transition-shadow duration-200">
+  <div className="text-center p-4 md:p-6 rounded-lg border bg-card hover:shadow-lg transition-shadow duration-200">
     <div className="flex justify-center mb-3 md:mb-4">{icon}</div>
-    <h3 className="text-lg md:text-xl font-semibold mb-2 text-gray-900">{title}</h3>
-    <p className="text-gray-600 leading-relaxed text-sm md:text-base">{description}</p>
+    <h3 className="text-lg md:text-xl font-semibold mb-2 text-card-foreground">{title}</h3>
+    <p className="text-muted-foreground leading-relaxed text-sm md:text-base">{description}</p>
   </div>
 ));
 
@@ -47,13 +47,13 @@ const TestimonialCard = memo<{
   languages: string[];
   rating: number;
 }>(({ name, country, flag, text, languages, rating }) => (
-  <div className="bg-white p-4 md:p-6 rounded-lg border shadow-sm hover:shadow-md transition-shadow duration-200">
+  <div className="bg-card p-4 md:p-6 rounded-lg border shadow-sm hover:shadow-md transition-shadow duration-200">
     <div className="flex items-center justify-between mb-3 md:mb-4">
       <div className="flex items-center">
         <div className="text-xl md:text-2xl mr-2 md:mr-3">{flag}</div>
         <div>
-          <h4 className="font-semibold text-gray-900 text-sm md:text-base">{name}</h4>
-          <p className="text-xs md:text-sm text-gray-600">{country}</p>
+          <h4 className="font-semibold text-card-foreground text-sm md:text-base">{name}</h4>
+          <p className="text-xs md:text-sm text-muted-foreground">{country}</p>
         </div>
       </div>
       <div className="flex">
@@ -62,7 +62,7 @@ const TestimonialCard = memo<{
         ))}
       </div>
     </div>
-    <p className="text-gray-600 mb-3 md:mb-4 italic text-sm md:text-base">"{text}"</p>
+    <p className="text-muted-foreground mb-3 md:mb-4 italic text-sm md:text-base">"{text}"</p>
     <div className="flex flex-wrap gap-1">
       {languages.map((lang) => (
         <CulturalBadge key={lang} type="language-learning">
@@ -160,7 +160,7 @@ const HomePageProfessional = () => {
   return (
     <div className="min-h-screen bg-gradient-to-br from-background via-muted to-card">
       {/* Navigation Header - Mobile Optimized */}
-      <header className="sticky top-0 z-50 bg-white/95 backdrop-blur-sm border-b shadow-sm">
+      <header className="sticky top-0 z-50 bg-background/95 backdrop-blur-sm border-b shadow-sm">
         <div className="container mx-auto px-4 py-3">
           <div className="flex items-center justify-between">
             <div className="flex items-center space-x-2">
@@ -170,10 +170,10 @@ const HomePageProfessional = () => {
             
             {/* Desktop Navigation */}
             <nav className="hidden lg:flex items-center space-x-6">
-              <Link to="#features" className="text-gray-600 hover:text-primary transition-colors">Features</Link>
-              <Link to="#community" className="text-gray-600 hover:text-primary transition-colors">Community</Link>
-              <Link to="#download" className="text-gray-600 hover:text-primary transition-colors">Download</Link>
-              <Link to="#contact" className="text-gray-600 hover:text-primary transition-colors">Contact</Link>
+              <Link to="#features" className="text-muted-foreground hover:text-primary transition-colors">Features</Link>
+              <Link to="#community" className="text-muted-foreground hover:text-primary transition-colors">Community</Link>
+              <Link to="#download" className="text-muted-foreground hover:text-primary transition-colors">Download</Link>
+              <Link to="#contact" className="text-muted-foreground hover:text-primary transition-colors">Contact</Link>
               <Button variant="outline" size="sm" asChild>
                 <Link to="/auth/signin">Sign In</Link>
               </Button>
@@ -197,23 +197,23 @@ const HomePageProfessional = () => {
 
       {/* Hero Section - Mobile Optimized */}
       <section className="relative overflow-hidden py-12 md:py-20">
-        <div className="absolute inset-0 bg-gradient-to-r from-blue-50 to-purple-50 opacity-50"></div>
+        <div className="absolute inset-0 bg-gradient-to-r from-primary/5 to-secondary/5 opacity-50"></div>
         <div className="relative container mx-auto px-4 text-center">
           <div className="max-w-4xl mx-auto">
             <div className="relative mb-6 md:mb-8">
               <img 
                 src={roshLinguaLogo} 
-                alt="roshLingua - Cultural Exchange Platform" 
-                className="h-28 w-28 md:h-40 md:w-40 mx-auto"
+                alt="roshLingua Cultural Exchange" 
+                className="h-16 w-16 md:h-20 md:w-20 mx-auto mb-4 md:mb-6"
               />
             </div>
             
-            <h1 className="text-3xl sm:text-4xl md:text-5xl lg:text-6xl font-bold text-gray-900 mb-4 md:mb-6 leading-tight">
+            <h1 className="text-3xl sm:text-4xl md:text-5xl lg:text-6xl font-bold text-foreground mb-4 md:mb-6 leading-tight">
               Connect Cultures,<br />
               <span className="text-primary">Learn Languages</span>
             </h1>
             
-            <p className="text-lg md:text-xl text-gray-600 max-w-2xl mx-auto mb-8 md:mb-12 px-4">
+            <p className="text-lg md:text-xl text-muted-foreground max-w-2xl mx-auto mb-8 md:mb-12 px-4">
               Join the world's most trusted cultural exchange platform. Practice languages with native speakers, 
               share your culture, and build meaningful international friendships in a safe, moderated environment.
             </p>
@@ -235,21 +235,21 @@ const HomePageProfessional = () => {
 
             {/* Trust Indicators - Mobile Optimized */}
             <div className="grid grid-cols-2 md:grid-cols-4 gap-3 md:gap-6 max-w-3xl mx-auto px-4">
-              <div className="bg-white p-4 md:p-6 rounded-lg shadow-sm text-center">
+              <div className="bg-card p-4 md:p-6 rounded-lg shadow-sm text-center">
                 <div className="text-2xl md:text-3xl font-bold text-primary mb-1 md:mb-2">50K+</div>
-                <div className="text-xs md:text-sm text-gray-600">Active Users</div>
+                <div className="text-xs md:text-sm text-muted-foreground">Active Users</div>
               </div>
-              <div className="bg-white p-4 md:p-6 rounded-lg shadow-sm text-center">
-                <div className="text-2xl md:text-3xl font-bold text-green-600 mb-1 md:mb-2">195+</div>
-                <div className="text-xs md:text-sm text-gray-600">Countries</div>
+              <div className="bg-card p-4 md:p-6 rounded-lg shadow-sm text-center">
+                <div className="text-2xl md:text-3xl font-bold text-success mb-1 md:mb-2">195+</div>
+                <div className="text-xs md:text-sm text-muted-foreground">Countries</div>
               </div>
-              <div className="bg-white p-4 md:p-6 rounded-lg shadow-sm text-center">
-                <div className="text-2xl md:text-3xl font-bold text-blue-600 mb-1 md:mb-2">50+</div>
-                <div className="text-xs md:text-sm text-gray-600">Languages</div>
+              <div className="bg-card p-4 md:p-6 rounded-lg shadow-sm text-center">
+                <div className="text-2xl md:text-3xl font-bold text-secondary mb-1 md:mb-2">50+</div>
+                <div className="text-xs md:text-sm text-muted-foreground">Languages</div>
               </div>
-              <div className="bg-white p-4 md:p-6 rounded-lg shadow-sm text-center">
-                <div className="text-2xl md:text-3xl font-bold text-purple-600 mb-1 md:mb-2">4.8★</div>
-                <div className="text-xs md:text-sm text-gray-600">User Rating</div>
+              <div className="bg-card p-4 md:p-6 rounded-lg shadow-sm text-center">
+                <div className="text-2xl md:text-3xl font-bold text-accent mb-1 md:mb-2">4.8★</div>
+                <div className="text-xs md:text-sm text-muted-foreground">User Rating</div>
               </div>
             </div>
           </div>
@@ -257,13 +257,13 @@ const HomePageProfessional = () => {
       </section>
 
       {/* Features Section - Mobile Optimized */}
-      <section id="features" className="py-12 md:py-20 bg-white">
+      <section id="features" className="py-12 md:py-20 bg-muted/20">
         <div className="container mx-auto px-4">
           <div className="text-center mb-12 md:mb-16">
-            <h2 className="text-2xl md:text-3xl lg:text-4xl font-bold text-gray-900 mb-4 px-4">
+            <h2 className="text-2xl md:text-3xl lg:text-4xl font-bold text-foreground mb-4 px-4">
               Why 50,000+ Users Choose roshLingua
             </h2>
-            <p className="text-lg md:text-xl text-gray-600 max-w-2xl mx-auto px-4">
+            <p className="text-lg md:text-xl text-muted-foreground max-w-2xl mx-auto px-4">
               The most comprehensive platform for cultural exchange and language learning
             </p>
           </div>

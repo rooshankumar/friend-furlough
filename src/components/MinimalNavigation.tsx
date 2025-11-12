@@ -18,7 +18,6 @@ import { useUpdatePresence } from "@/hooks/usePresence";
 import { useOfflineSync } from "@/hooks/useOfflineSync";
 import { useGlobalTapToRefresh } from "@/hooks/useTapToRefresh";
 import { useBackgroundSync } from "@/hooks/useBackgroundSync";
-import { SyncStatus } from "@/components/SyncStatus";
 import NotificationDropdown from "@/components/NotificationDropdown";
 import roshLinguaLogo from "@/assets/roshlingua-logo.png";
 import { toast } from "sonner";
@@ -44,7 +43,7 @@ const MinimalNavigation = () => {
   useOfflineSync();
   
   // Background sync system for real-time updates (faster on mobile)
-  const { manualSync, isEnabled: syncEnabled, isSyncing } = useBackgroundSync({
+  const { manualSync } = useBackgroundSync({
     enabled: isAuthenticated,
     syncInterval: isMobile ? 60000 : 120000, // 1 min on mobile, 2 min on desktop
     messageSyncInterval: isMobile ? 15000 : 30000, // 15s on mobile, 30s on desktop
@@ -298,14 +297,6 @@ const MinimalNavigation = () => {
     {/* Compact Mobile Bottom Navigation - Essential Only */}
     {!isInChatConversation && (
       <>
-        {/* Sync Status Indicator (Mobile Only) */}
-        <div className="md:hidden fixed bottom-16 right-4 z-40">
-          <SyncStatus 
-            isEnabled={syncEnabled} 
-            isSyncing={isSyncing}
-            className="bg-card/90 backdrop-blur-sm px-2 py-1 rounded-full border border-border/50 shadow-sm"
-          />
-        </div>
         
         <nav data-tap-refresh className="md:hidden fixed bottom-0 left-0 right-0 z-50 border-t border-border/50 bg-card/95 backdrop-blur-sm">
         <div className="flex items-center justify-around py-1 px-1">

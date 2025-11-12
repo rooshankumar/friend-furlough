@@ -1,6 +1,25 @@
 /* APK-PWA Style Matching */
 /* Ensures APK looks and behaves like PWA */
 
+/* Mobile Navigation Improvements */
+.mobile-content-padding {
+  padding-bottom: 80px; /* Space for mobile navigation */
+}
+
+/* Better mobile navigation */
+@media (max-width: 768px) {
+  /* Ensure main content doesn't get hidden behind navigation */
+  main, .main-content, [role="main"] {
+    padding-bottom: 80px !important;
+  }
+  
+  /* Better scrolling on mobile */
+  body {
+    overflow-x: hidden;
+    -webkit-overflow-scrolling: touch;
+  }
+}
+
 /* Keyboard handling styles */
 body.keyboard-open {
   /* Adjust layout when keyboard is open */
@@ -51,7 +70,7 @@ textarea {
   }
   
   .safe-area-bottom {
-    padding-bottom: max(env(safe-area-inset-bottom), 20px);
+    padding-bottom: max(env(safe-area-inset-bottom), 16px);
   }
   
   .safe-area-left {
@@ -61,6 +80,11 @@ textarea {
   .safe-area-right {
     padding-right: max(env(safe-area-inset-right), 0px);
   }
+}
+
+/* Mobile navigation specific safe area */
+.mobile-nav-safe {
+  padding-bottom: max(env(safe-area-inset-bottom), 0px);
 }
 
 /* PWA-like navigation */

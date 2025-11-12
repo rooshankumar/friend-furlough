@@ -298,12 +298,12 @@ const MinimalNavigation = () => {
     {!isInChatConversation && (
       <>
         
-        <nav data-tap-refresh className="md:hidden fixed bottom-0 left-0 right-0 z-50 border-t border-border/50 bg-card/95 backdrop-blur-sm">
-        <div className="flex items-center justify-around py-1 px-1">
+        <nav data-tap-refresh className="md:hidden fixed bottom-0 left-0 right-0 z-50 border-t border-border/50 bg-white/95 backdrop-blur-sm mobile-nav-safe">
+        <div className="flex items-center justify-around py-3 px-2 pb-4">
           {/* Explore */}
           <Link 
             to="/explore" 
-            className={`flex-1 mx-0.5 flex flex-col items-center space-y-0.5 py-1.5 px-1 rounded-md transition-colors touch-manipulation select-none ${
+            className={`flex-1 mx-1 flex flex-col items-center space-y-1 py-2 px-2 rounded-lg transition-colors touch-manipulation select-none min-h-[48px] ${
               isActive("/explore") 
                 ? "bg-primary text-primary-foreground" 
                 : "text-muted-foreground hover:text-foreground hover:bg-accent/50 active:bg-accent/70"
@@ -316,7 +316,7 @@ const MinimalNavigation = () => {
           {/* Chat */}
           <Link 
             to="/chat" 
-            className={`flex-1 mx-0.5 flex flex-col items-center space-y-0.5 py-1.5 px-1 rounded-md transition-colors touch-manipulation select-none relative ${
+            className={`flex-1 mx-1 flex flex-col items-center space-y-1 py-2 px-2 rounded-lg transition-colors touch-manipulation select-none relative min-h-[48px] ${
               isActive("/chat") 
                 ? "bg-primary text-primary-foreground" 
                 : "text-muted-foreground hover:text-foreground hover:bg-accent/50 active:bg-accent/70"
@@ -336,10 +336,10 @@ const MinimalNavigation = () => {
           {/* Community */}
           <Link 
             to="/community" 
-            className={`flex-1 mx-0.5 flex flex-col items-center space-y-0.5 py-1.5 px-1 rounded-md transition-colors touch-manipulation select-none ${
+            className={`flex-1 mx-1 flex flex-col items-center space-y-1 py-2 px-2 rounded-lg transition-colors touch-manipulation select-none min-h-[48px] ${
               isActive("/community")
-                ? "bg-primary/10 text-primary"
-                : "text-muted-foreground hover:text-foreground hover:bg-accent"
+                ? "bg-primary text-primary-foreground"
+                : "text-muted-foreground hover:text-foreground hover:bg-accent/50 active:bg-accent/70"
             }`}
           >
             <Globe className="h-4 w-4" />
@@ -349,7 +349,7 @@ const MinimalNavigation = () => {
           {/* Profile */}
           <Link 
             to="/profile" 
-            className={`flex-1 mx-0.5 flex flex-col items-center space-y-0.5 py-1.5 px-1 rounded-md transition-colors touch-manipulation select-none ${
+            className={`flex-1 mx-1 flex flex-col items-center space-y-1 py-2 px-2 rounded-lg transition-colors touch-manipulation select-none min-h-[48px] ${
               isActive("/profile") 
                 ? "bg-primary text-primary-foreground" 
                 : "text-muted-foreground hover:text-foreground hover:bg-accent/50 active:bg-accent/70"
@@ -363,7 +363,7 @@ const MinimalNavigation = () => {
           <Link 
             to="/notifications" 
             onClick={handleNotificationClick}
-            className={`flex-1 mx-0.5 flex flex-col items-center space-y-0.5 py-1.5 px-1 rounded-md transition-colors touch-manipulation select-none relative ${
+            className={`flex-1 mx-1 flex flex-col items-center space-y-1 py-2 px-2 rounded-lg transition-colors touch-manipulation select-none relative min-h-[48px] ${
               isActive("/notifications") 
                 ? "bg-primary text-primary-foreground" 
                 : "text-muted-foreground hover:text-foreground hover:bg-accent/50 active:bg-accent/70"

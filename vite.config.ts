@@ -2,6 +2,7 @@ import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react-swc";
 import path from "path";
 import { componentTagger } from "lovable-tagger";
+import { createPerformancePlugin } from "./src/scripts/optimizePerformance";
 
 // https://vitejs.dev/config/
 export default defineConfig(({ mode }) => ({
@@ -26,6 +27,7 @@ export default defineConfig(({ mode }) => ({
   plugins: [
     react(),
     mode === "development" && componentTagger(), // Enables tagger only in dev
+    createPerformancePlugin(), // Performance optimizations
   ].filter(Boolean),
 
   resolve: {
@@ -43,22 +45,34 @@ export default defineConfig(({ mode }) => ({
     chunkSizeWarningLimit: 1000,
     sourcemap: false,
     
+    // Mobile-first optimizations
+    reportCompressedSize: true,
+    assetsInlineLimit: 4096, // Inline assets smaller than 4kb
+    
     rollupOptions: {
       output: {
-        // Disable manual chunking - let Vite handle it automatically
-        // This prevents React module resolution issues
-        manualChunks: undefined,
-      },
+        // Optimize for mobile loading with vendor chunks
+        manualChunks: {
+          // Separate vendor chunks for better caching
+          'react-vendor': ['react', 'react-dom', 'react-router-dom'],
+          'ui-vendor': ['lucide-react', '@radix-ui/react-avatar', '@radix-ui/react-button'],
+          'supabase-vendor': ['@supabase/supabase-js'],
+          'utils': ['date-fns', 'clsx', 'tailwind-merge']
+        },
+        // Optimize chunk names for caching
+        chunkFileNames: (chunkInfo) => {
+          const facadeModuleId = chunkInfo.facadeModuleId 
+            ? chunkInfo.facadeModuleId.split('/').pop()?.replace('.tsx', '').replace('.ts', '') || 'chunk'
+            : 'chunk';
+          return `assets/${facadeModuleId}-[hash].js`;
+        }
+      }
     },
 
     commonjsOptions: {
       include: [/node_modules/],
       transformMixedEsModules: true,
-    },
-    
-    // Additional optimizations
-    reportCompressedSize: true,
-    assetsInlineLimit: 4096, // Inline assets smaller than 4kb
+    }
   },
 
   optimizeDeps: {

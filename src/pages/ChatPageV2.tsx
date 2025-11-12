@@ -14,6 +14,7 @@
 import React, { useState, useEffect, useRef, useCallback, useMemo, useLayoutEffect } from 'react';
 import { isMobileApp } from '@/lib/mobileFilePicker';
 import MobileFileInput from '@/components/MobileFileInput';
+import { MobileFileUploadOptimized } from '@/components/MobileFileUploadOptimized';
 import { B2Image } from '@/components/B2Image';
 import { ImageViewer } from '@/components/chat/ImageViewer';
 import { ImageGrid } from '@/components/chat/ImageGrid';
@@ -67,6 +68,8 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { supabase } from '@/integrations/supabase/client';
 import { formatLastSeen, isUserOnline } from '@/lib/timeUtils';
+import { logger } from '@/lib/logger';
+import { mobileOptimizer, isMobile, optimizeScrolling } from '@/lib/mobileOptimization';
 
 // Enhanced Message Component with Reactions
 interface EnhancedMessageV2Props {
@@ -527,7 +530,7 @@ const ChatPageV2 = () => {
 
       if (messagesToMark.length === 0) return;
 
-      console.log(`📖 Marking ${messagesToMark.length} messages as read...`);
+      logger.debug(`Marking ${messagesToMark.length} messages as read`);
 
       // Mark each message as read using upsert to avoid conflicts
       let markedCount = 0;
@@ -547,15 +550,15 @@ const ChatPageV2 = () => {
           if (!error) {
             markedCount++;
           } else {
-            console.error('Error marking message as read:', error);
+            logger.error('Error marking message as read', error);
           }
         } catch (error: any) {
-          console.error('Error marking message as read:', error);
+          logger.error('Error marking message as read', error);
         }
       }
 
       if (markedCount > 0) {
-        console.log(`✅ Marked ${markedCount} messages as read`);
+        logger.debug(`Marked ${markedCount} messages as read`);
         // Reload messages to get updated status
         setTimeout(() => {
           loadMessages(conversationId);
@@ -568,6 +571,71 @@ const ChatPageV2 = () => {
     return () => clearTimeout(timer);
   }, [conversationId, user, conversationMessages, loadMessages]);
 
+  // Mobile optimization effects
+  useEffect(() => {
+    if (!isMobile()) return;
+
+    logger.mobile('Initializing mobile optimizations for ChatPageV2');
+    
+    // Optimize file upload for mobile
+    mobileOptimizer.optimizeForFileUpload();
+    
+    // Add mobile gestures to messages container
+    const messagesContainer = document.querySelector('.messages-container');
+    if (messagesContainer) {
+      mobileOptimizer.addMobileGestures(messagesContainer as HTMLElement);
+      optimizeScrolling(messagesContainer as HTMLElement);
+    }
+
+    // Optimize viewport for mobile chat
+    const viewport = document.querySelector('meta[name="viewport"]');
+    if (viewport) {
+      viewport.setAttribute('content', 
+        'width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover, interactive-widget=resizes-content'
+      );
+    }
+
+    // Performance monitoring for mobile
+    const startTime = performance.now();
+    logger.performance('ChatPageV2 mobile init', startTime);
+
+    return () => {
+      logger.mobile('Cleaning up mobile optimizations');
+    };
+  }, []);
+
+  // Optimize scrolling performance on mobile
+  useEffect(() => {
+    if (!isMobile()) return;
+
+    const messagesContainer = messagesPullToRefresh.containerRef.current;
+    if (messagesContainer) {
+      // Add will-change for better scroll performance
+      messagesContainer.style.willChange = 'scroll-position';
+      
+      // Optimize touch scrolling
+      messagesContainer.style.touchAction = 'pan-y';
+      
+      return () => {
+        messagesContainer.style.willChange = 'auto';
+      };
+    }
+  }, [messagesPullToRefresh.containerRef]);
+
+  // Handle mobile keyboard visibility
+  useEffect(() => {
+    if (!isMobile()) return;
+
+    const handleResize = () => {
+      // Scroll to bottom when keyboard appears/disappears
+      setTimeout(() => {
+        scrollToBottom();
+      }, 100);
+    };
+
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, [scrollToBottom]);
 
   const handleSendMessage = useCallback(async () => {
     if (!newMessage.trim() || !conversationId || !user) return;
@@ -615,7 +683,7 @@ const ChatPageV2 = () => {
 
   const handleReact = (messageId: string, reaction: string) => {
     // TODO: Implement reaction storage
-    console.log('React:', messageId, reaction);
+    logger.debug('Message reaction', { messageId, reaction });
   };
 
   const handleCopyMessage = (content: string) => {
@@ -689,7 +757,7 @@ const ChatPageV2 = () => {
       return;
     }
 
-    console.log('📎 Starting attachment upload:', file.name, `${(file.size / 1024 / 1024).toFixed(2)}MB`);
+    logger.mobile('Starting attachment upload', { fileName: file.name, size: `${(file.size / 1024 / 1024).toFixed(2)}MB` });
     setIsUploadingAttachment(true);
 
     try {
@@ -700,7 +768,7 @@ const ChatPageV2 = () => {
         description: "Attachment uploaded successfully",
       });
     } catch (error: any) {
-      console.error('❌ Attachment upload failed:', error);
+      logger.error('Attachment upload failed', error);
       toast({
         title: "Upload failed",
         description: error.message || 'Failed to upload attachment.',
@@ -846,7 +914,7 @@ const ChatPageV2 = () => {
       // Navigate back to chat list
       navigate('/chat');
     } catch (error) {
-      console.error('Failed to delete conversation:', error);
+      logger.error('Failed to delete conversation', error);
       toastNotifications.error('Failed to delete', 'Could not delete the conversation. Please try again.');
     } finally {
       setIsDeleting(false);
@@ -1278,20 +1346,14 @@ const ChatPageV2 = () => {
                   </div>
                 )}
               </div>
-              {/* ✅ FIXED: Single MobileFileInput for all platforms */}
-              <MobileFileInput
+              {/* ✅ OPTIMIZED: Mobile-first file upload */}
+              <MobileFileUploadOptimized
                 onFileSelect={handleAttachmentUpload}
                 accept="image/*,video/*,audio/*,.pdf,.doc,.docx,.txt"
-                icon={<Paperclip className="h-5 w-5" />}
-                buttonText=""
-                variant="ghost"
-                size="icon"
-                className="h-9 w-9 p-0 flex-shrink-0"
+                className="flex-shrink-0"
                 disabled={!isOnline}
                 isLoading={isUploadingAttachment}
                 maxSizeMB={20}
-                showProgress={false}
-                showFileName={false}
               />
               <Input
                 value={newMessage}

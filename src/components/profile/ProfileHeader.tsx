@@ -230,21 +230,21 @@ export const ProfileHeader: React.FC<ProfileHeaderProps> = ({
                 </div>
               </div>
               
-              {/* Action Buttons - Compact */}
-              <div className="flex items-center gap-1.5 flex-wrap sm:flex-nowrap">
+              {/* Action Buttons - Mobile Right Aligned, Desktop Compact */}
+              <div className="flex items-center gap-1.5 flex-wrap sm:flex-nowrap justify-end sm:justify-start">
                 {isOwnProfile ? (
                   <>
                     <div className="flex items-center gap-2 px-3 py-2 bg-red-50 rounded-lg border border-red-200">
-                      <Heart className="h-5 w-5 text-red-500 fill-current" />
-                      <span className="text-sm font-medium text-red-700">
+                      <Heart className="h-6 w-6 sm:h-5 sm:w-5 text-red-500 fill-current" />
+                      <span className="text-base sm:text-sm font-medium text-red-700">
                         {reactions[profileUser.id] || 0}
                       </span>
                     </div>
-                    <Button variant="ghost" size="sm" onClick={() => navigate('/settings')} className="h-9 px-3">
-                      <Settings className="h-5 w-5" />
+                    <Button variant="ghost" size="sm" onClick={() => navigate('/settings')} className="h-12 w-12 sm:h-9 sm:w-auto sm:px-3 p-0 sm:p-2">
+                      <Settings className="h-8 w-8 sm:h-6 sm:w-6" />
                     </Button>
-                    <Button variant="ghost" size="sm" onClick={handleShare} className="h-9 px-3">
-                      <Share className="h-5 w-5" />
+                    <Button variant="ghost" size="sm" onClick={handleShare} className="h-12 w-12 sm:h-9 sm:w-auto sm:px-3 p-0 sm:p-2">
+                      <Share className="h-7 w-7 sm:h-5 sm:w-5" />
                     </Button>
                   </>
                 ) : (

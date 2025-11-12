@@ -90,42 +90,42 @@ const InstallPWA = () => {
     <>
       {/* Centered Modal for PWA Install */}
       <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
-        <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full mx-4 overflow-hidden">
+        <div className="bg-background border border-border rounded-2xl shadow-2xl max-w-md w-full mx-4 overflow-hidden">
           {/* Header */}
-          <div className="bg-gradient-to-br from-blue-50 to-purple-50 border-b p-6 text-center">
-            <div className="w-20 h-20 bg-white rounded-full flex items-center justify-center mx-auto mb-4 shadow-lg">
+          <div className="bg-gradient-to-br from-primary/10 to-secondary/10 border-b border-border p-6 text-center">
+            <div className="w-20 h-20 bg-card rounded-full flex items-center justify-center mx-auto mb-4 shadow-lg border border-border">
               <img src={roshLinguaLogo} alt="roshLingua" className="h-16 w-16" />
             </div>
-            <h2 className="text-2xl font-bold mb-2 text-gray-900">Install roshLingua</h2>
-            <p className="text-gray-600 text-sm">Get the full app experience</p>
+            <h2 className="text-2xl font-bold mb-2 text-foreground">Install roshLingua</h2>
+            <p className="text-muted-foreground text-sm">Get the full app experience</p>
           </div>
 
           {/* Content */}
           <div className="p-6">
             <div className="space-y-4 mb-6">
               <div className="flex items-center gap-3">
-                <div className="w-8 h-8 bg-green-100 rounded-full flex items-center justify-center">
-                  <span className="text-green-600 text-sm">✓</span>
+                <div className="w-8 h-8 bg-success/20 rounded-full flex items-center justify-center">
+                  <span className="text-success text-sm">✓</span>
                 </div>
-                <span className="text-gray-700">Offline access to conversations</span>
+                <span className="text-foreground">Offline access to conversations</span>
               </div>
               <div className="flex items-center gap-3">
-                <div className="w-8 h-8 bg-green-100 rounded-full flex items-center justify-center">
-                  <span className="text-green-600 text-sm">✓</span>
+                <div className="w-8 h-8 bg-success/20 rounded-full flex items-center justify-center">
+                  <span className="text-success text-sm">✓</span>
                 </div>
-                <span className="text-gray-700">Quick launch from home screen</span>
+                <span className="text-foreground">Quick launch from home screen</span>
               </div>
               <div className="flex items-center gap-3">
-                <div className="w-8 h-8 bg-green-100 rounded-full flex items-center justify-center">
-                  <span className="text-green-600 text-sm">✓</span>
+                <div className="w-8 h-8 bg-success/20 rounded-full flex items-center justify-center">
+                  <span className="text-success text-sm">✓</span>
                 </div>
-                <span className="text-gray-700">Native app-like experience</span>
+                <span className="text-foreground">Native app-like experience</span>
               </div>
               <div className="flex items-center gap-3">
-                <div className="w-8 h-8 bg-green-100 rounded-full flex items-center justify-center">
-                  <span className="text-green-600 text-sm">✓</span>
+                <div className="w-8 h-8 bg-success/20 rounded-full flex items-center justify-center">
+                  <span className="text-success text-sm">✓</span>
                 </div>
-                <span className="text-gray-700">Push notifications (coming soon)</span>
+                <span className="text-foreground">Push notifications (coming soon)</span>
               </div>
             </div>
 
@@ -141,13 +141,13 @@ const InstallPWA = () => {
               <Button
                 onClick={handleDismiss}
                 variant="outline"
-                className="flex-1 py-3 border-gray-300 text-gray-600 hover:bg-gray-50"
+                className="flex-1 py-3"
               >
                 Maybe Later
               </Button>
             </div>
 
-            <p className="text-xs text-gray-500 text-center mt-4">
+            <p className="text-xs text-muted-foreground text-center mt-4">
               Free to install • No registration required
             </p>
           </div>
@@ -157,7 +157,7 @@ const InstallPWA = () => {
             onClick={handleDismiss}
             variant="ghost"
             size="sm"
-            className="absolute top-4 right-4 text-gray-500 hover:bg-gray-100 rounded-full w-8 h-8 p-0"
+            className="absolute top-4 right-4 text-muted-foreground hover:bg-muted rounded-full w-8 h-8 p-0"
           >
             <X className="h-4 w-4" />
           </Button>

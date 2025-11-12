@@ -39,12 +39,21 @@ export const initKeyboardHandling = async () => {
         setTimeout(() => {
           const rect = activeElement.getBoundingClientRect();
           const keyboardTop = window.innerHeight - info.keyboardHeight;
+          const viewportHeight = window.innerHeight;
           
-          if (rect.bottom > keyboardTop) {
-            const scrollOffset = rect.bottom - keyboardTop + 20; // 20px padding
-            window.scrollBy(0, scrollOffset);
+          // Calculate if input is hidden by keyboard
+          if (rect.bottom > keyboardTop - 50) { // 50px buffer
+            // Scroll to position input above keyboard with padding
+            const targetPosition = keyboardTop - rect.height - 100; // 100px padding above keyboard
+            const currentTop = rect.top;
+            const scrollOffset = currentTop - targetPosition;
+            
+            window.scrollBy({
+              top: scrollOffset,
+              behavior: 'smooth'
+            });
           }
-        }, 150);
+        }, 200); // Slightly longer delay for better keyboard detection
       }
     });
 

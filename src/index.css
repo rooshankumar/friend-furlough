@@ -180,7 +180,15 @@ All colors MUST be HSL. Cultural, warm, and inclusive design.
   
   /* Keyboard open state */
   body.keyboard-open {
-    /* Adjust if needed */
+    /* Ensure proper scrolling when keyboard is open */
+    overflow-y: auto;
+  }
+  
+  /* Better input focus behavior on mobile */
+  input:focus,
+  textarea:focus {
+    /* Ensure focused inputs are visible */
+    scroll-margin-bottom: 150px;
   }
 
   /* Cultural Typography */
@@ -214,6 +222,15 @@ All colors MUST be HSL. Cultural, warm, and inclusive design.
   /* Cultural Cards */
   .card-cultural {
     @apply bg-card-cultural border border-border/50 shadow-cultural rounded-cultural transition-all duration-300 hover:shadow-warm hover:border-primary/20;
+  }
+
+  /* Dark mode specific fixes for auth forms */
+  .dark .card-cultural {
+    @apply bg-card text-card-foreground border-border/50;
+  }
+
+  .dark .auth-background {
+    @apply bg-gradient-to-br from-background via-muted/20 to-background;
   }
 
   .card-warm {

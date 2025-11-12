@@ -378,12 +378,10 @@ class APKOptimizer {
         outline-offset: 2px;
       }
       
-      /* Optimize for Android keyboard */
+      /* Optimize for Android keyboard - less aggressive approach */
       .keyboard-open {
-        position: fixed;
-        width: 100%;
-        height: 100%;
-        overflow: hidden;
+        /* Remove position fixed as it breaks layout */
+        /* Just adjust padding for keyboard */
       }
     `;
     document.head.appendChild(style);

@@ -329,26 +329,33 @@ const FriendsPage = () => {
         return;
       }
 
-      // Check if conversation already exists
-      const { data: existingParticipants } = await supabase
+      // Check if conversation already exists - improved approach
+      // First get all conversations the current user participates in
+      const { data: userConversations } = await supabase
         .from('conversation_participants')
         .select('conversation_id')
         .eq('user_id', user!.id);
 
-      if (existingParticipants) {
-        for (const participant of existingParticipants) {
-          const { data: otherParticipant } = await supabase
-            .from('conversation_participants')
-            .select('conversation_id')
-            .eq('conversation_id', participant.conversation_id)
-            .eq('user_id', userId)
-            .maybeSingle();
+      if (userConversations && userConversations.length > 0) {
+        // Check if the target user participates in any of these conversations
+        const conversationIds = userConversations.map(c => c.conversation_id);
+        
+        const { data: existingConversation } = await supabase
+          .from('conversation_participants')
+          .select('conversation_id')
+          .eq('user_id', userId)
+          .in('conversation_id', conversationIds)
+          .limit(1)
+          .maybeSingle();
 
-          if (otherParticipant) {
-            // Conversation already exists
-            navigate(`/chat/${participant.conversation_id}`);
-            return;
-          }
+        if (existingConversation) {
+          // Conversation already exists
+          toast({
+            title: 'Opening existing conversation',
+            description: 'You already have a conversation with this user',
+          });
+          navigate(`/chat/${existingConversation.conversation_id}`);
+          return;
         }
       }
 

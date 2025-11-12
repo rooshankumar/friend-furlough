@@ -298,7 +298,7 @@ const MinimalNavigation = () => {
     {!isInChatConversation && (
       <>
         
-        <nav data-tap-refresh className="md:hidden fixed bottom-0 left-0 right-0 z-50 border-t border-border/50 bg-white/95 backdrop-blur-sm mobile-nav-safe">
+        <nav data-tap-refresh className="md:hidden fixed bottom-0 left-0 right-0 z-50 border-t border-border/50 bg-background/95 backdrop-blur-sm mobile-nav-safe">
         <div className="flex items-center justify-around py-3 px-2 pb-4">
           {/* Explore */}
           <Link 

@@ -58,7 +58,7 @@ const SignInPage = () => {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-background via-card-cultural to-background flex">
+    <div className="min-h-screen bg-gradient-to-br from-background via-card-cultural to-background dark:auth-background flex">
       {/* Left Side - Welcome Back Message */}
       <div className="hidden lg:flex lg:w-1/2 bg-gradient-to-br from-primary/10 to-secondary/10 p-12 flex-col justify-center">
         <div className="max-w-lg">

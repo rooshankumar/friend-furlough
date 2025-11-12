@@ -28,6 +28,7 @@ export default function ExplorePage() {
   const navigate = useNavigate();
   const { user, profile } = useAuthStore();
   const { filteredUsers, isLoading, searchTerm, filters, loadUsers, setSearchTerm, setFilters, clearFilters, users } = useExploreStore();
+  const [isCreatingConversation, setIsCreatingConversation] = useState(false);
   const { toggleReaction, loadReactionData, reactions, userReactions } = useProfileReactionStore();
   const [showFilters, setShowFilters] = useState(false);
   
@@ -126,7 +127,11 @@ export default function ExplorePage() {
   };
 
   const startConversation = async (profileId: string) => {
+    // Prevent multiple rapid clicks
+    if (isCreatingConversation) return;
+    
     try {
+      setIsCreatingConversation(true);
       // Ensure user is authenticated
       const { data: { session } } = await supabase.auth.getSession();
       if (!session) {
@@ -140,26 +145,30 @@ export default function ExplorePage() {
         return;
       }
 
-      // Check if conversation already exists
-      const { data: existingParticipants } = await supabase
+      // Check if conversation already exists - improved approach
+      // First get all conversations the current user participates in
+      const { data: userConversations } = await supabase
         .from('conversation_participants')
         .select('conversation_id')
         .eq('user_id', user!.id);
 
-      if (existingParticipants) {
-        for (const participant of existingParticipants) {
-          const { data: otherParticipant } = await supabase
-            .from('conversation_participants')
-            .select('conversation_id')
-            .eq('conversation_id', participant.conversation_id)
-            .eq('user_id', profileId)
-            .maybeSingle();
+      if (userConversations && userConversations.length > 0) {
+        // Check if the target user participates in any of these conversations
+        const conversationIds = userConversations.map(c => c.conversation_id);
+        
+        const { data: existingConversation } = await supabase
+          .from('conversation_participants')
+          .select('conversation_id')
+          .eq('user_id', profileId)
+          .in('conversation_id', conversationIds)
+          .limit(1)
+          .maybeSingle();
 
-          if (otherParticipant) {
-            // Conversation already exists
-            navigate(`/chat/${participant.conversation_id}`);
-            return;
-          }
+        if (existingConversation) {
+          // Conversation already exists
+          toast.success('Opening existing conversation');
+          navigate(`/chat/${existingConversation.conversation_id}`);
+          return;
         }
       }
 
@@ -218,6 +227,8 @@ export default function ExplorePage() {
     } catch (error) {
       console.error('Error starting conversation:', error);
       toast.error('Something went wrong. Please try again.');
+    } finally {
+      setIsCreatingConversation(false);
     }
   };
 
@@ -699,9 +710,10 @@ export default function ExplorePage() {
                     onClick={() => startConversation(profile.id)}
                     className="flex-1 h-8 text-xs"
                     size="sm"
+                    disabled={isCreatingConversation}
                   >
                     <MessageCircle className="h-3 w-3 mr-1" />
-                    Send
+                    {isCreatingConversation ? 'Starting...' : 'Send'}
                   </Button>
                   <Button
                     variant="ghost"

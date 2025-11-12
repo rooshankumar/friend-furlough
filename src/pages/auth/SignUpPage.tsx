@@ -161,7 +161,7 @@ const SignUpPage = () => {
                     <FormItem>
                       <FormLabel>Email</FormLabel>
                       <FormControl>
-                        <Input type="email" placeholder="Enter your email" {...field} />
+                        <Input type="email" placeholder="Enter your email" autoComplete="email" {...field} />
                       </FormControl>
                       <FormMessage />
                     </FormItem>
@@ -179,6 +179,7 @@ const SignUpPage = () => {
                           <Input 
                             type={showPassword ? "text" : "password"}
                             placeholder="Create a password" 
+                            autoComplete="new-password"
                             {...field} 
                           />
                           <Button
@@ -212,6 +213,7 @@ const SignUpPage = () => {
                           <Input 
                             type={showConfirmPassword ? "text" : "password"}
                             placeholder="Confirm your password" 
+                            autoComplete="new-password"
                             {...field} 
                           />
                           <Button

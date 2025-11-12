@@ -122,7 +122,7 @@ const SignInPage = () => {
                     <FormItem>
                       <FormLabel>Email</FormLabel>
                       <FormControl>
-                        <Input type="email" placeholder="Enter your email" {...field} />
+                        <Input type="email" placeholder="Enter your email" autoComplete="username" {...field} />
                       </FormControl>
                       <FormMessage />
                     </FormItem>

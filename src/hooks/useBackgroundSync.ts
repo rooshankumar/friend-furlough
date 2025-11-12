@@ -160,19 +160,28 @@ export const useBackgroundSync = (options: BackgroundSyncOptions = {}) => {
     };
   }, [enabled, isAuthenticated, user?.id]);
 
+  // Track offline state to prevent excessive syncing
+  const wasOfflineRef = useRef(false);
+  
   // Pause sync when offline, resume when online (debounced)
   useEffect(() => {
-    if (isOnline && isAuthenticated && user?.id) {
-      // Debounce connection restoration sync to prevent spam
+    if (!isOnline) {
+      wasOfflineRef.current = true;
+      return;
+    }
+    
+    // Only sync when coming back online AND user is authenticated
+    if (isOnline && isAuthenticated && user?.id && wasOfflineRef.current) {
       const timer = setTimeout(() => {
         console.log('🌐 Connection restored - triggering sync');
         syncGeneralData();
         syncMessages();
+        wasOfflineRef.current = false;
       }, 1000); // 1 second debounce
 
       return () => clearTimeout(timer);
     }
-  }, [isOnline]);
+  }, [isOnline, isAuthenticated, user?.id, syncGeneralData, syncMessages]);
 
   // Manual sync function for external use
   const manualSync = useCallback(async () => {

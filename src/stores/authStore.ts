@@ -198,19 +198,38 @@ export const useAuthStore = create<AuthState>()(
             // Check if email confirmation is required
             const emailConfirmationRequired = !data.session;
 
-            // Create profile record immediately
-            const { error: profileError } = await supabase
-              .from('profiles')
-              .insert({
-                id: data.user.id,
-                name: name,
-                online: true,
-                onboarding_completed: false
-              });
+            // Create profile record immediately (with retry)
+            let profileError = null;
+            let retryCount = 0;
+            const maxRetries = 3;
+            
+            while (retryCount < maxRetries) {
+              const { error } = await supabase
+                .from('profiles')
+                .insert({
+                  id: data.user.id,
+                  name: name,
+                  online: true,
+                  onboarding_completed: false
+                });
+              
+              if (!error) {
+                profileError = null;
+                break;
+              }
+              
+              profileError = error;
+              retryCount++;
+              
+              if (retryCount < maxRetries) {
+                // Wait before retry (exponential backoff)
+                await new Promise(resolve => setTimeout(resolve, 1000 * retryCount));
+              }
+            }
 
             if (profileError) {
-              console.error('Profile creation error:', profileError);
-              // Continue anyway - profile might be created by trigger
+              console.error('Profile creation error after retries:', profileError);
+              // Continue anyway - profile might be created by trigger or will be created later
             }
 
             // If email confirmation is required, don't set as authenticated

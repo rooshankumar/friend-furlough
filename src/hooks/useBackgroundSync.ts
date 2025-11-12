@@ -32,31 +32,50 @@ export const useBackgroundSync = (options: BackgroundSyncOptions = {}) => {
   const syncTimerRef = useRef<NodeJS.Timeout | null>(null);
   const messageSyncTimerRef = useRef<NodeJS.Timeout | null>(null);
   const isAppActiveRef = useRef(true);
+  const lastSyncRef = useRef<number>(0);
+  const isSyncingRef = useRef(false);
 
   // Check if running on mobile
   const isMobile = Capacitor.isNativePlatform();
 
   // Sync general data (conversations, notifications)
   const syncGeneralData = useCallback(async () => {
-    if (!user?.id || !isOnline || !isAuthenticated) return;
+    if (!user?.id || !isOnline || !isAuthenticated || isSyncingRef.current) return;
+
+    const now = Date.now();
+    // Prevent too frequent syncs (minimum 10 seconds apart)
+    if (now - lastSyncRef.current < 10000) return;
 
     try {
-      console.log('🔄 Background sync: General data');
+      isSyncingRef.current = true;
+      lastSyncRef.current = now;
+      
+      // Only log every 5th sync to reduce spam
+      if (Math.random() < 0.2) {
+        console.log('🔄 Background sync: General data');
+      }
+      
       await Promise.all([
         loadConversations(user.id),
         loadNotifications(user.id),
       ]);
     } catch (error) {
       console.error('❌ Background sync error (general):', error);
+    } finally {
+      isSyncingRef.current = false;
     }
   }, [user?.id, isOnline, isAuthenticated, loadConversations, loadNotifications]);
 
   // Sync messages (faster for real-time chat)
   const syncMessages = useCallback(async () => {
-    if (!user?.id || !isOnline || !isAuthenticated) return;
+    if (!user?.id || !isOnline || !isAuthenticated || isSyncingRef.current) return;
 
     try {
-      console.log('💬 Background sync: Messages');
+      // Only log occasionally to reduce spam
+      if (Math.random() < 0.1) {
+        console.log('💬 Background sync: Messages');
+      }
+      
       // Only sync conversations to get latest message updates
       await loadConversations(user.id);
     } catch (error) {
@@ -89,18 +108,24 @@ export const useBackgroundSync = (options: BackgroundSyncOptions = {}) => {
   // Setup background sync intervals
   useEffect(() => {
     if (!enabled || !isAuthenticated || !user?.id) {
+      // Clear any existing timers when disabled
+      if (syncTimerRef.current) {
+        clearInterval(syncTimerRef.current);
+        syncTimerRef.current = null;
+      }
+      if (messageSyncTimerRef.current) {
+        clearInterval(messageSyncTimerRef.current);
+        messageSyncTimerRef.current = null;
+      }
       return;
     }
 
-    // Clear existing timers
-    if (syncTimerRef.current) {
-      clearInterval(syncTimerRef.current);
-    }
-    if (messageSyncTimerRef.current) {
-      clearInterval(messageSyncTimerRef.current);
+    // Prevent duplicate initialization
+    if (syncTimerRef.current || messageSyncTimerRef.current) {
+      return;
     }
 
-    // Initial sync
+    // Initial sync (only once)
     syncGeneralData();
     syncMessages();
 
@@ -125,21 +150,29 @@ export const useBackgroundSync = (options: BackgroundSyncOptions = {}) => {
     return () => {
       if (syncTimerRef.current) {
         clearInterval(syncTimerRef.current);
+        syncTimerRef.current = null;
       }
       if (messageSyncTimerRef.current) {
         clearInterval(messageSyncTimerRef.current);
+        messageSyncTimerRef.current = null;
       }
+      console.log('🔄 Background sync stopped');
     };
-  }, [enabled, isAuthenticated, user?.id, syncInterval, messageSyncInterval, syncGeneralData, syncMessages, isMobile]);
+  }, [enabled, isAuthenticated, user?.id]);
 
-  // Pause sync when offline, resume when online
+  // Pause sync when offline, resume when online (debounced)
   useEffect(() => {
     if (isOnline && isAuthenticated && user?.id) {
-      console.log('🌐 Connection restored - triggering sync');
-      syncGeneralData();
-      syncMessages();
+      // Debounce connection restoration sync to prevent spam
+      const timer = setTimeout(() => {
+        console.log('🌐 Connection restored - triggering sync');
+        syncGeneralData();
+        syncMessages();
+      }, 1000); // 1 second debounce
+
+      return () => clearTimeout(timer);
     }
-  }, [isOnline, isAuthenticated, user?.id, syncGeneralData, syncMessages]);
+  }, [isOnline]);
 
   // Manual sync function for external use
   const manualSync = useCallback(async () => {
@@ -153,6 +186,6 @@ export const useBackgroundSync = (options: BackgroundSyncOptions = {}) => {
   return {
     manualSync,
     isEnabled: enabled && isAuthenticated && !!user?.id,
-    isSyncing: isOnline && isAuthenticated,
+    isSyncing: isSyncingRef.current && isOnline && isAuthenticated,
   };
 };

@@ -46,8 +46,8 @@ const MinimalNavigation = () => {
   // Background sync system for real-time updates (faster on mobile)
   const { manualSync, isEnabled: syncEnabled, isSyncing } = useBackgroundSync({
     enabled: isAuthenticated,
-    syncInterval: isMobile ? 20000 : 30000, // 20s on mobile, 30s on desktop
-    messageSyncInterval: isMobile ? 3000 : 5000, // 3s on mobile, 5s on desktop
+    syncInterval: isMobile ? 60000 : 120000, // 1 min on mobile, 2 min on desktop
+    messageSyncInterval: isMobile ? 15000 : 30000, // 15s on mobile, 30s on desktop
   });
 
   const isActive = (path: string) => location.pathname === path || location.pathname.startsWith(path);

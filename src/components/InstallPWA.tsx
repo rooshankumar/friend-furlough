@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Download, X } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
+import roshLinguaLogo from "@/assets/roshlingua-logo.png";
 
 interface BeforeInstallPromptEvent extends Event {
   prompt: () => Promise<void>;
@@ -87,67 +88,80 @@ const InstallPWA = () => {
 
   return (
     <>
-      {/* Mobile Banner - Top */}
-      <div className="md:hidden fixed top-0 left-0 right-0 z-50 bg-gradient-cultural text-white p-3 shadow-lg">
-        <div className="flex items-center justify-between gap-2">
-          <div className="flex-1 min-w-0">
-            <p className="font-semibold text-sm truncate">Install roshLingua</p>
-            <p className="text-xs opacity-90">Get the full app experience</p>
-          </div>
-          <div className="flex items-center gap-2 flex-shrink-0">
-            <Button
-              onClick={handleInstallClick}
-              size="sm"
-              variant="secondary"
-              className="flex items-center gap-1 h-8 text-xs"
-            >
-              <Download className="h-3 w-3" />
-              Install
-            </Button>
-            <Button
-              onClick={handleDismiss}
-              size="sm"
-              variant="ghost"
-              className="h-8 w-8 p-0 text-white hover:bg-white/20"
-            >
-              <X className="h-4 w-4" />
-            </Button>
-          </div>
-        </div>
-      </div>
-
-      {/* Spacer for mobile to push content down */}
-      <div className="md:hidden h-[68px]" aria-hidden="true" />
-
-      {/* Desktop Banner - Top Right */}
-      <div className="hidden md:block fixed top-4 right-4 z-40 bg-card border border-border shadow-lg rounded-lg p-4 max-w-sm">
-        <div className="flex items-start justify-between gap-3">
-          <div className="flex-1">
-            <div className="flex items-center gap-2 mb-1">
-              <Download className="h-5 w-5 text-primary" />
-              <p className="font-semibold">Install roshLingua</p>
+      {/* Centered Modal for PWA Install */}
+      <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
+        <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full mx-4 overflow-hidden">
+          {/* Header */}
+          <div className="bg-gradient-to-br from-blue-50 to-purple-50 border-b p-6 text-center">
+            <div className="w-20 h-20 bg-white rounded-full flex items-center justify-center mx-auto mb-4 shadow-lg">
+              <img src={roshLinguaLogo} alt="roshLingua" className="h-16 w-16" />
             </div>
-            <p className="text-sm text-muted-foreground">
-              Install our app for a better experience with offline access and quick launch.
+            <h2 className="text-2xl font-bold mb-2 text-gray-900">Install roshLingua</h2>
+            <p className="text-gray-600 text-sm">Get the full app experience</p>
+          </div>
+
+          {/* Content */}
+          <div className="p-6">
+            <div className="space-y-4 mb-6">
+              <div className="flex items-center gap-3">
+                <div className="w-8 h-8 bg-green-100 rounded-full flex items-center justify-center">
+                  <span className="text-green-600 text-sm">✓</span>
+                </div>
+                <span className="text-gray-700">Offline access to conversations</span>
+              </div>
+              <div className="flex items-center gap-3">
+                <div className="w-8 h-8 bg-green-100 rounded-full flex items-center justify-center">
+                  <span className="text-green-600 text-sm">✓</span>
+                </div>
+                <span className="text-gray-700">Quick launch from home screen</span>
+              </div>
+              <div className="flex items-center gap-3">
+                <div className="w-8 h-8 bg-green-100 rounded-full flex items-center justify-center">
+                  <span className="text-green-600 text-sm">✓</span>
+                </div>
+                <span className="text-gray-700">Native app-like experience</span>
+              </div>
+              <div className="flex items-center gap-3">
+                <div className="w-8 h-8 bg-green-100 rounded-full flex items-center justify-center">
+                  <span className="text-green-600 text-sm">✓</span>
+                </div>
+                <span className="text-gray-700">Push notifications (coming soon)</span>
+              </div>
+            </div>
+
+            {/* Buttons */}
+            <div className="flex flex-col sm:flex-row gap-3">
+              <Button
+                onClick={handleInstallClick}
+                className="flex-1 bg-primary hover:bg-primary/90 text-white font-semibold py-3"
+              >
+                <Download className="h-4 w-4 mr-2" />
+                Install App
+              </Button>
+              <Button
+                onClick={handleDismiss}
+                variant="outline"
+                className="flex-1 py-3 border-gray-300 text-gray-600 hover:bg-gray-50"
+              >
+                Maybe Later
+              </Button>
+            </div>
+
+            <p className="text-xs text-gray-500 text-center mt-4">
+              Free to install • No registration required
             </p>
           </div>
+
+          {/* Close button */}
           <Button
             onClick={handleDismiss}
-            size="sm"
             variant="ghost"
-            className="h-8 w-8 p-0 flex-shrink-0"
+            size="sm"
+            className="absolute top-4 right-4 text-gray-500 hover:bg-gray-100 rounded-full w-8 h-8 p-0"
           >
             <X className="h-4 w-4" />
           </Button>
         </div>
-        <Button
-          onClick={handleInstallClick}
-          className="w-full mt-3"
-          variant="cultural"
-        >
-          <Download className="h-4 w-4 mr-2" />
-          Install App
-        </Button>
       </div>
     </>
   );

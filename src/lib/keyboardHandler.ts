@@ -6,43 +6,89 @@
 import { Capacitor } from '@capacitor/core';
 import { Keyboard } from '@capacitor/keyboard';
 
+let keyboardListeners: any[] = [];
+
 export const isMobileApp = () => Capacitor.isNativePlatform();
 
 /**
  * Initialize keyboard handling
  */
-export const initKeyboardHandling = () => {
-  if (!isMobileApp()) return;
+export const initKeyboardHandling = async () => {
+  if (!Capacitor.isNativePlatform()) return;
 
-  // Listen for keyboard show
-  Keyboard.addListener('keyboardWillShow', (info) => {
-    console.log('⌨️ Keyboard will show:', info.keyboardHeight);
-    document.body.classList.add('keyboard-open');
+  try {
+    // Show keyboard listener
+    const showListener = await Keyboard.addListener('keyboardWillShow', info => {
+      console.log('Keyboard will show with height:', info.keyboardHeight);
+      
+      // Adjust viewport for keyboard - match PWA behavior
+      document.documentElement.style.setProperty('--keyboard-height', `${info.keyboardHeight}px`);
+      document.body.classList.add('keyboard-open');
+      
+      // Better viewport adjustment for PWA-like experience
+      const viewport = document.querySelector('meta[name=viewport]');
+      if (viewport) {
+        viewport.setAttribute('content', 
+          'width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover'
+        );
+      }
+      
+      // Scroll active input into view with better positioning
+      const activeElement = document.activeElement as HTMLElement;
+      if (activeElement && (activeElement.tagName === 'INPUT' || activeElement.tagName === 'TEXTAREA')) {
+        setTimeout(() => {
+          const rect = activeElement.getBoundingClientRect();
+          const keyboardTop = window.innerHeight - info.keyboardHeight;
+          
+          if (rect.bottom > keyboardTop) {
+            const scrollOffset = rect.bottom - keyboardTop + 20; // 20px padding
+            window.scrollBy(0, scrollOffset);
+          }
+        }, 150);
+      }
+    });
+
+    // Hide keyboard listener
+    const hideListener = await Keyboard.addListener('keyboardWillHide', () => {
+      console.log('Keyboard will hide');
+      
+      // Reset viewport - match PWA behavior
+      document.documentElement.style.removeProperty('--keyboard-height');
+      document.body.classList.remove('keyboard-open');
+      
+      // Reset viewport meta tag
+      const viewport = document.querySelector('meta[name=viewport]');
+      if (viewport) {
+        viewport.setAttribute('content', 
+          'width=device-width, initial-scale=1.0'
+        );
+      }
+    });
+
+    keyboardListeners = [showListener, hideListener];
     
-    // Adjust viewport when keyboard opens
-    const activeElement = document.activeElement as HTMLElement;
-    if (activeElement) {
-      setTimeout(() => {
-        activeElement.scrollIntoView({ behavior: 'smooth', block: 'center' });
-      }, 100);
-    }
-  });
-
-  // Listen for keyboard hide
-  Keyboard.addListener('keyboardWillHide', () => {
-    console.log('⌨️ Keyboard will hide');
-    document.body.classList.remove('keyboard-open');
-  });
-
-  console.log('✅ Keyboard handlers initialized');
+    console.log('✅ Enhanced keyboard handling initialized');
+  } catch (error) {
+    console.error('❌ Keyboard handling failed:', error);
+  }
 };
 
 /**
  * Clean up keyboard listeners
  */
 export const cleanupKeyboardHandling = () => {
-  if (!isMobileApp()) return;
-  Keyboard.removeAllListeners();
+  keyboardListeners.forEach(listener => {
+    if (listener?.remove) {
+      listener.remove();
+    }
+  });
+  keyboardListeners = [];
+  
+  // Clean up styles
+  document.documentElement.style.removeProperty('--keyboard-height');
+  document.body.classList.remove('keyboard-open');
+  
+  console.log('🧹 Keyboard handling cleaned up');
 };
 
 /**

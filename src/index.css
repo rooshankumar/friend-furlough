@@ -1,5 +1,7 @@
 /* Import responsive utilities - must come before @tailwind */
 @import './styles/responsive.css';
+@import './styles/mobile-responsive.css';
+@import './styles/apk-pwa-match.css';
 
 @tailwind base;
 @tailwind components;

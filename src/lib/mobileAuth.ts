@@ -45,13 +45,17 @@ export const initOAuthListener = () => {
         // Get the hash fragment (contains access_token, refresh_token, etc.)
         let hashParams = new URLSearchParams(url.hash.substring(1));
         
-        // If no hash, check search params
-        if (!hashParams.has('access_token')) {
+        // If no hash, check search params (fallback)
+        if (!hashParams.has('access_token') && url.search) {
           hashParams = new URLSearchParams(url.search);
         }
         
+        // For Google OAuth, also check for 'code' parameter
         const accessToken = hashParams.get('access_token');
         const refreshToken = hashParams.get('refresh_token');
+        const authCode = hashParams.get('code');
+        const tokenType = hashParams.get('token_type');
+        const expiresIn = hashParams.get('expires_in');
         
         console.log('🔑 Token extraction:', { 
           hasAccessToken: !!accessToken, 

@@ -2,7 +2,7 @@ import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react-swc";
 import path from "path";
 import { componentTagger } from "lovable-tagger";
-import { createPerformancePlugin } from "./src/scripts/optimizePerformance";
+// import { createPerformancePlugin } from "./src/scripts/optimizePerformance";
 
 // https://vitejs.dev/config/
 export default defineConfig(({ mode }) => ({
@@ -27,7 +27,7 @@ export default defineConfig(({ mode }) => ({
   plugins: [
     react(),
     mode === "development" && componentTagger(), // Enables tagger only in dev
-    createPerformancePlugin(), // Performance optimizations
+    // createPerformancePlugin(), // Performance optimizations - temporarily disabled
   ].filter(Boolean),
 
   resolve: {
@@ -55,7 +55,7 @@ export default defineConfig(({ mode }) => ({
         manualChunks: {
           // Separate vendor chunks for better caching
           'react-vendor': ['react', 'react-dom', 'react-router-dom'],
-          'ui-vendor': ['lucide-react', '@radix-ui/react-avatar', '@radix-ui/react-button'],
+          'ui-vendor': ['lucide-react'],
           'supabase-vendor': ['@supabase/supabase-js'],
           'utils': ['date-fns', 'clsx', 'tailwind-merge']
         },

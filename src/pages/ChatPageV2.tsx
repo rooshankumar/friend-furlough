@@ -70,6 +70,8 @@ import { supabase } from '@/integrations/supabase/client';
 import { formatLastSeen, isUserOnline } from '@/lib/timeUtils';
 import { logger } from '@/lib/logger';
 import { mobileOptimizer, isMobile, optimizeScrolling } from '@/lib/mobileOptimization';
+import { simpleAPKOptimizer } from '@/lib/apkOptimizationsSimple';
+import { Capacitor } from '@capacitor/core';
 
 // Enhanced Message Component with Reactions
 interface EnhancedMessageV2Props {
@@ -576,6 +578,12 @@ const ChatPageV2 = () => {
     if (!isMobile()) return;
 
     logger.mobile('Initializing mobile optimizations for ChatPageV2');
+    
+    // Initialize APK optimizations if running in APK
+    if (Capacitor.isNativePlatform()) {
+      simpleAPKOptimizer.initialize();
+      simpleAPKOptimizer.testOptimizations();
+    }
     
     // Optimize file upload for mobile
     mobileOptimizer.optimizeForFileUpload();

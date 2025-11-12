@@ -24,18 +24,19 @@ const config: CapacitorConfig = {
     SplashScreen: {
       launchShowDuration: 2000,
       launchAutoHide: true,
-      backgroundColor: '#000000',
+      backgroundColor: '#ffffff',
       androidSplashResourceName: 'splash',
-      androidScaleType: 'CENTER',
+      androidScaleType: 'CENTER_INSIDE',
       showSpinner: true,
       androidSpinnerStyle: 'large',
       spinnerColor: '#3b82f6'
     },
     // Optimize keyboard behavior for better UX
     Keyboard: {
-      resize: 'body', // Use body resize for better keyboard suggestions
-      style: 'dark',
-      resizeOnFullScreen: true
+      resize: 'ionic', // Better for web-like experience
+      style: 'light',
+      resizeOnFullScreen: true,
+      disableScroll: false
     },
     // File handling plugins
     FilePicker: {

@@ -4,7 +4,7 @@ import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
+import { BrowserRouter, Routes, Route, Navigate, useLocation } from "react-router-dom";
 import { ThemeProvider } from "@/components/ThemeProvider";
 import { useAuthStore } from "./stores/authStore";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -16,7 +16,10 @@ import { useMasterOptimization } from "./hooks/useMasterOptimization";
 import { useActivityTracker } from "./hooks/useActivityTracker";
 
 // Lazy load pages for better performance
-const HomePage = React.lazy(() => import("./pages/HomePage"));
+const HomePage = React.lazy(() => import("./pages/HomePageProfessional"));
+const PrivacyPolicy = React.lazy(() => import("./pages/PrivacyPolicy"));
+const TermsOfService = React.lazy(() => import("./pages/TermsOfService"));
+const GoogleVerificationStatus = React.lazy(() => import("./components/GoogleVerificationStatus"));
 const ExplorePage = React.lazy(() => import("./pages/ExplorePage"));
 const ChatPage = React.lazy(() => import("./pages/ChatPageV2"));
 const CommunityPage = React.lazy(() => import("./pages/CommunityPage"));
@@ -83,21 +86,41 @@ const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
 
 // Component that uses QueryClient - must be inside QueryClientProvider
 const AppContent = () => {
-  // Master optimization hook
+  const location = useLocation();
+  const { isAuthenticated } = useAuthStore();
+  
+  // Initialize optimizations
   useMasterOptimization();
   
   // Track user activity and auto-logout after 30 days inactivity
   useActivityTracker();
 
+  // Don't show MinimalNavigation on homepage or auth pages
+  const showMinimalNav = isAuthenticated && 
+    location.pathname !== '/' && 
+    !location.pathname.startsWith('/auth/') &&
+    !location.pathname.startsWith('/privacy-') &&
+    !location.pathname.startsWith('/terms-') &&
+    !location.pathname.startsWith('/community-') &&
+    !location.pathname.startsWith('/data-') &&
+    !location.pathname.startsWith('/verification-');
+
   return (
     <div className="min-h-screen bg-background">
-      <MinimalNavigation />
+      {showMinimalNav && <MinimalNavigation />}
       <ConnectionStatus />
       <PerformanceMonitor />
       <InstallPWA />
       <Suspense fallback={<PageLoadingFallback />}>
         <Routes>
           <Route path="/" element={<HomePage />} />
+
+          {/* Legal Pages */}
+          <Route path="/privacy-policy" element={<PrivacyPolicy />} />
+          <Route path="/terms-of-service" element={<TermsOfService />} />
+          <Route path="/community-guidelines" element={<TermsOfService />} />
+          <Route path="/data-protection" element={<PrivacyPolicy />} />
+          <Route path="/verification-status" element={<GoogleVerificationStatus />} />
 
           {/* Authentication Routes */}
           <Route path="/auth/signup" element={<SignUpPage />} />

@@ -280,13 +280,13 @@ const HomePageProfessional = () => {
           </div>
 
           {/* App Features List */}
-          <div className="bg-gray-50 rounded-2xl p-8">
-            <h3 className="text-2xl font-bold text-center mb-8">Complete Feature Set</h3>
+          <div className="bg-muted/30 rounded-2xl p-8">
+            <h3 className="text-2xl font-bold text-center mb-8 text-foreground">Complete Feature Set</h3>
             <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
               {appFeatures.map((feature, index) => (
                 <div key={index} className="flex items-center space-x-3">
-                  <CheckCircle className="h-5 w-5 text-green-600 flex-shrink-0" />
-                  <span className="text-gray-700">{feature}</span>
+                  <CheckCircle className="h-5 w-5 text-success flex-shrink-0" />
+                  <span className="text-foreground">{feature}</span>
                 </div>
               ))}
             </div>
@@ -295,13 +295,13 @@ const HomePageProfessional = () => {
       </section>
 
       {/* Community Section - Mobile Optimized */}
-      <section id="community" className="py-12 md:py-20 bg-gray-50">
+      <section id="community" className="py-12 md:py-20 bg-muted/10">
         <div className="container mx-auto px-4">
           <div className="text-center mb-12 md:mb-16">
-            <h2 className="text-2xl md:text-3xl lg:text-4xl font-bold text-gray-900 mb-4 px-4">
+            <h2 className="text-2xl md:text-3xl lg:text-4xl font-bold text-foreground mb-4 px-4">
               Real Stories from Our Community
             </h2>
-            <p className="text-lg md:text-xl text-gray-600 max-w-2xl mx-auto px-4">
+            <p className="text-lg md:text-xl text-muted-foreground max-w-2xl mx-auto px-4">
               See how roshLingua is helping people connect across cultures and build lasting friendships
             </p>
           </div>
@@ -333,7 +333,7 @@ const HomePageProfessional = () => {
           </p>
           
           <div className="flex flex-col sm:flex-row gap-3 md:gap-4 justify-center mb-8 md:mb-12 px-4">
-            <Button variant="outline" size="lg" className="w-full sm:w-auto bg-white text-primary hover:bg-gray-100 px-6 md:px-8 py-3 md:py-4" asChild>
+            <Button variant="outline" size="lg" className="w-full sm:w-auto bg-background text-primary hover:bg-muted px-6 md:px-8 py-3 md:py-4" asChild>
               <Link to="/auth/signup">
                 <Globe className="mr-2 h-4 w-4 md:h-5 md:w-5" />
                 Web App - Start Now
@@ -352,17 +352,17 @@ const HomePageProfessional = () => {
       </section>
 
       {/* Contact & Legal Section - Mobile Optimized */}
-      <section id="contact" className="py-12 md:py-20 bg-white">
+      <section id="contact" className="py-12 md:py-20 bg-background">
         <div className="container mx-auto px-4">
           <div className="grid md:grid-cols-2 gap-8 md:gap-12">
             {/* Contact Information */}
             <div>
-              <h3 className="text-2xl font-bold mb-6">Contact Us</h3>
+              <h3 className="text-2xl font-bold mb-6 text-foreground">Contact Us</h3>
               <div className="space-y-4">
                 <div className="flex items-center space-x-3">
                   <Mail className="h-5 w-5 text-primary" />
                   <div>
-                    <p className="font-semibold">Email Support</p>
+                    <p className="font-semibold text-foreground">Email Support</p>
                     <a href="mailto:roshlingua@gmail.com" className="text-primary hover:underline">
                       roshlingua@gmail.com
                     </a>
@@ -371,7 +371,7 @@ const HomePageProfessional = () => {
                 <div className="flex items-center space-x-3">
                   <Globe className="h-5 w-5 text-primary" />
                   <div>
-                    <p className="font-semibold">Website</p>
+                    <p className="font-semibold text-foreground">Website</p>
                     <a href="https://roshlingua.vercel.app/" target="_blank" rel="noopener noreferrer" className="text-primary hover:underline">
                       https://roshlingua.vercel.app/
                     </a>
@@ -380,8 +380,8 @@ const HomePageProfessional = () => {
                 <div className="flex items-center space-x-3">
                   <Users className="h-5 w-5 text-primary" />
                   <div>
-                    <p className="font-semibold">Community Support</p>
-                    <p className="text-gray-600">24/7 moderated platform</p>
+                    <p className="font-semibold text-foreground">Community Support</p>
+                    <p className="text-muted-foreground">24/7 moderated platform</p>
                   </div>
                 </div>
               </div>
@@ -389,7 +389,7 @@ const HomePageProfessional = () => {
 
             {/* Legal & Compliance */}
             <div>
-              <h3 className="text-2xl font-bold mb-6">Legal & Privacy</h3>
+              <h3 className="text-2xl font-bold mb-6 text-foreground">Legal & Privacy</h3>
               <div className="space-y-4">
                 <div className="flex items-center space-x-3">
                   <FileText className="h-5 w-5 text-primary" />
@@ -422,7 +422,7 @@ const HomePageProfessional = () => {
       </section>
 
       {/* Footer - Mobile Optimized */}
-      <footer className="bg-gray-900 text-white py-8 md:py-12">
+      <footer className="bg-muted-foreground text-background py-8 md:py-12">
         <div className="container mx-auto px-4">
           <div className="grid grid-cols-2 md:grid-cols-4 gap-6 md:gap-8">
             <div>
@@ -430,44 +430,44 @@ const HomePageProfessional = () => {
                 <img src={roshLinguaLogo} alt="roshLingua" className="h-8 w-8" />
                 <span className="text-xl font-bold">roshLingua</span>
               </div>
-              <p className="text-gray-400">
+              <p className="text-background/70">
                 Connecting cultures and building friendships through language exchange.
               </p>
             </div>
             
             <div>
               <h4 className="font-semibold mb-4">Platform</h4>
-              <ul className="space-y-2 text-gray-400">
-                <li><Link to="/explore" className="hover:text-white">Explore</Link></li>
-                <li><Link to="/community" className="hover:text-white">Community</Link></li>
-                <li><Link to="/chat" className="hover:text-white">Messages</Link></li>
-                <li><Link to="/profile" className="hover:text-white">Profile</Link></li>
+              <ul className="space-y-2 text-background/70">
+                <li><Link to="/explore" className="hover:text-background">Explore</Link></li>
+                <li><Link to="/community" className="hover:text-background">Community</Link></li>
+                <li><Link to="/chat" className="hover:text-background">Messages</Link></li>
+                <li><Link to="/profile" className="hover:text-background">Profile</Link></li>
               </ul>
             </div>
             
             <div>
               <h4 className="font-semibold mb-4">Support</h4>
-              <ul className="space-y-2 text-gray-400">
-                <li><a href="mailto:roshlingua@gmail.com" className="hover:text-white">Help Center</a></li>
-                <li><Link to="/community-guidelines" className="hover:text-white">Guidelines</Link></li>
-                <li><Link to="/safety" className="hover:text-white">Safety</Link></li>
-                <li><a href="mailto:roshlingua@gmail.com" className="hover:text-white">Report Issue</a></li>
+              <ul className="space-y-2 text-background/70">
+                <li><a href="mailto:roshlingua@gmail.com" className="hover:text-background">Help Center</a></li>
+                <li><Link to="/community-guidelines" className="hover:text-background">Guidelines</Link></li>
+                <li><Link to="/safety" className="hover:text-background">Safety</Link></li>
+                <li><a href="mailto:roshlingua@gmail.com" className="hover:text-background">Report Issue</a></li>
               </ul>
             </div>
             
             <div>
               <h4 className="font-semibold mb-4">Legal</h4>
-              <ul className="space-y-2 text-gray-400">
-                <li><Link to="/privacy-policy" className="hover:text-white">Privacy</Link></li>
-                <li><Link to="/terms-of-service" className="hover:text-white">Terms</Link></li>
-                <li><Link to="/data-protection" className="hover:text-white">Data Protection</Link></li>
-                <li><Link to="/cookies" className="hover:text-white">Cookies</Link></li>
+              <ul className="space-y-2 text-background/70">
+                <li><Link to="/privacy-policy" className="hover:text-background">Privacy</Link></li>
+                <li><Link to="/terms-of-service" className="hover:text-background">Terms</Link></li>
+                <li><Link to="/data-protection" className="hover:text-background">Data Protection</Link></li>
+                <li><Link to="/cookies" className="hover:text-background">Cookies</Link></li>
               </ul>
             </div>
           </div>
           
-          <div className="border-t border-gray-800 mt-8 pt-8 text-center text-gray-400">
-            <p>&copy; 2024 roshLingua. All rights reserved. | Contact: roshlingua@gmail.com</p>
+          <div className="border-t border-background/20 mt-8 pt-8 text-center text-background/70">
+            <p>&copy; 2025 roshLingua. All rights reserved. | Contact: roshlingua@gmail.com</p>
           </div>
         </div>
       </footer>

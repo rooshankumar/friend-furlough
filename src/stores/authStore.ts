@@ -352,11 +352,11 @@ export const useAuthStore = create<AuthState>()(
         const { lastActivity, isAuthenticated, signOut } = get();
         if (!isAuthenticated) return;
 
-        const ONE_DAY = 24 * 60 * 60 * 1000; // 24 hours in milliseconds
+        const THIRTY_DAYS = 30 * 24 * 60 * 60 * 1000; // 30 days in milliseconds
         const inactiveDuration = Date.now() - lastActivity;
 
-        if (inactiveDuration > ONE_DAY) {
-          console.log('🔐 Auto-logout due to 24h inactivity');
+        if (inactiveDuration > THIRTY_DAYS) {
+          console.log('🔐 Auto-logout due to 30 days inactivity');
           signOut();
         }
       }

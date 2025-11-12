@@ -2,7 +2,7 @@ import { useEffect } from 'react';
 import { useAuthStore } from '@/stores/authStore';
 
 /**
- * Track user activity and auto-logout after 24 hours of inactivity
+ * Track user activity and auto-logout after 30 days of inactivity
  */
 export function useActivityTracker() {
   const { updateLastActivity, checkInactivityLogout, isAuthenticated } = useAuthStore();
@@ -31,10 +31,10 @@ export function useActivityTracker() {
       window.addEventListener(event, updateActivity, { passive: true });
     });
 
-    // Check for inactivity every 5 minutes
+    // Check for inactivity every hour
     const inactivityCheck = setInterval(() => {
       checkInactivityLogout();
-    }, 5 * 60 * 1000); // 5 minutes
+    }, 60 * 60 * 1000); // 1 hour
 
     return () => {
       events.forEach(event => {

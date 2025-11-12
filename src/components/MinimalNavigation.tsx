@@ -17,9 +17,12 @@ import { useChatStore } from "@/stores/chatStore";
 import { useUpdatePresence } from "@/hooks/usePresence";
 import { useOfflineSync } from "@/hooks/useOfflineSync";
 import { useGlobalTapToRefresh } from "@/hooks/useTapToRefresh";
+import { useBackgroundSync } from "@/hooks/useBackgroundSync";
+import { SyncStatus } from "@/components/SyncStatus";
 import NotificationDropdown from "@/components/NotificationDropdown";
 import roshLinguaLogo from "@/assets/roshlingua-logo.png";
 import { toast } from "sonner";
+import { Capacitor } from "@capacitor/core";
 
 const MinimalNavigation = () => {
   const location = useLocation();
@@ -31,11 +34,21 @@ const MinimalNavigation = () => {
   const { unreadCount, loadNotifications, subscribeToNotifications, markAllAsRead } = useNotificationStore();
   const { conversations, loadConversations } = useChatStore();
   
+  // Check if running on mobile (APK or PWA)
+  const isMobile = Capacitor.isNativePlatform() || /Android|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+  
   // Track user's online presence
   useUpdatePresence(user?.id);
   
   // Auto-sync data for offline access
   useOfflineSync();
+  
+  // Background sync system for real-time updates (faster on mobile)
+  const { manualSync, isEnabled: syncEnabled, isSyncing } = useBackgroundSync({
+    enabled: isAuthenticated,
+    syncInterval: isMobile ? 20000 : 30000, // 20s on mobile, 30s on desktop
+    messageSyncInterval: isMobile ? 3000 : 5000, // 3s on mobile, 5s on desktop
+  });
 
   const isActive = (path: string) => location.pathname === path || location.pathname.startsWith(path);
   
@@ -71,37 +84,36 @@ const MinimalNavigation = () => {
     }
   };
 
-  // Handle tap-to-refresh on navigation
+  // Handle tap-to-refresh on navigation (desktop only)
   const handleRefresh = async () => {
-    // Show loading spinner instead of toast
+    if (isMobile) {
+      // On mobile, use background sync instead of manual refresh
+      toast.success('Auto-sync is active', {
+        description: 'Updates happen automatically in the background'
+      });
+      return;
+    }
+
+    // Desktop: Show loading and refresh
     const loadingToast = toast.loading('Refreshing...');
     
     try {
-      // Reload data based on current page
-      if (user?.id) {
-        await Promise.all([
-          loadNotifications(user.id),
-          loadConversations(user.id),
-        ]);
-      }
-      
-      // Dismiss loading and reload
+      await manualSync();
       toast.dismiss(loadingToast);
-      
-      // Reload the current page
-      window.location.reload();
+      toast.success('Refreshed successfully');
     } catch (error) {
       toast.dismiss(loadingToast);
       console.error('Refresh error:', error);
+      toast.error('Refresh failed');
     }
   };
 
-  // Enable double-tap on nav to refresh (mobile)
+  // Enable double-tap on nav to refresh (desktop only)
   useGlobalTapToRefresh({
     onRefresh: handleRefresh,
     tapCount: 2,
     tapTimeout: 500,
-    enabled: isAuthenticated,
+    enabled: isAuthenticated && !isMobile, // Disabled on mobile
   });
 
   if (!isAuthenticated) {
@@ -279,12 +291,22 @@ const MinimalNavigation = () => {
                 </DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>
-          </div>
         </div>
-      </nav>
+      </div>
+    </nav>
 
-      {/* Compact Mobile Bottom Navigation - Essential Only (Hidden in chat conversations) */}
-      {!isInChatConversation && (
+    {/* Compact Mobile Bottom Navigation - Essential Only */}
+    {!isInChatConversation && (
+      <>
+        {/* Sync Status Indicator (Mobile Only) */}
+        <div className="md:hidden fixed bottom-16 right-4 z-40">
+          <SyncStatus 
+            isEnabled={syncEnabled} 
+            isSyncing={isSyncing}
+            className="bg-card/90 backdrop-blur-sm px-2 py-1 rounded-full border border-border/50 shadow-sm"
+          />
+        </div>
+        
         <nav data-tap-refresh className="md:hidden fixed bottom-0 left-0 right-0 z-50 border-t border-border/50 bg-card/95 backdrop-blur-sm">
         <div className="flex items-center justify-around py-1 px-1">
           {/* Explore */}
@@ -368,6 +390,7 @@ const MinimalNavigation = () => {
           </Link>
         </div>
       </nav>
+      </>
       )}
     </>
   );

@@ -86,7 +86,7 @@ const AppContent = () => {
   // Master optimization hook
   useMasterOptimization();
   
-  // Track user activity and auto-logout after 24h inactivity
+  // Track user activity and auto-logout after 30 days inactivity
   useActivityTracker();
 
   return (

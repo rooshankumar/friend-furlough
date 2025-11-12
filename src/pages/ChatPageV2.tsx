@@ -288,10 +288,18 @@ const EnhancedMessageV2: React.FC<EnhancedMessageV2Props> = ({
           </div>
         )}
         
-        {/* Show "Seen" below the last message if read (own messages only) */}
+        {/* Show "Seen" with avatar below the last message if read (own messages only) */}
         {isOwnMessage && isLastMessage && message.status === 'read' && (
           <div className="flex justify-end mt-1">
-            <span className="text-[11px] text-muted-foreground">Seen</span>
+            <div className="flex items-center gap-1">
+              <Avatar className="h-3.5 w-3.5">
+                <AvatarImage src={otherUser?.avatar_url} />
+                <AvatarFallback className="bg-gradient-cultural text-white text-[8px]">
+                  {otherUser?.name?.[0] || '?'}
+                </AvatarFallback>
+              </Avatar>
+              <span className="text-[11px] text-muted-foreground">Seen</span>
+            </div>
           </div>
         )}
 
@@ -338,6 +346,12 @@ const ChatPageV2 = () => {
   const [isUploadingAttachment, setIsUploadingAttachment] = useState(false);
   const [viewingImage, setViewingImage] = useState<string | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+
+  // Auto-scroll to bottom function
+  const scrollToBottom = useCallback(() => {
+    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+  }, []);
+
 
   // Pull-to-refresh for messages
   const messagesPullToRefresh = usePullToRefresh({
@@ -391,6 +405,21 @@ const ChatPageV2 = () => {
     conversationId ? messages[conversationId] || [] : [],
     [conversationId, messages]
   );
+
+  // Auto-scroll when new messages arrive
+  useEffect(() => {
+    if (conversationMessages.length > 0) {
+      scrollToBottom();
+    }
+  }, [conversationMessages.length, scrollToBottom]);
+
+  // Auto-scroll when conversation changes
+  useEffect(() => {
+    if (conversationId && conversationMessages.length > 0) {
+      // Scroll immediately when switching conversations
+      setTimeout(() => scrollToBottom(), 100);
+    }
+  }, [conversationId, scrollToBottom]);
 
   // Get other participant from current conversation
   const otherParticipant = useMemo(() => 
@@ -539,23 +568,6 @@ const ChatPageV2 = () => {
     return () => clearTimeout(timer);
   }, [conversationId, user, conversationMessages, loadMessages]);
 
-  useEffect(() => {
-    // Auto-scroll to bottom for new messages
-    if (conversationMessages.length > 0) {
-      setTimeout(() => {
-        messagesEndRef.current?.scrollIntoView({ behavior: 'auto' });
-      }, 100);
-    }
-  }, [conversationMessages.length]);
-
-  // Initial load scroll
-  useEffect(() => {
-    if (conversationId && conversationMessages.length > 0) {
-      setTimeout(() => {
-        messagesEndRef.current?.scrollIntoView({ behavior: 'auto' });
-      }, 300);
-    }
-  }, [conversationId]);
 
   const handleSendMessage = useCallback(async () => {
     if (!newMessage.trim() || !conversationId || !user) return;
@@ -582,6 +594,8 @@ const ChatPageV2 = () => {
 
     try {
       await sendMessage(conversationId, user.id, msg, undefined, undefined, replyTo?.id);
+      // Auto-scroll to bottom after sending message
+      setTimeout(() => scrollToBottom(), 100);
     } catch (error: any) {
       // Clear from deduplication on error to allow retry
       clearMessage(clientId);
@@ -593,7 +607,7 @@ const ChatPageV2 = () => {
         variant: "destructive"
       });
     }
-  }, [newMessage, conversationId, user, replyingTo, sendMessage, toast, generateClientId, isDuplicate, markAsSent, clearMessage]);
+  }, [newMessage, conversationId, user, replyingTo, sendMessage, toast, generateClientId, isDuplicate, markAsSent, clearMessage, scrollToBottom]);
 
   const handleReply = (message: any) => {
     setReplyingTo(message);

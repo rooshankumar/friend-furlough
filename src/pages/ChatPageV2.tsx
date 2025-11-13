@@ -165,26 +165,26 @@ const EnhancedMessageV2: React.FC<EnhancedMessageV2Props> = ({
                     src={message.media_url} 
                     alt="Shared image"
                     loading="lazy"
-                    className="max-w-[240px] rounded-lg"
+                    className="max-w-[200px] max-h-[160px] object-cover rounded-xl"
                   />
                 </div>
               ) : (
                 // Placeholder while uploading
-                <div className="w-48 h-48 bg-muted/20 rounded-2xl flex items-center justify-center">
+                <div className="w-48 h-32 bg-muted/20 rounded-xl flex items-center justify-center">
                   <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
                 </div>
               )}
 
               {/* Upload Progress Overlay */}
               {message.status === 'sending' && message.uploadProgress !== undefined && message.uploadProgress < 100 && (
-                <div className="absolute inset-0 bg-black/40 rounded-2xl flex items-center justify-center backdrop-blur-sm">
+                <div className="absolute inset-0 bg-black/40 rounded-xl flex items-center justify-center backdrop-blur-sm">
                   <CompactUploadProgress progress={message.uploadProgress} size={48} strokeWidth={4} />
                 </div>
               )}
 
               {/* Failed Upload Overlay with Retry and Remove */}
               {message.status === 'failed' && (
-                <div className="absolute inset-0 bg-red-500/40 rounded-2xl flex flex-col items-center justify-center backdrop-blur-sm gap-2 p-3 text-center">
+                <div className="absolute inset-0 bg-red-500/40 rounded-xl flex flex-col items-center justify-center backdrop-blur-sm gap-2 p-3 text-center">
                   <div className="text-white text-sm font-semibold">Upload Failed</div>
                   <div className="text-white/90 text-xs">This failed upload will disappear in 30s</div>
                   <div className="flex gap-2 mt-1">
@@ -363,7 +363,7 @@ const ChatPageV2 = () => {
     onRefresh: async () => {
       if (conversationId) {
         await loadMessages(conversationId);
-        toast({ title: 'Messages refreshed' });
+        // Removed toast notification for minimal UI
       }
     },
     threshold: 80,
@@ -375,7 +375,7 @@ const ChatPageV2 = () => {
     onRefresh: async () => {
       if (user) {
         await loadConversations(user.id);
-        toast({ title: 'Conversations refreshed' });
+        // Removed toast notification for minimal UI
       }
     },
     threshold: 80
@@ -509,14 +509,33 @@ const ChatPageV2 = () => {
   useEffect(() => {
     if (!conversationId || !user) return;
 
-    loadMessages(conversationId);
-    markAsRead(conversationId, user.id);
-    const channel = subscribeToMessages(conversationId);
+    // Check if current conversation exists in our local state
+    const conversationExists = conversations.some(conv => conv.id === conversationId);
+    
+    // Only reload if conversation doesn't exist AND we have other conversations loaded
+    // This prevents infinite loops
+    if (!conversationExists && conversations.length > 0) {
+      console.log('🔄 Conversation not found locally, reloading conversations...');
+      loadConversations(user.id);
+    }
+  }, [conversationId, user?.id]); // Removed conversations from dependencies to prevent infinite loop
 
-    return () => {
-      unsubscribeFromMessages();
-    };
-  }, [conversationId, user?.id]);
+  // Load messages when conversation becomes available
+  useEffect(() => {
+    if (!conversationId || !user) return;
+    
+    const conversationExists = conversations.some(conv => conv.id === conversationId);
+    if (conversationExists) {
+      console.log('✅ Conversation found, loading messages...');
+      loadMessages(conversationId);
+      markAsRead(conversationId, user.id);
+      const channel = subscribeToMessages(conversationId);
+      
+      return () => {
+        unsubscribeFromMessages();
+      };
+    }
+  }, [conversations.length, conversationId, user?.id]); // Trigger when conversations are loaded
 
   // Note: Online status is now tracked via usePresence hook above
 
@@ -1173,7 +1192,7 @@ const ChatPageV2 = () => {
             fallbackMessage="Unable to display messages"
             onReset={() => conversationId && loadMessages(conversationId)}
           >
-            <div ref={messagesPullToRefresh.containerRef} className="messages-container flex-1 overflow-y-auto p-4 space-y-2 relative" style={{ WebkitOverflowScrolling: 'touch' }}>
+            <div ref={messagesPullToRefresh.containerRef} className="messages-container flex-1 overflow-y-auto p-4 space-y-3 relative" style={{ WebkitOverflowScrolling: 'touch' }}>
               <PullToRefreshIndicator 
                 pullDistance={messagesPullToRefresh.pullDistance}
                 isRefreshing={messagesPullToRefresh.isRefreshing}
@@ -1211,7 +1230,7 @@ const ChatPageV2 = () => {
                           </Avatar>
                         )}
                         
-                        <div className={`flex flex-col ${isOwnMessage ? 'items-end' : 'items-start'}`}>
+                        <div className={`flex flex-col ${isOwnMessage ? 'items-end' : 'items-start'} max-w-[75%]`}>
                           <ImageGrid 
                             images={item.messages}
                             onImageClick={setViewingImage}

@@ -44,7 +44,7 @@ const SignInPage = () => {
       
       // Navigate based on onboarding status
       if (onboardingCompleted) {
-        navigate('/dashboard');
+        navigate('/explore');
       } else {
         navigate('/onboarding/cultural-profile');
       }

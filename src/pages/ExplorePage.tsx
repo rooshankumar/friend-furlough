@@ -55,7 +55,7 @@ export default function ExplorePage() {
     onRefresh: async () => {
       await loadUsers();
       shuffleUsers(filteredUsers);
-      toast.success('Users refreshed');
+      // Removed toast notification for minimal UI
     },
     threshold: 80
   });
@@ -145,85 +145,23 @@ export default function ExplorePage() {
         return;
       }
 
-      // Check if conversation already exists - improved approach
-      // First get all conversations the current user participates in
-      const { data: userConversations } = await supabase
-        .from('conversation_participants')
-        .select('conversation_id')
-        .eq('user_id', user!.id);
+      // Use centralized conversation manager
+      const { ConversationManager } = await import('@/lib/conversationManager');
+      const result = await ConversationManager.findOrCreateConversation(
+        user!.id, 
+        profileId
+      );
 
-      if (userConversations && userConversations.length > 0) {
-        // Check if the target user participates in any of these conversations
-        const conversationIds = userConversations.map(c => c.conversation_id);
-        
-        const { data: existingConversation } = await supabase
-          .from('conversation_participants')
-          .select('conversation_id')
-          .eq('user_id', profileId)
-          .in('conversation_id', conversationIds)
-          .limit(1)
-          .maybeSingle();
-
-        if (existingConversation) {
-          // Conversation already exists
+      if (result) {
+        if (result.isNew) {
+          toast.success('Conversation created successfully!');
+        } else {
           toast.success('Opening existing conversation');
-          navigate(`/chat/${existingConversation.conversation_id}`);
-          return;
         }
+        navigate(`/chat/${result.conversationId}`);
+      } else {
+        toast.error('Failed to create conversation');
       }
-
-      // Create new conversation
-      console.log('Creating conversation with user_id:', session.user.id);
-      console.log('Auth session:', session);
-      
-      // Try without explicitly setting user_id - let the database default handle it
-      const { data: conversation, error: convError } = await supabase
-        .from('conversations')
-        .insert({ 
-          is_language_exchange: true
-        })
-        .select()
-        .single();
-
-      if (convError) {
-        console.error('Conversation creation error:', convError);
-        console.error('Full error details:', JSON.stringify(convError, null, 2));
-        toast.error(`Failed to start conversation: ${convError.message}`);
-        return;
-      }
-
-      // Add participants
-      const { data: participants, error: participantError } = await supabase
-        .from('conversation_participants')
-        .insert([
-          { conversation_id: conversation.id, user_id: session.user.id },
-          { conversation_id: conversation.id, user_id: profileId }
-        ])
-        .select();
-
-      if (participantError) {
-        console.error('Participant creation error:', participantError);
-        toast.error('Failed to add participants. Please try again.');
-        return;
-      }
-
-      // Verify participants were added
-      const { data: verifyParticipants } = await supabase
-        .from('conversation_participants')
-        .select('user_id')
-        .eq('conversation_id', conversation.id);
-
-      console.log('✅ Participants verified:', verifyParticipants);
-
-      // Reload conversations to get participant details before navigating
-      const { loadConversations } = await import('@/stores/chatStore').then(m => m.useChatStore.getState());
-      await loadConversations(session.user.id);
-
-      // Small delay to ensure state is updated
-      await new Promise(resolve => setTimeout(resolve, 300));
-
-      toast.success('Conversation started!');
-      navigate(`/chat/${conversation.id}`);
     } catch (error) {
       console.error('Error starting conversation:', error);
       toast.error('Something went wrong. Please try again.');

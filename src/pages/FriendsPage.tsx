@@ -329,94 +329,33 @@ const FriendsPage = () => {
         return;
       }
 
-      // Check if conversation already exists - improved approach
-      // First get all conversations the current user participates in
-      const { data: userConversations } = await supabase
-        .from('conversation_participants')
-        .select('conversation_id')
-        .eq('user_id', user!.id);
+      // Use centralized conversation manager
+      const { ConversationManager } = await import('@/lib/conversationManager');
+      const result = await ConversationManager.findOrCreateConversation(
+        user!.id, 
+        userId
+      );
 
-      if (userConversations && userConversations.length > 0) {
-        // Check if the target user participates in any of these conversations
-        const conversationIds = userConversations.map(c => c.conversation_id);
-        
-        const { data: existingConversation } = await supabase
-          .from('conversation_participants')
-          .select('conversation_id')
-          .eq('user_id', userId)
-          .in('conversation_id', conversationIds)
-          .limit(1)
-          .maybeSingle();
-
-        if (existingConversation) {
-          // Conversation already exists
+      if (result) {
+        if (result.isNew) {
+          toast({
+            title: 'Conversation started!',
+            description: 'You can now chat with this user',
+          });
+        } else {
           toast({
             title: 'Opening existing conversation',
             description: 'You already have a conversation with this user',
           });
-          navigate(`/chat/${existingConversation.conversation_id}`);
-          return;
         }
-      }
-
-      // Create new conversation
-      const { data: conversation, error: convError } = await supabase
-        .from('conversations')
-        .insert({ 
-          is_language_exchange: true
-        })
-        .select()
-        .single();
-
-      if (convError) {
-        console.error('Conversation creation error:', convError);
+        navigate(`/chat/${result.conversationId}`);
+      } else {
         toast({
           title: 'Failed to start conversation',
-          description: convError.message,
+          description: 'Please try again',
           variant: 'destructive',
         });
-        return;
       }
-
-      // Add participants
-      const { data: participants, error: participantError } = await supabase
-        .from('conversation_participants')
-        .insert([
-          { conversation_id: conversation.id, user_id: session.user.id },
-          { conversation_id: conversation.id, user_id: userId }
-        ])
-        .select();
-
-      if (participantError) {
-        console.error('Participant creation error:', participantError);
-        toast({
-          title: 'Failed to add participants',
-          description: 'Please try again.',
-          variant: 'destructive',
-        });
-        return;
-      }
-
-      // Verify participants were added
-      const { data: verifyParticipants } = await supabase
-        .from('conversation_participants')
-        .select('user_id')
-        .eq('conversation_id', conversation.id);
-
-      console.log('✅ Participants verified:', verifyParticipants);
-
-      // Reload conversations to get participant details before navigating
-      const { loadConversations } = await import('@/stores/chatStore').then(m => m.useChatStore.getState());
-      await loadConversations(session.user.id);
-
-      // Small delay to ensure state is updated
-      await new Promise(resolve => setTimeout(resolve, 300));
-
-      toast({
-        title: 'Conversation started!',
-        description: 'You can now chat with your friend',
-      });
-      navigate(`/chat/${conversation.id}`);
     } catch (error) {
       console.error('Error starting conversation:', error);
       toast({

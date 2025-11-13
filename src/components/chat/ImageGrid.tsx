@@ -26,21 +26,21 @@ export const ImageGrid: React.FC<ImageGridProps> = ({
 }) => {
   const imageCount = images.length;
 
-  // Single image - compact thumbnail with max height
+  // Single image - compact thumbnail with consistent sizing
   if (imageCount === 1) {
     const image = images[0];
     return (
-      <div className="relative group max-w-[240px]">
+      <div className="relative group w-full max-w-[200px]">
         {image.media_url ? (
           <div 
             onClick={() => onImageClick?.(image.media_url!)}
-            className="cursor-pointer hover:opacity-90 transition-opacity relative overflow-hidden rounded-lg"
+            className="cursor-pointer hover:opacity-90 transition-opacity relative overflow-hidden rounded-xl"
           >
             <B2Image 
               src={image.media_url} 
               alt="Shared image"
               loading="lazy"
-              className="w-full max-h-[220px] object-cover rounded-lg"
+              className="w-full h-auto max-h-[160px] object-cover rounded-xl"
             />
             {/* Click to expand indicator */}
             <div className="absolute bottom-2 right-2 bg-black/50 backdrop-blur-sm rounded-full p-1.5 opacity-0 group-hover:opacity-100 transition-opacity">
@@ -50,7 +50,7 @@ export const ImageGrid: React.FC<ImageGridProps> = ({
             </div>
           </div>
         ) : (
-          <div className="w-full h-48 bg-muted/20 rounded-lg flex items-center justify-center">
+          <div className="w-full h-32 bg-muted/20 rounded-xl flex items-center justify-center">
             <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
           </div>
         )}
@@ -59,12 +59,12 @@ export const ImageGrid: React.FC<ImageGridProps> = ({
     );
   }
 
-  // Two images - side by side with max height
+  // Two images - side by side with consistent sizing
   if (imageCount === 2) {
     return (
-      <div className="grid grid-cols-2 gap-1 max-w-[240px] max-h-[140px]">
+      <div className="grid grid-cols-2 gap-1 w-full max-w-[200px]">
         {images.map((image) => (
-          <div key={image.id} className="relative group h-full">
+          <div key={image.id} className="relative group aspect-square">
             {image.media_url ? (
               <div 
                 onClick={() => onImageClick?.(image.media_url!)}
@@ -97,10 +97,10 @@ export const ImageGrid: React.FC<ImageGridProps> = ({
     );
   }
 
-  // Three images - 1 large + 2 small with max height
+  // Three images - 1 large + 2 small with consistent sizing
   if (imageCount === 3) {
     return (
-      <div className="grid grid-cols-2 gap-1 max-w-[240px] max-h-[180px]">
+      <div className="grid grid-cols-2 gap-1 w-full max-w-[200px] h-[120px]">
         {/* First image takes full left side */}
         <div className="relative group row-span-2 h-full">
           {images[0].media_url ? (
@@ -164,9 +164,9 @@ export const ImageGrid: React.FC<ImageGridProps> = ({
     );
   }
 
-  // Four or more images - 2x2 grid with max height (show +N for more)
+  // Four or more images - 2x2 grid with consistent sizing (show +N for more)
   return (
-    <div className="grid grid-cols-2 gap-1 max-w-[240px] max-h-[180px]">
+    <div className="grid grid-cols-2 gap-1 w-full max-w-[200px] h-[120px]">
       {images.slice(0, 4).map((image, index) => (
         <div key={image.id} className="relative group h-full">
           {image.media_url ? (
@@ -183,7 +183,7 @@ export const ImageGrid: React.FC<ImageGridProps> = ({
               {/* Show +N overlay on last image if more than 4 */}
               {index === 3 && imageCount > 4 && (
                 <div className="absolute inset-0 bg-black/60 rounded-lg flex items-center justify-center">
-                  <span className="text-white text-2xl font-bold">+{imageCount - 4}</span>
+                  <span className="text-white text-lg font-bold">+{imageCount - 4}</span>
                 </div>
               )}
               {/* Expand icon on hover (not on +N image) */}

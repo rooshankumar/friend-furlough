@@ -92,6 +92,11 @@ export const useChatStore = create<ChatState>((set, get) => ({
     set({ isLoading: true });
 
     try {
+      // Start background cleanup service for empty conversations
+      const { ChatCleanupService } = await import('@/lib/chatCleanupService');
+      if (!ChatCleanupService.isServiceRunning()) {
+        ChatCleanupService.start(userId);
+      }
       let userParticipants = null;
 
       try {
@@ -129,7 +134,7 @@ export const useChatStore = create<ChatState>((set, get) => ({
           if (cachedConversations.length > 0) {
             console.log(`✅ Loaded ${cachedConversations.length} conversations from offline cache`);
             set({ conversations: cachedConversations, isLoading: false });
-            toast.info('Offline Mode - Showing cached conversations');
+            // Removed offline mode toast for minimal UI
             return;
           }
         } catch (cacheError) {
@@ -143,8 +148,15 @@ export const useChatStore = create<ChatState>((set, get) => ({
         return;
       }
 
-      // Extract unique conversation IDs (remove duplicates)
-      const conversationIds = [...new Set(userParticipants.map(up => up.conversation_id))];
+      // Extract unique conversation IDs (remove duplicates and filter out nulls)
+      const validIds: string[] = [];
+      for (const up of userParticipants) {
+        const id = (up as any).conversation_id;
+        if (id && typeof id === 'string') {
+          validIds.push(id);
+        }
+      }
+      const conversationIds: string[] = [...new Set(validIds)];
 
       // Batch fetch: Get ALL participants for all conversations in one query
       const { data: allParticipants, error: allParticipantsError } = await supabase
@@ -181,6 +193,7 @@ export const useChatStore = create<ChatState>((set, get) => ({
 
       // Group participants by conversation_id
       const participantsByConversation: { [key: string]: any[] } = {};
+      console.log('🔍 Raw participants data:', allParticipants);
       allParticipants?.forEach(p => {
         if (!participantsByConversation[p.conversation_id]) {
           participantsByConversation[p.conversation_id] = [];
@@ -190,6 +203,7 @@ export const useChatStore = create<ChatState>((set, get) => ({
           profiles: p.profiles
         });
       });
+      console.log('🔍 Grouped participants:', participantsByConversation);
 
       // Group last messages by conversation_id (take first = most recent)
       const lastMessageByConversation: { [key: string]: DbMessage } = {};
@@ -222,10 +236,10 @@ export const useChatStore = create<ChatState>((set, get) => ({
 
       const conversationsWithDetails = Array.from(conversationMap.values());
 
-      // Filter out permanently deleted conversations AND conversations without messages
+      // Filter out permanently deleted conversations (but keep conversations without messages)
       const deletedConvs = JSON.parse(localStorage.getItem('deletedConversations') || '[]');
       const filteredConversations = conversationsWithDetails.filter(
-        conv => !deletedConvs.includes(conv.id) && conv.lastMessage !== undefined
+        conv => !deletedConvs.includes(conv.id)
       );
 
       // Sort by most recent activity
@@ -235,6 +249,7 @@ export const useChatStore = create<ChatState>((set, get) => ({
         return new Date(bTime).getTime() - new Date(aTime).getTime();
       });
 
+      console.log('🔍 Final conversations being set:', filteredConversations);
       set({ conversations: filteredConversations, isLoading: false });
     } catch (error) {
       console.error('Error loading conversations:', error);
@@ -304,7 +319,7 @@ export const useChatStore = create<ChatState>((set, get) => ({
           
           if (data.length > 0) {
             console.log(`✅ Loaded ${data.length} messages from offline cache`);
-            toast.info('Offline Mode - Showing cached messages');
+            // Removed offline mode toast for minimal UI
           }
         } catch (cacheError) {
           console.error('❌ Cache also failed:', cacheError);

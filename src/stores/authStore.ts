@@ -307,6 +307,14 @@ export const useAuthStore = create<AuthState>()(
       },
 
       signOut: async () => {
+        // Stop chat cleanup service
+        try {
+          const { ChatCleanupService } = await import('@/lib/chatCleanupService');
+          ChatCleanupService.stop();
+        } catch (error) {
+          console.error('Error stopping chat cleanup service:', error);
+        }
+
         await supabase.auth.signOut();
         set({
           user: null,

@@ -44,7 +44,7 @@ const ProfilePage = () => {
     onRefresh: async () => {
       setIsRefreshing(true);
       setRefreshTrigger(prev => prev + 1);
-      toast({ title: 'Profile refreshed' });
+      // Removed toast notification for minimal UI
     },
     threshold: 80
   });
@@ -159,11 +159,7 @@ const ProfilePage = () => {
           
           if (profileData) {
             console.log('✅ Loaded profile from offline cache');
-            toast({
-              title: "Offline Mode",
-              description: "Showing cached data",
-              variant: "default"
-            });
+            // Removed offline mode toast for minimal UI
           }
         } catch (cacheError) {
           console.error('❌ Cache also failed:', cacheError);
@@ -412,64 +408,22 @@ const ProfilePage = () => {
         return;
       }
 
-      // Check for existing conversation
-      const { data: existingParticipants } = await supabase
-        .from('conversation_participants')
-        .select('conversation_id')
-        .eq('user_id', authUser!.id);
+      // Use centralized conversation manager
+      const { ConversationManager } = await import('@/lib/conversationManager');
+      const result = await ConversationManager.findOrCreateConversation(
+        authUser!.id, 
+        profileUser.id
+      );
 
-      if (existingParticipants) {
-        for (const participant of existingParticipants) {
-          const { data: otherParticipant } = await supabase
-            .from('conversation_participants')
-            .select('conversation_id')
-            .eq('conversation_id', participant.conversation_id)
-            .eq('user_id', profileUser.id)
-            .maybeSingle();
-
-          if (otherParticipant) {
-            navigate(`/chat/${participant.conversation_id}`);
-            return;
-          }
-        }
+      if (result) {
+        navigate(`/chat/${result.conversationId}`);
+      } else {
+        toast({
+          title: 'Failed to create conversation',
+          description: 'Please try again',
+          variant: 'destructive',
+        });
       }
-
-      // Create new conversation
-      const { data: conversation, error: convError } = await supabase
-        .from('conversations')
-        .insert({ is_language_exchange: true })
-        .select()
-        .single();
-
-      if (convError) throw convError;
-
-      // Add participants
-      const { data: participants, error: participantsError } = await supabase
-        .from('conversation_participants')
-        .insert([
-          { conversation_id: conversation.id, user_id: authUser!.id },
-          { conversation_id: conversation.id, user_id: profileUser.id }
-        ])
-        .select();
-
-      if (participantsError) throw participantsError;
-
-      // Verify participants were added
-      const { data: verifyParticipants } = await supabase
-        .from('conversation_participants')
-        .select('user_id')
-        .eq('conversation_id', conversation.id);
-
-      console.log('✅ Participants verified:', verifyParticipants);
-
-      // Reload conversations to get participant details before navigating
-      const { loadConversations } = await import('@/stores/chatStore').then(m => m.useChatStore.getState());
-      await loadConversations(authUser!.id);
-
-      // Small delay to ensure state is updated
-      await new Promise(resolve => setTimeout(resolve, 300));
-
-      navigate(`/chat/${conversation.id}`);
     } catch (error: any) {
       console.error('Error starting conversation:', error);
       toast({

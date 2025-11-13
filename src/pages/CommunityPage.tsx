@@ -120,7 +120,7 @@ const CommunityPage = () => {
   const postsPullToRefresh = usePullToRefresh({
     onRefresh: async () => {
       await loadPosts(true);
-      toast({ title: 'Posts refreshed' });
+      // Removed toast notification for minimal UI
     },
     threshold: 80
   });

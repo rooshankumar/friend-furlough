@@ -84,10 +84,26 @@ const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
   return <>{children}</>;
 };
 
+// Component to handle root path redirects
+const RootRedirect = () => {
+  const { isAuthenticated, onboardingCompleted } = useAuthStore();
+
+  if (isAuthenticated && onboardingCompleted) {
+    return <Navigate to="/explore" replace />;
+  }
+
+  if (isAuthenticated && !onboardingCompleted) {
+    return <Navigate to="/onboarding/cultural-profile" replace />;
+  }
+
+  // Not authenticated - show home page
+  return <HomePage />;
+};
+
 // Component that uses QueryClient - must be inside QueryClientProvider
 const AppContent = () => {
   const location = useLocation();
-  const { isAuthenticated } = useAuthStore();
+  const { isAuthenticated, onboardingCompleted } = useAuthStore();
   
   // Initialize optimizations
   useMasterOptimization();
@@ -113,7 +129,7 @@ const AppContent = () => {
       <InstallPWA />
       <Suspense fallback={<PageLoadingFallback />}>
         <Routes>
-          <Route path="/" element={<HomePage />} />
+          <Route path="/" element={<RootRedirect />} />
 
           {/* Legal Pages */}
           <Route path="/privacy-policy" element={<PrivacyPolicy />} />

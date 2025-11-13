@@ -86,23 +86,17 @@ const MinimalNavigation = () => {
   // Handle tap-to-refresh on navigation (desktop only)
   const handleRefresh = async () => {
     if (isMobile) {
-      // On mobile, use background sync instead of manual refresh
-      toast.success('Auto-sync is active', {
-        description: 'Updates happen automatically in the background'
-      });
+      // On mobile, use background sync instead of manual refresh - silent
       return;
     }
 
-    // Desktop: Show loading and refresh
-    const loadingToast = toast.loading('Refreshing...');
-    
+    // Desktop: Refresh silently in background
     try {
       await manualSync();
-      toast.dismiss(loadingToast);
-      toast.success('Refreshed successfully');
+      // Removed loading and success toasts for minimal UI
     } catch (error) {
-      toast.dismiss(loadingToast);
       console.error('Refresh error:', error);
+      // Keep error toast as it's important for user feedback
       toast.error('Refresh failed');
     }
   };

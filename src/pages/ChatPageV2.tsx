@@ -1192,7 +1192,7 @@ const ChatPageV2 = () => {
             fallbackMessage="Unable to display messages"
             onReset={() => conversationId && loadMessages(conversationId)}
           >
-            <div ref={messagesPullToRefresh.containerRef} className="messages-container flex-1 overflow-y-auto p-4 space-y-3 relative" style={{ WebkitOverflowScrolling: 'touch' }}>
+            <div ref={messagesPullToRefresh.containerRef} className="messages-container flex-1 overflow-y-auto p-4 relative" style={{ WebkitOverflowScrolling: 'touch' }}>
               <PullToRefreshIndicator 
                 pullDistance={messagesPullToRefresh.pullDistance}
                 isRefreshing={messagesPullToRefresh.isRefreshing}
@@ -1216,10 +1216,32 @@ const ChatPageV2 = () => {
                   const isOwnMessage = item.sender_id === user?.id;
                   const isLastOwnMessage = isOwnMessage && index === lastOwnMessageIndex && isLastMessageFromCurrentUser;
                   
+                  // Dynamic spacing based on message types
+                  const prevItem = index > 0 ? groupedMessages[index - 1] : null;
+                  const getMessageSpacing = () => {
+                    if (index === 0) return ''; // No top margin for first message
+                    
+                    const currentIsMedia = item.type === 'image_group' || item.type === 'image' || item.type === 'voice' || item.type === 'file';
+                    const prevIsMedia = prevItem && (prevItem.type === 'image_group' || prevItem.type === 'image' || prevItem.type === 'voice' || prevItem.type === 'file');
+                    
+                    // Large gap: between media and text, or text and media
+                    if ((currentIsMedia && !prevIsMedia) || (!currentIsMedia && prevIsMedia)) {
+                      return 'mt-4';
+                    }
+                    // Medium gap: between media and media
+                    else if (currentIsMedia && prevIsMedia) {
+                      return 'mt-3';
+                    }
+                    // Small gap: between text and text
+                    else {
+                      return 'mt-1';
+                    }
+                  };
+                  
                   // Handle image groups
                   if (item.type === 'image_group') {
                     return (
-                      <div key={item.id} className={`flex items-end gap-2 ${isOwnMessage ? 'flex-row-reverse' : 'flex-row'}`}>
+                      <div key={item.id} className={`flex items-end gap-2 ${isOwnMessage ? 'flex-row-reverse' : 'flex-row'} ${getMessageSpacing()}`}>
                         {/* Avatar for received messages */}
                         {!isOwnMessage && (
                           <Avatar className="h-8 w-8 mt-auto">
@@ -1263,20 +1285,21 @@ const ChatPageV2 = () => {
                   
                   // Handle regular messages
                   return (
-                    <EnhancedMessageV2
-                      key={item.id}
-                      message={item}
-                      isOwnMessage={isOwnMessage}
-                      isLastMessage={isLastOwnMessage}
-                      otherUser={otherParticipant?.profiles}
-                      onReply={handleReply}
-                      onReact={handleReact}
-                      onCopy={handleCopyMessage}
-                      onDelete={handleDeleteMessage}
-                      onRetry={handleRetryUpload}
-                      onRemove={handleRemoveFailedUpload}
-                      onImageClick={setViewingImage}
-                    />
+                    <div key={item.id} className={getMessageSpacing()}>
+                      <EnhancedMessageV2
+                        message={item}
+                        isOwnMessage={isOwnMessage}
+                        isLastMessage={isLastOwnMessage}
+                        otherUser={otherParticipant?.profiles}
+                        onReply={handleReply}
+                        onReact={handleReact}
+                        onCopy={handleCopyMessage}
+                        onDelete={handleDeleteMessage}
+                        onRetry={handleRetryUpload}
+                        onRemove={handleRemoveFailedUpload}
+                        onImageClick={setViewingImage}
+                      />
+                    </div>
                   );
                 });
               })()}

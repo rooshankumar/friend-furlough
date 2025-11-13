@@ -268,42 +268,49 @@ export const MobileFileUploadOptimized: React.FC<MobileFileUploadOptimizedProps>
             onClick={() => setShowOptions(false)}
           />
           
-          {/* Options panel */}
-          <div className="absolute bottom-full right-0 mb-2 bg-background border border-border rounded-lg shadow-lg z-50 min-w-[200px]">
-            <div className="p-2">
-              <div className="flex items-center justify-between mb-2">
-                <span className="text-sm font-medium">Attach File</span>
+          {/* Mobile-responsive options panel */}
+          <div className="fixed bottom-0 left-0 right-0 sm:absolute sm:bottom-full sm:right-0 sm:left-auto sm:mb-2 sm:max-w-xs bg-background border-t sm:border sm:border-border sm:rounded-lg shadow-lg z-50 slide-up sm:fade-in">
+            <div className="p-4 sm:p-3">
+              <div className="flex items-center justify-between mb-3 sm:mb-2">
+                <span className="text-base sm:text-sm font-medium">Attach File</span>
                 <Button
                   size="sm"
                   variant="ghost"
-                  className="h-6 w-6 p-0"
+                  className="h-8 w-8 sm:h-6 sm:w-6 p-0"
                   onClick={() => setShowOptions(false)}
                 >
-                  <X className="h-3 w-3" />
+                  <X className="h-4 w-4 sm:h-3 sm:w-3" />
                 </Button>
               </div>
               
-              <div className="space-y-1">
+              {/* Mobile: Grid layout, Desktop: Vertical list */}
+              <div className="grid grid-cols-2 gap-2 sm:flex sm:flex-col sm:space-y-1 sm:gap-0">
                 {fileOptions.map((option) => (
                   <Button
                     key={option.id}
                     variant="ghost"
-                    className="w-full justify-start h-10 px-3"
+                    className="flex flex-col items-center justify-center h-16 sm:h-10 sm:flex-row sm:justify-start px-3 text-sm touch-feedback"
                     onClick={() => handleFileSelect(option)}
                     disabled={isProcessing}
                   >
-                    {option.icon}
-                    <span className="ml-3">{option.label}</span>
+                    <div className="sm:hidden mb-1">{option.icon}</div>
+                    <div className="hidden sm:block">{option.icon}</div>
+                    <span className="text-xs sm:text-sm sm:ml-3 text-center sm:text-left">
+                      {option.label}
+                    </span>
                   </Button>
                 ))}
               </div>
               
               {/* Connection status indicator */}
               {isSlowConnection() && (
-                <div className="mt-2 p-2 bg-orange-50 dark:bg-orange-900/20 rounded text-xs text-orange-600 dark:text-orange-400">
+                <div className="mt-3 sm:mt-2 p-2 bg-orange-50 dark:bg-orange-900/20 rounded text-xs text-orange-600 dark:text-orange-400">
                   Slow connection detected. Images will be compressed.
                 </div>
               )}
+              
+              {/* Mobile: Safe area padding for devices with home indicator */}
+              <div className="safe-area-bottom sm:hidden" />
             </div>
           </div>
         </>

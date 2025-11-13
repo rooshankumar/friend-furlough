@@ -646,7 +646,7 @@ export default function ExplorePage() {
                 <div className="flex gap-2 w-full mt-auto">
                   <Button
                     onClick={() => startConversation(profile.id)}
-                    className="flex-1 h-8 text-xs"
+                    className="h-8 text-xs px-3 min-w-[60px]"
                     size="sm"
                     disabled={isCreatingConversation}
                   >

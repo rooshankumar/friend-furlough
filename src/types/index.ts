@@ -12,6 +12,7 @@ export interface User {
   bio: string;
   age: number;
   gender?: 'male' | 'female' | 'non-binary' | 'prefer-not-to-say';
+   profession?: string;
   profilePhoto?: string;
   avatar_url?: string;
   online: boolean;

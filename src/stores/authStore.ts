@@ -14,6 +14,7 @@ interface Profile {
   city?: string;
   age?: number;
   gender?: 'male' | 'female' | 'non-binary' | 'prefer-not-to-say';
+  profession?: string;
   online: boolean;
   last_seen?: string;
   onboarding_completed?: boolean;

@@ -10,7 +10,8 @@ import {
   Globe,
   Plane,
   Star,
-  Sparkles
+  Sparkles,
+  Briefcase
 } from 'lucide-react';
 import { User } from '@/types';
 
@@ -29,9 +30,8 @@ export const ProfileInfoGrid: React.FC<ProfileInfoGridProps> = ({
   nativeLanguages,
   learningLanguages
 }) => {
-  const hasLanguages = nativeLanguages.length > 0 || learningLanguages.length > 0 || 
-                       (profileUser.countriesVisited && profileUser.countriesVisited.length > 0);
-  const hasInterests = culturalInterests.length > 0 || lookingFor.length > 0;
+  const hasLanguages = nativeLanguages.length > 0 || learningLanguages.length > 0;
+  const joinedYear = profileUser.joinedDate ? new Date(profileUser.joinedDate).getFullYear() : null;
 
   return (
     <div className="bg-card rounded-xl border border-border/50 shadow-sm overflow-hidden">
@@ -49,6 +49,11 @@ export const ProfileInfoGrid: React.FC<ProfileInfoGridProps> = ({
                 {profileUser.bio || "This user hasn't written a bio yet."}
               </p>
             </div>
+            {joinedYear && (
+              <p className="mt-2 text-xs text-muted-foreground">
+                Joined in {joinedYear}
+              </p>
+            )}
           </div>
 
           {/* Looking For Section */}
@@ -76,31 +81,6 @@ export const ProfileInfoGrid: React.FC<ProfileInfoGridProps> = ({
             </div>
           )}
 
-          {/* Interests Section */}
-          {culturalInterests.length > 0 && (
-            <div>
-              <div className="flex items-center gap-2 mb-2">
-                <Sparkles className="h-4 w-4 text-accent" />
-                <h3 className="text-sm font-semibold text-card-foreground">Interests</h3>
-              </div>
-              <div className="flex flex-wrap gap-1.5">
-                {culturalInterests.slice(0, 8).map((interest: string, index: number) => (
-                  <Badge 
-                    key={`${interest}-${index}`} 
-                    variant="secondary" 
-                    className="bg-purple-50 text-purple-700 border-purple-200 hover:bg-purple-100 transition-colors px-2 py-0.5 text-xs"
-                  >
-                    #{interest}
-                  </Badge>
-                ))}
-                {culturalInterests.length > 8 && (
-                  <Badge variant="outline" className="text-xs px-2 py-0.5">
-                    +{culturalInterests.length - 8} more
-                  </Badge>
-                )}
-              </div>
-            </div>
-          )}
         </div>
 
         {/* Right Column - Languages & Countries */}
@@ -146,32 +126,16 @@ export const ProfileInfoGrid: React.FC<ProfileInfoGridProps> = ({
                 </div>
               )}
 
-              {/* Countries Visited */}
-              {profileUser.countriesVisited && profileUser.countriesVisited.length > 0 && (
+              {/* Profession */}
+              {(profileUser as any).profession && (
                 <div>
-                  <div className="flex items-center gap-1.5 mb-2">
-                    <Plane className="h-3.5 w-3.5 text-green-500" />
-                    <h4 className="text-xs font-medium text-foreground">
-                      Visited ({profileUser.countriesVisited.length})
-                    </h4>
+                  <div className="flex items-center gap-1.5 mb-2 mt-3">
+                    <Briefcase className="h-3.5 w-3.5 text-blue-600" />
+                    <h4 className="text-xs font-medium text-foreground">Profession</h4>
                   </div>
-                  <div className="flex flex-wrap gap-1.5">
-                    {profileUser.countriesVisited.slice(0, 6).map((country: string, index: number) => (
-                      <Badge 
-                        key={`${country}-${index}`} 
-                        variant="outline" 
-                        className="text-xs px-2 py-0.5"
-                      >
-                        <Globe className="h-2.5 w-2.5 mr-1" />
-                        {country}
-                      </Badge>
-                    ))}
-                    {profileUser.countriesVisited.length > 6 && (
-                      <Badge variant="outline" className="text-xs px-2 py-0.5">
-                        +{profileUser.countriesVisited.length - 6}
-                      </Badge>
-                    )}
-                  </div>
+                  <p className="text-sm text-card-foreground">
+                    {(profileUser as any).profession}
+                  </p>
                 </div>
               )}
             </>

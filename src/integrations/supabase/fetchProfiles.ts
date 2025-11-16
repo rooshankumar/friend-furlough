@@ -58,6 +58,7 @@ export async function fetchProfiles(): Promise<User[]> {
       bio: profile.bio || '',
       age: profile.age || 0,
       gender: profile.gender,
+      profession: profile.profession || '',
       profilePhoto: profile.avatar_url || '',
       avatar_url: profile.avatar_url || '',
       online: profile.online || false,

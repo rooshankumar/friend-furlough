@@ -60,7 +60,8 @@ export default function SettingsPage() {
     looking_for: [] as string[],
     language_goals: [] as string[],
     countries_visited: [] as string[],
-    teaching_experience: false
+    teaching_experience: false,
+    profession: ''
   });
 
   const [nativeLanguages, setNativeLanguages] = useState<string[]>([]);
@@ -81,7 +82,8 @@ export default function SettingsPage() {
         looking_for: profile.looking_for || [],
         language_goals: profile.language_goals || [],
         countries_visited: profile.countries_visited || [],
-        teaching_experience: profile.teaching_experience || false
+        teaching_experience: profile.teaching_experience || false,
+        profession: (profile as any).profession || ''
       });
     }
   }, [profile]);
@@ -172,9 +174,30 @@ export default function SettingsPage() {
     setFormData(prev => ({ ...prev, [field]: value }));
   };
 
+  const handleArrayAdd = (field: string, value: string) => {
+    if (value) {
+      const currentArray = formData[field as keyof typeof formData] as string[];
+      if (Array.isArray(currentArray) && !currentArray.includes(value)) {
+        setFormData(prev => ({
+          ...prev,
+          [field]: [...currentArray, value]
+        }));
+      }
+    }
+  };
+
+  const handleArrayRemove = (field: string, value: string) => {
+    setFormData(prev => ({
+      ...prev,
+      [field]: (prev[field as keyof typeof prev] as string[]).filter(item => item !== value)
+    }));
+  };
+
   const addNativeLanguage = () => {
     if (newNativeLang && !nativeLanguages.includes(newNativeLang)) {
       setNativeLanguages([...nativeLanguages, newNativeLang]);
+      // Ensure uniqueness between native and learning
+      setLearningLanguages(prev => prev.filter(l => l !== newNativeLang));
       setNewNativeLang('');
     }
   };
@@ -182,6 +205,8 @@ export default function SettingsPage() {
   const addLearningLanguage = () => {
     if (newLearningLang && !learningLanguages.includes(newLearningLang)) {
       setLearningLanguages([...learningLanguages, newLearningLang]);
+      // Ensure uniqueness between learning and native
+      setNativeLanguages(prev => prev.filter(l => l !== newLearningLang));
       setNewLearningLang('');
     }
   };
@@ -200,6 +225,11 @@ export default function SettingsPage() {
     setIsSaving(true);
     try {
       // Update profile
+      // Normalize profession: first letter uppercase
+      const normalizedProfession = formData.profession
+        ? formData.profession.trim().charAt(0).toUpperCase() + formData.profession.trim().slice(1)
+        : null;
+
       const { error: profileError } = await supabase
         .from('profiles')
         .update({
@@ -213,6 +243,7 @@ export default function SettingsPage() {
           language_goals: formData.language_goals,
           countries_visited: formData.countries_visited,
           teaching_experience: formData.teaching_experience,
+          profession: normalizedProfession,
           updated_at: new Date().toISOString()
         })
         .eq('id', user.id);
@@ -389,7 +420,7 @@ export default function SettingsPage() {
               </CardContent>
             </Card>
 
-            {/* Profile Info */}
+            {/* Personal Information - first */}
             <Card>
               <CardHeader>
                 <CardTitle>Personal Information</CardTitle>
@@ -471,16 +502,14 @@ export default function SettingsPage() {
               </CardContent>
             </Card>
 
-            {/* Languages */}
+            {/* Languages & Preferences - merged */}
             <Card>
               <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <Languages className="h-5 w-5" />
-                  Languages
-                </CardTitle>
+                <CardTitle>Languages & Preferences</CardTitle>
               </CardHeader>
               <CardContent className="space-y-4">
-                <div>
+                {/* Native Languages */}
+                <div className="space-y-2">
                   <Label>Native Languages</Label>
                   <div className="flex gap-2 mt-2 flex-wrap">
                     {nativeLanguages.map(lang => (
@@ -507,9 +536,8 @@ export default function SettingsPage() {
                   </div>
                 </div>
 
-                <Separator />
-
-                <div>
+                {/* Learning Languages */}
+                <div className="space-y-2">
                   <Label>Learning Languages</Label>
                   <div className="flex gap-2 mt-2 flex-wrap">
                     {learningLanguages.map(lang => (
@@ -534,6 +562,47 @@ export default function SettingsPage() {
                       <Plus className="h-4 w-4" />
                     </Button>
                   </div>
+                </div>
+
+                {/* What are you looking for? */}
+                <div className="space-y-2">
+                  <Label>What are you looking for?</Label>
+                  <Select onValueChange={(value) => handleArrayAdd('looking_for', value)}>
+                    <SelectTrigger className="text-base">
+                      <SelectValue placeholder="Add what you're looking for" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="Language Exchange">Language Exchange</SelectItem>
+                      <SelectItem value="Cultural Exchange">Cultural Exchange</SelectItem>
+                      <SelectItem value="Travel Buddies">Travel Buddies</SelectItem>
+                      <SelectItem value="Friendship">Friendship</SelectItem>
+                      <SelectItem value="Professional Networking">Professional Networking</SelectItem>
+                      <SelectItem value="Study Partners">Study Partners</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  <div className="flex flex-wrap gap-2 mt-2">
+                    {formData.looking_for.map(item => (
+                      <Badge key={item} variant="secondary" className="flex items-center gap-1">
+                        {item}
+                        <X 
+                          className="h-3 w-3 cursor-pointer" 
+                          onClick={() => handleArrayRemove('looking_for', item)}
+                        />
+                      </Badge>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Profession */}
+                <div className="space-y-2">
+                  <Label htmlFor="profession">Profession</Label>
+                  <Input
+                    id="profession"
+                    value={formData.profession}
+                    onChange={(e) => handleInputChange('profession', e.target.value)}
+                    placeholder="Your profession"
+                    className="text-base"
+                  />
                 </div>
               </CardContent>
             </Card>

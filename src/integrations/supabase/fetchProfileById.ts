@@ -63,6 +63,7 @@ export async function fetchProfileById(userId: string): Promise<User | null> {
       bio: profileData.bio || '',
       age: profileData.age || 0,
       gender: (profileData as any).gender,
+      profession: (profileData as any).profession || '',
       profilePhoto: profileData.avatar_url || '',
       avatar_url: profileData.avatar_url || '',
       online: profileData.online || false,

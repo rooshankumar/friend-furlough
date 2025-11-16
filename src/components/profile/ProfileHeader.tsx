@@ -13,7 +13,6 @@ import {
   Share, 
   MessageCircle, 
   Users, 
-  Heart, 
   MapPin, 
   Calendar, 
   Award,
@@ -172,6 +171,23 @@ export const ProfileHeader: React.FC<ProfileHeaderProps> = ({
                   <h1 className="text-xl md:text-2xl font-bold text-foreground truncate">
                     {profileUser.name}
                   </h1>
+                  {/* Gender Badge - Right after name */}
+                  {profileUser.gender && (
+                    <Badge variant="outline" className="text-xs px-2 py-0.5 flex items-center gap-1">
+                      <img 
+                        src={
+                          profileUser.gender === 'male' 
+                            ? 'https://bblrxervgwkphkctdghe.supabase.co/storage/v1/object/public/rest_pic/male.png'
+                            : profileUser.gender === 'female'
+                            ? 'https://bblrxervgwkphkctdghe.supabase.co/storage/v1/object/public/rest_pic/female.png'
+                            : 'https://bblrxervgwkphkctdghe.supabase.co/storage/v1/object/public/rest_pic/others.png'
+                        }
+                        alt={profileUser.gender}
+                        className="h-2.5 w-2.5"
+                      />
+                      {profileUser.gender === 'prefer-not-to-say' ? 'Other' : profileUser.gender.charAt(0).toUpperCase() + profileUser.gender.slice(1)}
+                    </Badge>
+                  )}
                   {/* Online Status - Desktop */}
                   {!isOwnProfile && (
                     <div className="hidden sm:flex md:hidden items-center gap-1.5">
@@ -205,22 +221,6 @@ export const ProfileHeader: React.FC<ProfileHeaderProps> = ({
                   <Badge variant="outline" className="text-xs px-2 py-0.5">
                     {profileUser.countryFlag} {profileUser.country || ''}
                   </Badge>
-                  {profileUser.gender && (
-                    <Badge variant="outline" className="text-xs px-2 py-0.5 flex items-center gap-1">
-                      <img 
-                        src={
-                          profileUser.gender === 'male' 
-                            ? 'https://bblrxervgwkphkctdghe.supabase.co/storage/v1/object/public/rest_pic/male.png'
-                            : profileUser.gender === 'female'
-                            ? 'https://bblrxervgwkphkctdghe.supabase.co/storage/v1/object/public/rest_pic/female.png'
-                            : 'https://bblrxervgwkphkctdghe.supabase.co/storage/v1/object/public/rest_pic/others.png'
-                        }
-                        alt={profileUser.gender}
-                        className="h-2.5 w-2.5"
-                      />
-                      {profileUser.gender === 'prefer-not-to-say' ? 'Other' : profileUser.gender.charAt(0).toUpperCase() + profileUser.gender.slice(1)}
-                    </Badge>
-                  )}
                   {profileUser.teachingExperience && (
                     <Badge className="bg-gradient-cultural text-white text-xs px-2 py-0.5">
                       <Award className="h-2.5 w-2.5 mr-1" />
@@ -234,9 +234,16 @@ export const ProfileHeader: React.FC<ProfileHeaderProps> = ({
               <div className="flex items-center gap-1.5 flex-wrap sm:flex-nowrap justify-end sm:justify-start">
                 {isOwnProfile ? (
                   <>
-                    <div className="flex items-center gap-2 px-3 py-2 bg-red-50 rounded-lg border border-red-200">
-                      <Heart className="h-6 w-6 sm:h-5 sm:w-5 text-red-500 fill-current" />
-                      <span className="text-base sm:text-sm font-medium text-red-700">
+                    {/* Static heart + count for own profile (no background) */}
+                    <div className="flex items-center gap-1.5">
+                      <svg 
+                        viewBox="0 0 24 24" 
+                        className="h-5 w-5 fill-red-500 text-red-500"
+                        strokeWidth="2"
+                      >
+                        <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z" />
+                      </svg>
+                      <span className="text-sm font-medium text-muted-foreground">
                         {reactions[profileUser.id] || 0}
                       </span>
                     </div>
@@ -249,15 +256,27 @@ export const ProfileHeader: React.FC<ProfileHeaderProps> = ({
                   </>
                 ) : (
                   <>
-                    <Button 
-                      variant="ghost" 
-                      size="sm"
-                      onClick={onHeartReaction}
-                      className={`h-9 px-3 ${userReactions[profileUser.id] ? 'text-red-500' : 'text-muted-foreground'}`}
-                    >
-                      <Heart className={`h-5 w-5 ${userReactions[profileUser.id] ? 'fill-current' : ''}`} />
-                      <span className="text-sm ml-1.5">{reactions[profileUser.id] || 0}</span>
-                    </Button>
+                    {/* Clickable heart + count matching Explore design */}
+                    <div className="flex items-center gap-1.5">
+                      <button
+                        type="button"
+                        onClick={onHeartReaction}
+                        className="p-1 hover:scale-110 transition-transform"
+                      >
+                        <svg 
+                          viewBox="0 0 24 24" 
+                          className={`h-5 w-5 ${userReactions[profileUser.id] ? 'fill-red-500 text-red-500' : 'fill-none stroke-current text-muted-foreground'}`}
+                          strokeWidth="2"
+                        >
+                          <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z" />
+                        </svg>
+                      </button>
+                      {reactions[profileUser.id] > 0 && (
+                        <span className="text-sm font-medium text-muted-foreground">
+                          {reactions[profileUser.id]}
+                        </span>
+                      )}
+                    </div>
                     <Button size="sm" className="bg-gradient-cultural text-white h-8 text-xs" onClick={onStartConversation}>
                       <MessageCircle className="h-3.5 w-3.5 mr-1" />
                       Message

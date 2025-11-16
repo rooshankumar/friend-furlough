@@ -95,8 +95,34 @@ export const ProfileHeader: React.FC<ProfileHeaderProps> = ({
   return (
     <div className="bg-gradient-to-br from-primary/5 via-background to-secondary/5 rounded-xl border border-border/50 overflow-hidden">
       {/* Compact All-in-One Header */}
-      <div className="p-4 md:p-6">
-        <div className="flex flex-col md:flex-row gap-4 md:gap-6">
+      <div className="p-3 md:p-4">
+        {/* Top Right Menu - Share & More (Mobile) - Above Avatar */}
+        {!isOwnProfile && (
+          <div className="md:hidden flex items-center justify-end gap-1 mb-2">
+            <Button variant="ghost" size="sm" onClick={handleShare} className="h-7 px-1.5">
+              <Share className="h-3 w-3" />
+            </Button>
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="ghost" size="sm" className="h-7 px-1.5">
+                  <MoreHorizontal className="h-3 w-3" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end">
+                <DropdownMenuItem onClick={handleReport} className="text-orange-600 text-xs">
+                  <Flag className="h-3.5 w-3.5 mr-2" />
+                  Report User
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={handleBlock} className="text-red-600 text-xs">
+                  <Ban className="h-3.5 w-3.5 mr-2" />
+                  Block User
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          </div>
+        )}
+
+        <div className="flex flex-col md:flex-row gap-3 md:gap-4">
           {/* Avatar Section - Compact */}
           <div className="flex flex-col sm:flex-row md:flex-col items-center sm:items-start md:items-center gap-3 sm:gap-4 md:gap-3">
             <div className="relative flex-shrink-0">
@@ -165,141 +191,55 @@ export const ProfileHeader: React.FC<ProfileHeaderProps> = ({
 
           {/* Profile Info - Compact Horizontal */}
           <div className="flex-1 min-w-0">
-            <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3 mb-3">
-              <div className="min-w-0">
-                <div className="flex items-center gap-2 mb-1 flex-wrap">
-                  <h1 className="text-xl md:text-2xl font-bold text-foreground truncate">
-                    {profileUser.name}
-                  </h1>
-                  {/* Gender Badge - Right after name */}
-                  {profileUser.gender && (
-                    <Badge variant="outline" className="text-xs px-2 py-0.5 flex items-center gap-1">
-                      <img 
-                        src={
-                          profileUser.gender === 'male' 
-                            ? 'https://bblrxervgwkphkctdghe.supabase.co/storage/v1/object/public/rest_pic/male.png'
-                            : profileUser.gender === 'female'
-                            ? 'https://bblrxervgwkphkctdghe.supabase.co/storage/v1/object/public/rest_pic/female.png'
-                            : 'https://bblrxervgwkphkctdghe.supabase.co/storage/v1/object/public/rest_pic/others.png'
-                        }
-                        alt={profileUser.gender}
-                        className="h-2.5 w-2.5"
-                      />
-                      {profileUser.gender === 'prefer-not-to-say' ? 'Other' : profileUser.gender.charAt(0).toUpperCase() + profileUser.gender.slice(1)}
-                    </Badge>
-                  )}
-                  {/* Online Status - Desktop */}
-                  {!isOwnProfile && (
-                    <div className="hidden sm:flex md:hidden items-center gap-1.5">
-                      <div className={`w-2 h-2 rounded-full ${
-                        isOnline ? 'bg-green-500 animate-pulse' : 
-                        status === 'away' ? 'bg-yellow-500' : 
-                        'bg-gray-400'
-                      }`}></div>
-                      <span className="text-xs text-muted-foreground capitalize">{status}</span>
-                    </div>
-                  )}
+
+            <div className="flex flex-col gap-2">
+              {/* Top Row: Name, Gender, and Top Right Menu (Desktop) */}
+              <div className="flex items-start justify-between gap-3">
+                <div className="min-w-0">
+                  <div className="flex items-center gap-3 mb-1 flex-wrap">
+                    <h1 className="text-xl md:text-2xl font-bold text-foreground truncate">
+                      {profileUser.name}
+                    </h1>
+                    {/* Gender Badge - Right after name */}
+                    {profileUser.gender && (
+                      <Badge variant="outline" className="text-xs px-2 py-0.5 flex items-center gap-0.5">
+                        <img 
+                          src={
+                            profileUser.gender === 'male' 
+                              ? 'https://bblrxervgwkphkctdghe.supabase.co/storage/v1/object/public/rest_pic/male.png'
+                              : profileUser.gender === 'female'
+                              ? 'https://bblrxervgwkphkctdghe.supabase.co/storage/v1/object/public/rest_pic/female.png'
+                              : 'https://bblrxervgwkphkctdghe.supabase.co/storage/v1/object/public/rest_pic/others.png'
+                          }
+                          alt={profileUser.gender}
+                          className="h-2.5 w-2.5"
+                        />
+                        {profileUser.gender === 'prefer-not-to-say' ? 'Other' : profileUser.gender.charAt(0).toUpperCase() + profileUser.gender.slice(1)}
+                      </Badge>
+                    )}
+                    {/* Online Status - Desktop */}
+                    {!isOwnProfile && (
+                      <div className="hidden sm:flex md:hidden items-center gap-1">
+                        <div className={`w-1.5 h-1.5 rounded-full ${
+                          isOnline ? 'bg-green-500 animate-pulse' : 
+                          status === 'away' ? 'bg-yellow-500' : 
+                          'bg-gray-400'
+                        }`}></div>
+                        <span className="text-xs text-muted-foreground capitalize">{status}</span>
+                      </div>
+                    )}
+                  </div>
                 </div>
                 
-                {/* Compact Info Pills */}
-                <div className="flex items-center gap-2 flex-wrap text-xs md:text-sm text-muted-foreground mb-2">
-                  <div className="flex items-center gap-1">
-                    <MapPin className="h-3 w-3" />
-                    <span className="truncate">{profileUser.city || ''}, {profileUser.country || ''}</span>
-                  </div>
-                  <span className="text-border">•</span>
-                  <div className="flex items-center gap-1">
-                    <Calendar className="h-3 w-3" />
-                    <span>Age {profileUser.age || ''}</span>
-                  </div>
-                  <span className="text-border">•</span>
-                  <span>Joined {new Date(profileUser.joinedDate).toLocaleDateString('en-US', { month: 'short', year: 'numeric' })}</span>
-                </div>
-
-                {/* Compact Badges */}
-                <div className="flex items-center gap-2 flex-wrap">
-                  <Badge variant="outline" className="text-xs px-2 py-0.5">
-                    {profileUser.countryFlag} {profileUser.country || ''}
-                  </Badge>
-                  {profileUser.teachingExperience && (
-                    <Badge className="bg-gradient-cultural text-white text-xs px-2 py-0.5">
-                      <Award className="h-2.5 w-2.5 mr-1" />
-                      Teacher
-                    </Badge>
-                  )}
-                </div>
-              </div>
-              
-              {/* Action Buttons - Mobile Right Aligned, Desktop Compact */}
-              <div className="flex items-center gap-1.5 flex-wrap sm:flex-nowrap justify-end sm:justify-start">
-                {isOwnProfile ? (
-                  <>
-                    {/* Static heart + count for own profile (no background) */}
-                    <div className="flex items-center gap-1.5">
-                      <svg 
-                        viewBox="0 0 24 24" 
-                        className="h-5 w-5 fill-red-500 text-red-500"
-                        strokeWidth="2"
-                      >
-                        <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z" />
-                      </svg>
-                      <span className="text-sm font-medium text-muted-foreground">
-                        {reactions[profileUser.id] || 0}
-                      </span>
-                    </div>
-                    <Button variant="ghost" size="sm" onClick={() => navigate('/settings')} className="h-12 w-12 sm:h-9 sm:w-auto sm:px-3 p-0 sm:p-2">
-                      <Settings className="h-8 w-8 sm:h-6 sm:w-6" />
-                    </Button>
-                    <Button variant="ghost" size="sm" onClick={handleShare} className="h-12 w-12 sm:h-9 sm:w-auto sm:px-3 p-0 sm:p-2">
-                      <Share className="h-7 w-7 sm:h-5 sm:w-5" />
-                    </Button>
-                  </>
-                ) : (
-                  <>
-                    {/* Clickable heart + count matching Explore design */}
-                    <div className="flex items-center gap-1.5">
-                      <button
-                        type="button"
-                        onClick={onHeartReaction}
-                        className="p-1 hover:scale-110 transition-transform"
-                      >
-                        <svg 
-                          viewBox="0 0 24 24" 
-                          className={`h-5 w-5 ${userReactions[profileUser.id] ? 'fill-red-500 text-red-500' : 'fill-none stroke-current text-muted-foreground'}`}
-                          strokeWidth="2"
-                        >
-                          <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z" />
-                        </svg>
-                      </button>
-                      {reactions[profileUser.id] > 0 && (
-                        <span className="text-sm font-medium text-muted-foreground">
-                          {reactions[profileUser.id]}
-                        </span>
-                      )}
-                    </div>
-                    <Button size="sm" className="bg-gradient-cultural text-white h-8 text-xs" onClick={onStartConversation}>
-                      <MessageCircle className="h-3.5 w-3.5 mr-1" />
-                      Message
-                    </Button>
-                    <Button 
-                      variant="outline" 
-                      size="sm"
-                      className="h-8 text-xs"
-                      onClick={onFriendRequest}
-                      disabled={friendStatus === 'accepted'}
-                    >
-                      <Users className="h-3.5 w-3.5 mr-1" />
-                      {friendStatus === 'pending' ? 'Pending' : 
-                       friendStatus === 'accepted' ? 'Friends' : 
-                       friendStatus === 'received' ? 'Accept' :
-                       'Add'}
-                    </Button>
-                    <Button variant="ghost" size="sm" onClick={handleShare} className="h-8 px-2">
+                {/* Top Right Menu - Share & More (Desktop) */}
+                {!isOwnProfile && (
+                  <div className="hidden md:flex items-center gap-1">
+                    <Button variant="ghost" size="sm" onClick={handleShare} className="h-7 px-2">
                       <Share className="h-3.5 w-3.5" />
                     </Button>
                     <DropdownMenu>
                       <DropdownMenuTrigger asChild>
-                        <Button variant="ghost" size="sm" className="h-8 px-2">
+                        <Button variant="ghost" size="sm" className="h-7 px-2">
                           <MoreHorizontal className="h-3.5 w-3.5" />
                         </Button>
                       </DropdownMenuTrigger>
@@ -314,6 +254,173 @@ export const ProfileHeader: React.FC<ProfileHeaderProps> = ({
                         </DropdownMenuItem>
                       </DropdownMenuContent>
                     </DropdownMenu>
+                  </div>
+                )}
+              </div>
+              
+              {/* Compact Info Pills */}
+              <div className="flex items-center gap-2 flex-wrap text-sm text-muted-foreground">
+                <div className="flex items-center gap-1">
+                  <MapPin className="h-3.5 w-3.5" />
+                  <span className="truncate">{profileUser.city || ''}{profileUser.city && profileUser.country ? ', ' : ''}</span>
+                  {profileUser.country && (
+                    <span className="text-base">{profileUser.countryFlag}</span>
+                  )}
+                  <span className="truncate">{profileUser.country || ''}</span>
+                </div>
+                <span className="text-border">•</span>
+                <div className="flex items-center gap-1">
+                  <Calendar className="h-3.5 w-3.5" />
+                  <span>Age {profileUser.age || ''}</span>
+                </div>
+                <span className="text-border">•</span>
+                <span>Joined {new Date(profileUser.joinedDate).toLocaleDateString('en-US', { month: 'short', year: 'numeric' })}</span>
+              </div>
+              
+              {/* Action Buttons - Bottom Right (Desktop) */}
+              <div className="flex flex-col gap-2 w-full md:w-auto md:justify-end md:flex-row">
+                {isOwnProfile ? (
+                  <>
+                    {/* Own Profile - Desktop Layout */}
+                    <div className="hidden md:flex items-center gap-1.5">
+                      <div className="flex items-center gap-1.5">
+                        <svg 
+                          viewBox="0 0 24 24" 
+                          className="h-5 w-5 fill-red-500 text-red-500"
+                          strokeWidth="2"
+                        >
+                          <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z" />
+                        </svg>
+                        <span className="text-sm font-medium text-muted-foreground">
+                          {reactions[profileUser.id] || 0}
+                        </span>
+                      </div>
+                      <Button variant="ghost" size="sm" onClick={() => navigate('/settings')}>
+                        <Settings className="h-5 w-5" />
+                      </Button>
+                    </div>
+                    
+                    {/* Own Profile - Mobile Layout */}
+                    <div className="md:hidden flex items-center gap-2">
+                      <div className="flex items-center gap-1.5">
+                        <svg 
+                          viewBox="0 0 24 24" 
+                          className="h-5 w-5 fill-red-500 text-red-500"
+                          strokeWidth="2"
+                        >
+                          <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z" />
+                        </svg>
+                        <span className="text-sm font-medium text-muted-foreground">
+                          {reactions[profileUser.id] || 0}
+                        </span>
+                      </div>
+                      <Button 
+                        variant="outline" 
+                        size="sm"
+                        className="flex-1"
+                        onClick={() => navigate('/settings')}
+                      >
+                        Edit Profile
+                      </Button>
+                    </div>
+                  </>
+                ) : (
+                  <>
+                    {/* Other User Profile - Mobile Layout */}
+                    <div className="md:hidden flex items-center gap-2 w-full">
+                      {/* Add Friend Button */}
+                      <Button 
+                        variant="outline" 
+                        size="sm"
+                        className="flex-1 h-7 text-xs"
+                        onClick={onFriendRequest}
+                        disabled={friendStatus === 'accepted'}
+                      >
+                        <Users className="h-3 w-3 mr-1" />
+                        {friendStatus === 'pending' ? 'Pending' : 
+                         friendStatus === 'accepted' ? 'Friends' : 
+                         friendStatus === 'received' ? 'Accept' :
+                         'Add'}
+                      </Button>
+                      
+                      {/* Message Button */}
+                      <Button 
+                        size="sm"
+                        className="bg-gradient-cultural text-white flex-1 h-7 text-sm px-2 py-1"
+                        onClick={onStartConversation}
+                      >
+                        <MessageCircle className="h-3.5 w-3.5 mr-1" />
+                        Message
+                      </Button>
+                      
+                      {/* Heart + Count */}
+                      <button
+                        type="button"
+                        onClick={onHeartReaction}
+                        className="flex items-center gap-1 px-2 py-1.5 hover:bg-muted rounded-lg transition-colors border border-border/50"
+                      >
+                        <svg 
+                          viewBox="0 0 24 24" 
+                          className={`h-4 w-4 ${userReactions[profileUser.id] ? 'fill-red-500 text-red-500' : 'fill-none stroke-current text-muted-foreground'}`}
+                          strokeWidth="2"
+                        >
+                          <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z" />
+                        </svg>
+                        {reactions[profileUser.id] > 0 && (
+                          <span className="text-xs font-medium text-muted-foreground">
+                            {reactions[profileUser.id]}
+                          </span>
+                        )}
+                      </button>
+                    </div>
+                    
+                    {/* Desktop Layout - Action Buttons Only (Share & More are at top right) */}
+                    <div className="hidden md:flex items-center gap-2">
+                      {/* Add Friend Button */}
+                      <Button 
+                        variant="outline" 
+                        size="sm"
+                        className="h-7 text-sm"
+                        onClick={onFriendRequest}
+                        disabled={friendStatus === 'accepted'}
+                      >
+                        <Users className="h-3.5 w-3.5 mr-1" />
+                        {friendStatus === 'pending' ? 'Pending' : 
+                         friendStatus === 'accepted' ? 'Friends' : 
+                         friendStatus === 'received' ? 'Accept' :
+                         'Add'}
+                      </Button>
+                      
+                      {/* Message Button */}
+                      <Button 
+                        size="sm" 
+                        className="bg-gradient-cultural text-white h-7 text-sm px-2 py-1" 
+                        onClick={onStartConversation}
+                      >
+                        <MessageCircle className="h-3.5 w-3.5 mr-1" />
+                        Message
+                      </Button>
+                      
+                      {/* Heart + Count */}
+                      <button
+                        type="button"
+                        onClick={onHeartReaction}
+                        className="flex items-center gap-1 px-3 py-1.5 hover:bg-muted rounded-lg transition-colors border border-border/50"
+                      >
+                        <svg 
+                          viewBox="0 0 24 24" 
+                          className={`h-5 w-5 ${userReactions[profileUser.id] ? 'fill-red-500 text-red-500' : 'fill-none stroke-current text-muted-foreground'}`}
+                          strokeWidth="2"
+                        >
+                          <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z" />
+                        </svg>
+                        {reactions[profileUser.id] > 0 && (
+                          <span className="text-sm font-medium text-muted-foreground">
+                            {reactions[profileUser.id]}
+                          </span>
+                        )}
+                      </button>
+                    </div>
                   </>
                 )}
               </div>

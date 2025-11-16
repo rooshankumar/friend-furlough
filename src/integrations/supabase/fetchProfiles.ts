@@ -19,15 +19,27 @@ export async function fetchProfiles(): Promise<User[]> {
   
   // Map DB fields to User type with joined data
   return (data || []).map((profile: any) => {
-    // Extract native and learning languages from joined data
-    const nativeLanguages = (profile.languages || [])
-      .filter((lang: any) => lang.is_native)
-      .map((lang: any) => lang.language_name);
-    
-    const learningLanguages = (profile.languages || [])
-      .filter((lang: any) => lang.is_learning)
-      .map((lang: any) => lang.language_name);
-    
+    // Prefer profile-level arrays (new source of truth),
+    // but fall back to the joined languages table if needed.
+    let nativeLanguages: string[] = [];
+    let learningLanguages: string[] = [];
+
+    if (Array.isArray(profile.native_languages) && profile.native_languages.length > 0) {
+      nativeLanguages = profile.native_languages;
+    } else {
+      nativeLanguages = (profile.languages || [])
+        .filter((lang: any) => lang.is_native)
+        .map((lang: any) => lang.language_name);
+    }
+
+    if (Array.isArray(profile.learning_languages) && profile.learning_languages.length > 0) {
+      learningLanguages = profile.learning_languages;
+    } else {
+      learningLanguages = (profile.languages || [])
+        .filter((lang: any) => lang.is_learning)
+        .map((lang: any) => lang.language_name);
+    }
+
     // Extract cultural interests from joined data
     const culturalInterests = (profile.cultural_interests || [])
       .map((interest: any) => interest.interest);

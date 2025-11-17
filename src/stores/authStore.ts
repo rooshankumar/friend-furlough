@@ -1,6 +1,7 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import { supabase } from '@/integrations/supabase/client';
+import { sendWelcomeEmail } from '@/lib/emailService';
 import type { User as SupabaseUser, Session } from '@supabase/supabase-js';
 
 interface Profile {
@@ -264,6 +265,15 @@ export const useAuthStore = create<AuthState>()(
               onboardingStep: 1,
               onboardingCompleted: false
             });
+
+            // Send welcome email asynchronously (don't block signup)
+            try {
+              await sendWelcomeEmail(email, name);
+              console.log('✅ Welcome email sent to', email);
+            } catch (emailError) {
+              console.warn('⚠️ Failed to send welcome email:', emailError);
+              // Don't throw - signup was successful, email is optional
+            }
           }
         } catch (error) {
           set({ isLoading: false });

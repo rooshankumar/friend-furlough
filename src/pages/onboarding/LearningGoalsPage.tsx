@@ -15,6 +15,7 @@ import { LanguageSelector } from '@/components/LanguageSelector';
 import { CulturalInterestSelector } from '@/components/CulturalInterestSelector';
 import { useAuthStore } from '@/stores/authStore';
 import { useToast } from '@/hooks/use-toast';
+import { sendWelcomeEmail } from '@/lib/emailService';
 import { supabase } from '@/integrations/supabase/client';
 
 const learningGoalsSchema = z.object({
@@ -148,6 +149,15 @@ const LearningGoalsPage = () => {
       });
       
       completeOnboarding();
+      
+      // Send onboarding completion email asynchronously
+      try {
+        await sendWelcomeEmail(profile.email || '', profile.name);
+        console.log('✅ Onboarding completion email sent');
+      } catch (emailError) {
+        console.warn('⚠️ Failed to send onboarding email:', emailError);
+        // Don't block navigation - email is optional
+      }
       
       toast({
         title: "Welcome to roshLingua! 🎉",

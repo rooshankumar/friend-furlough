@@ -32,6 +32,8 @@ const NotificationsPage = React.lazy(() => import("./pages/NotificationsPage"));
 const NotFound = React.lazy(() => import("./pages/NotFound"));
 const SignUpPage = React.lazy(() => import("./pages/auth/SignUpPage"));
 const SignInPage = React.lazy(() => import("./pages/auth/SignInPage"));
+const ForgotPasswordPage = React.lazy(() => import("./pages/auth/ForgotPasswordPage"));
+const ResetPasswordPage = React.lazy(() => import("./pages/auth/ResetPasswordPage"));
 const WelcomePage = React.lazy(() => import("./pages/onboarding/WelcomePage"));
 const CulturalProfilePage = React.lazy(() => import("./pages/onboarding/CulturalProfilePage"));
 const LearningGoalsPage = React.lazy(() => import("./pages/onboarding/LearningGoalsPage"));
@@ -142,6 +144,8 @@ const AppContent = () => {
           {/* Authentication Routes */}
           <Route path="/auth/signup" element={<SignUpPage />} />
           <Route path="/auth/signin" element={<SignInPage />} />
+          <Route path="/auth/forgot-password" element={<ForgotPasswordPage />} />
+          <Route path="/auth/reset-password" element={<ResetPasswordPage />} />
           <Route path="/auth/callback" element={<AuthCallback />} />
           <Route path="/auth/clear-session" element={<ClearSessionPage />} />
 

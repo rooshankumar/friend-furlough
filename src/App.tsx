@@ -115,6 +115,7 @@ const AppContent = () => {
   const showMinimalNav = isAuthenticated && 
     location.pathname !== '/' && 
     !location.pathname.startsWith('/auth/') &&
+    !location.pathname.startsWith('/onboarding') &&
     !location.pathname.startsWith('/privacy-') &&
     !location.pathname.startsWith('/terms-') &&
     !location.pathname.startsWith('/community-') &&

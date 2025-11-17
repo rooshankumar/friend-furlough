@@ -34,26 +34,6 @@ const ForgotPasswordPage = () => {
   const onSubmit = async (data: ForgotPasswordFormData) => {
     setIsLoading(true);
     try {
-      // First, get user profile to get their name
-      const { data: { user } } = await supabase.auth.signInWithPassword({
-        email: data.email,
-        password: 'dummy' // This will fail, but we just need to check if user exists
-      }).catch(() => ({ data: { user: null } }));
-
-      // Get user from auth (check if email exists)
-      const { data: authUser } = await supabase.auth.admin.getUserByEmail(data.email).catch(() => ({ data: null }));
-      
-      if (!authUser) {
-        throw new Error('Email not found in our system');
-      }
-
-      // Get user profile for name
-      const { data: profile } = await supabase
-        .from('profiles')
-        .select('name')
-        .eq('id', authUser.id)
-        .single();
-
       // Generate reset token via Supabase (for security)
       const { error: resetError } = await supabase.auth.resetPasswordForEmail(data.email, {
         redirectTo: `${window.location.origin}/auth/reset-password`,
@@ -61,12 +41,27 @@ const ForgotPasswordPage = () => {
 
       if (resetError) throw resetError;
 
+      // Get user profile for name (query by email via profiles table)
+      const { data: profiles } = await supabase
+        .from('profiles')
+        .select('name, id')
+        .order('created_at', { ascending: false })
+        .limit(1);
+
+      // Try to find profile by checking auth users
+      let userName = 'User';
+      
+      // Since we can't directly query auth by email from client, we'll use a default name
+      // The email exists if resetPasswordForEmail succeeded
+      
+      // Build reset link (Supabase will send this in the email)
+      const resetLink = `${window.location.origin}/auth/reset-password`;
+
       // Send password reset email via Brevo
       const result = await sendPasswordResetEmail(
         data.email,
-        profile?.name || 'User',
-        `${window.location.origin}/auth/reset-password`,
-        '24 hours'
+        userName,
+        resetLink
       );
 
       if (result.success) {

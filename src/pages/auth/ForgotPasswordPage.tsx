@@ -10,7 +10,6 @@ import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { useToast } from '@/hooks/use-toast';
-import { supabase } from '@/integrations/supabase/client';
 import { sendPasswordResetEmail } from '@/lib/emailService';
 
 const forgotPasswordSchema = z.object({
@@ -34,33 +33,13 @@ const ForgotPasswordPage = () => {
   const onSubmit = async (data: ForgotPasswordFormData) => {
     setIsLoading(true);
     try {
-      // Generate reset token via Supabase (for security)
-      const { error: resetError } = await supabase.auth.resetPasswordForEmail(data.email, {
-        redirectTo: `${window.location.origin}/auth/reset-password`,
-      });
+      // Build reset link for Brevo email
+      const resetLink = `${window.location.origin}/auth/reset-password?email=${encodeURIComponent(data.email)}`;
 
-      if (resetError) throw resetError;
-
-      // Get user profile for name (query by email via profiles table)
-      const { data: profiles } = await supabase
-        .from('profiles')
-        .select('name, id')
-        .order('created_at', { ascending: false })
-        .limit(1);
-
-      // Try to find profile by checking auth users
-      let userName = 'User';
-      
-      // Since we can't directly query auth by email from client, we'll use a default name
-      // The email exists if resetPasswordForEmail succeeded
-      
-      // Build reset link (Supabase will send this in the email)
-      const resetLink = `${window.location.origin}/auth/reset-password`;
-
-      // Send password reset email via Brevo
+      // Send password reset email via Brevo ONLY (no Supabase email)
       const result = await sendPasswordResetEmail(
         data.email,
-        userName,
+        'User', // Default name since we can't query auth by email from client
         resetLink
       );
 

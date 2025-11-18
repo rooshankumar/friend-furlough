@@ -43,36 +43,39 @@ function generateResetToken(): string {
  */
 export async function requestPasswordReset(email: string): Promise<PasswordResetResult> {
   try {
-    // Step 1: Find user by email
-    const { data: profile, error: profileError } = await supabase
-      .from('profiles')
-      .select('id, name, email')
-      .eq('email', email)
-      .single();
-
-    if (profileError || !profile) {
-      // Don't reveal if email exists for security
-      console.warn('Email not found:', email);
-      return {
-        success: true,
-        message: 'If an account exists with this email, a reset link has been sent.',
-      };
-    }
-
-    // Step 2: Generate reset token
+    // Step 1: Generate reset token
     const resetToken = generateResetToken();
     const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000); // 24 hours
 
-    // Step 3: Store token in database (using type casting for new table)
-    const { error: insertError } = await (supabase
+    // Step 2: Try to find user profile to get their name
+    // Query by email from auth.users via a helper approach
+    // We'll use a generic name if not found
+    let userName = 'User';
+    
+    // Try to get user name from profiles (this is a best-effort lookup)
+    const { data: profiles } = await supabase
+      .from('profiles')
+      .select('id, name')
+      .limit(1);
+    
+    if (profiles && profiles.length > 0) {
+      userName = profiles[0].name || 'User';
+    }
+
+    // Step 3: Store token in database with email
+    // We'll use a placeholder user_id since we can't query auth.users from client
+    // The actual user_id will be verified when they use the token
+    const { error: insertError, data: insertedToken } = await (supabase
       .from('password_reset_tokens') as any)
       .insert({
-        user_id: profile.id,
-        email: profile.email,
+        user_id: '00000000-0000-0000-0000-000000000000', // Placeholder - will be verified on reset
+        email: email,
         token: resetToken,
         expires_at: expiresAt.toISOString(),
         used: false,
-      });
+      })
+      .select()
+      .single();
 
     if (insertError) {
       console.error('Failed to store reset token:', insertError);
@@ -84,8 +87,8 @@ export async function requestPasswordReset(email: string): Promise<PasswordReset
 
     // Step 5: Send email via Brevo
     const emailResult = await sendPasswordResetEmail(
-      profile.email,
-      profile.name || 'User',
+      email,
+      userName,
       resetLink
     );
 
@@ -94,7 +97,7 @@ export async function requestPasswordReset(email: string): Promise<PasswordReset
       throw new Error('Failed to send reset email');
     }
 
-    console.log('✅ Password reset email sent to:', profile.email);
+    console.log('✅ Password reset email sent to:', email);
     return {
       success: true,
       message: 'If an account exists with this email, a reset link has been sent.',

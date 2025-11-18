@@ -19,26 +19,30 @@ interface BrevoResponse {
 }
 
 class BrevoClient {
-  private apiKey: string;
-  private senderEmail: string;
-  private senderName: string;
   private baseUrl = 'https://api.brevo.com/v3';
 
-  constructor() {
-    this.apiKey = import.meta.env.VITE_BREVO_API_KEY;
-    this.senderEmail = import.meta.env.VITE_BREVO_SENDER_EMAIL;
-    this.senderName = import.meta.env.VITE_BREVO_SENDER_NAME;
+  private getApiKey(): string {
+    return import.meta.env.VITE_BREVO_API_KEY;
+  }
 
-    if (!this.apiKey || !this.senderEmail) {
-      console.warn('Brevo API key or sender email not configured');
-    }
+  private getSenderEmail(): string {
+    return import.meta.env.VITE_BREVO_SENDER_EMAIL;
+  }
+
+  private getSenderName(): string {
+    return import.meta.env.VITE_BREVO_SENDER_NAME;
+  }
+
+  constructor() {
+    // Validate on first use, not on construction
   }
 
   /**
    * Send email using Brevo template
    */
   async sendEmail(params: BrevoEmailParams): Promise<BrevoResponse> {
-    if (!this.apiKey) {
+    const apiKey = this.getApiKey();
+    if (!apiKey) {
       throw new Error('Brevo API key not configured');
     }
 
@@ -61,7 +65,7 @@ class BrevoClient {
       const response = await fetch(`${this.baseUrl}/smtp/email`, {
         method: 'POST',
         headers: {
-          'api-key': this.apiKey,
+          'api-key': apiKey,
           'Content-Type': 'application/json',
         },
         body: JSON.stringify(payload),

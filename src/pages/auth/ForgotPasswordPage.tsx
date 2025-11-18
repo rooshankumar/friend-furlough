@@ -10,7 +10,7 @@ import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { useToast } from '@/hooks/use-toast';
-import { sendPasswordResetEmail } from '@/lib/emailService';
+import { requestPasswordReset } from '@/lib/passwordResetService';
 
 const forgotPasswordSchema = z.object({
   email: z.string().email('Please enter a valid email'),
@@ -33,21 +33,14 @@ const ForgotPasswordPage = () => {
   const onSubmit = async (data: ForgotPasswordFormData) => {
     setIsLoading(true);
     try {
-      // Build reset link for Brevo email
-      const resetLink = `${window.location.origin}/auth/reset-password?email=${encodeURIComponent(data.email)}`;
-
-      // Send password reset email via Brevo ONLY (no Supabase email)
-      const result = await sendPasswordResetEmail(
-        data.email,
-        'User', // Default name since we can't query auth by email from client
-        resetLink
-      );
+      // Request password reset - generates token and sends email via Brevo
+      const result = await requestPasswordReset(data.email);
 
       if (result.success) {
-        console.log('✅ Password reset email sent via Brevo');
+        console.log('✅ Password reset email sent');
         toast({
           title: "Check your email! 📧",
-          description: "We've sent you a password reset link. Click it to create a new password.",
+          description: "If an account exists with this email, we've sent a password reset link.",
         });
 
         // Redirect to signin after 2 seconds

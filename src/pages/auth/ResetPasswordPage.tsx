@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
@@ -10,7 +10,7 @@ import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { useToast } from '@/hooks/use-toast';
-import { supabase } from '@/integrations/supabase/client';
+import { verifyResetToken, resetPasswordWithToken } from '@/lib/passwordResetService';
 
 const resetPasswordSchema = z.object({
   password: z.string().min(6, 'Password must be at least 6 characters'),
@@ -25,10 +25,14 @@ type ResetPasswordFormData = z.infer<typeof resetPasswordSchema>;
 const ResetPasswordPage = () => {
   const navigate = useNavigate();
   const { toast } = useToast();
+  const [searchParams] = useSearchParams();
   const [isLoading, setIsLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
-  const [isValidSession, setIsValidSession] = useState(false);
+  const [isValidToken, setIsValidToken] = useState(false);
+  const [tokenError, setTokenError] = useState<string | null>(null);
+
+  const resetToken = searchParams.get('token');
 
   const form = useForm<ResetPasswordFormData>({
     resolver: zodResolver(resetPasswordSchema),
@@ -38,41 +42,58 @@ const ResetPasswordPage = () => {
     },
   });
 
-  // Check if user has a valid session (from reset link)
+  // Verify token on page load
   useEffect(() => {
-    const checkSession = async () => {
-      const { data: { session } } = await supabase.auth.getSession();
-      if (session) {
-        setIsValidSession(true);
+    const verifyToken = async () => {
+      if (!resetToken) {
+        setTokenError('No reset token provided');
+        setTimeout(() => navigate('/auth/signin'), 2000);
+        return;
+      }
+
+      const verification = await verifyResetToken(resetToken);
+      if (verification.valid) {
+        setIsValidToken(true);
       } else {
+        setTokenError(verification.error || 'Invalid reset link');
         toast({
           title: "Invalid Link",
-          description: "This password reset link has expired or is invalid.",
+          description: verification.error || "This password reset link has expired or is invalid.",
           variant: "destructive",
         });
         setTimeout(() => navigate('/auth/signin'), 2000);
       }
     };
 
-    checkSession();
-  }, [navigate, toast]);
+    verifyToken();
+  }, [resetToken, navigate, toast]);
 
   const onSubmit = async (data: ResetPasswordFormData) => {
+    if (!resetToken) {
+      toast({
+        title: "Error",
+        description: "Reset token is missing",
+        variant: "destructive",
+      });
+      return;
+    }
+
     setIsLoading(true);
     try {
-      const { error } = await supabase.auth.updateUser({
-        password: data.password,
-      });
+      // Reset password with token verification
+      const result = await resetPasswordWithToken(resetToken, data.password);
 
-      if (error) throw error;
+      if (result.success) {
+        toast({
+          title: "Password Reset! ✅",
+          description: "Your password has been successfully updated. You can now sign in with your new password.",
+        });
 
-      toast({
-        title: "Password Reset! ✅",
-        description: "Your password has been successfully updated. You can now sign in with your new password.",
-      });
-
-      // Redirect to signin after 2 seconds
-      setTimeout(() => navigate('/auth/signin'), 2000);
+        // Redirect to signin after 2 seconds
+        setTimeout(() => navigate('/auth/signin'), 2000);
+      } else {
+        throw new Error(result.error || 'Failed to reset password');
+      }
     } catch (error) {
       toast({
         title: "Error",
@@ -84,7 +105,31 @@ const ResetPasswordPage = () => {
     }
   };
 
-  if (!isValidSession) {
+  if (tokenError) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-background via-card-cultural to-background dark:auth-background flex items-center justify-center p-8">
+        <Card className="w-full max-w-md card-cultural">
+          <CardHeader className="text-center">
+            <div className="flex items-center justify-center space-x-2 mb-4">
+              <Globe className="h-6 w-6 text-primary" />
+              <h1 className="text-2xl font-bold text-primary">roshLingua</h1>
+            </div>
+            <CardTitle className="text-2xl">Invalid Link</CardTitle>
+            <CardDescription className="text-destructive">
+              {tokenError}
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <Button asChild className="w-full">
+              <a href="/auth/signin">Return to Sign In</a>
+            </Button>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
+
+  if (!isValidToken) {
     return null;
   }
 

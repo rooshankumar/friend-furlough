@@ -6,20 +6,20 @@ import { DarkModeToggle } from '@/components/DarkModeToggle';
 
 const TermsOfService = () => {
   return (
-    <div className="min-h-screen bg-background">
+    <div className="min-h-screen md:ml-16 bg-background pb-16 md:pb-0">
       {/* Header */}
       <header className="bg-card border-b sticky top-0 z-10">
-        <div className="container mx-auto px-4 py-4">
+        <div className="px-4 md:px-8 py-4">
           <div className="flex items-center justify-between">
-            <Button variant="ghost" asChild>
-              <Link to="/" className="flex items-center space-x-2">
+            <Button variant="ghost" asChild className="gap-2">
+              <Link to="/" className="flex items-center">
                 <ArrowLeft className="h-4 w-4" />
-                <span>Back to Home</span>
+                <span className="hidden sm:inline">Back</span>
               </Link>
             </Button>
-            <div className="flex items-center space-x-2">
-              <FileText className="h-5 w-5 text-primary" />
-              <span className="font-semibold text-foreground">Terms of Service</span>
+            <div className="flex items-center space-x-2 flex-1 justify-center">
+              <FileText className="h-5 w-5 text-primary flex-shrink-0" />
+              <span className="font-semibold text-foreground text-sm md:text-base">Terms of Service</span>
             </div>
             <DarkModeToggle />
           </div>
@@ -27,7 +27,7 @@ const TermsOfService = () => {
       </header>
 
       {/* Content */}
-      <main className="container mx-auto px-4 py-8 max-w-4xl">
+      <main className="px-4 md:px-8 py-6 md:py-8 max-w-4xl mx-auto">
         <div className="prose prose-lg max-w-none dark:prose-invert">
           <h1 className="text-3xl font-bold mb-8 text-foreground">Terms of Service</h1>
           

@@ -7,6 +7,7 @@ import roshLinguaLogo from "@/assets/roshlingua-logo.png";
 import { useHomePageOptimization } from "@/hooks/usePageOptimization";
 import { LazyImage } from "@/components/optimized/LazyImage";
 import { useAuthStore } from "@/stores/authStore";
+import { DarkModeToggle } from "@/components/DarkModeToggle";
 
 // Memoized feature card component
 const FeatureCard = memo<{
@@ -124,6 +125,28 @@ const HomePage = () => {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-background via-muted to-card-cultural">
+      {/* Navigation Header */}
+      <header className="sticky top-0 z-50 bg-background/95 backdrop-blur-sm border-b shadow-sm">
+        <div className="container mx-auto px-4 py-3">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center space-x-2">
+              <img src={roshLinguaLogo} alt="roshLingua" className="h-8 w-8" />
+              <span className="text-lg md:text-xl font-bold text-primary">roshLingua</span>
+            </div>
+            
+            <div className="flex items-center space-x-4">
+              <DarkModeToggle />
+              <Button variant="outline" size="sm" asChild>
+                <Link to="/auth/signin">Sign In</Link>
+              </Button>
+              <Button size="sm" asChild>
+                <Link to="/auth/signup">Join Free</Link>
+              </Button>
+            </div>
+          </div>
+        </div>
+      </header>
+
       {/* Hero Section */}
       <section className="relative overflow-hidden">
         <div className="absolute inset-0 bg-gradient-hero opacity-10"></div>

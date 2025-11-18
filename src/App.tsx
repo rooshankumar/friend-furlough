@@ -19,6 +19,10 @@ import { useActivityTracker } from "./hooks/useActivityTracker";
 const HomePage = React.lazy(() => import("./pages/HomePageProfessional"));
 const PrivacyPolicy = React.lazy(() => import("./pages/PrivacyPolicy"));
 const TermsOfService = React.lazy(() => import("./pages/TermsOfService"));
+const CookiesPolicy = React.lazy(() => import("./pages/CookiesPolicy"));
+const SafetyPage = React.lazy(() => import("./pages/SafetyPage"));
+const DataProtectionPage = React.lazy(() => import("./pages/DataProtectionPage"));
+const CommunityGuidelinesPage = React.lazy(() => import("./pages/CommunityGuidelinesPage"));
 const GoogleVerificationStatus = React.lazy(() => import("./components/GoogleVerificationStatus"));
 const ExplorePage = React.lazy(() => import("./pages/ExplorePage"));
 const ChatPage = React.lazy(() => import("./pages/ChatPageV2"));
@@ -137,8 +141,10 @@ const AppContent = () => {
           {/* Legal Pages */}
           <Route path="/privacy-policy" element={<PrivacyPolicy />} />
           <Route path="/terms-of-service" element={<TermsOfService />} />
-          <Route path="/community-guidelines" element={<TermsOfService />} />
-          <Route path="/data-protection" element={<PrivacyPolicy />} />
+          <Route path="/community-guidelines" element={<CommunityGuidelinesPage />} />
+          <Route path="/data-protection" element={<DataProtectionPage />} />
+          <Route path="/cookies" element={<CookiesPolicy />} />
+          <Route path="/safety" element={<SafetyPage />} />
           <Route path="/verification-status" element={<GoogleVerificationStatus />} />
 
           {/* Authentication Routes */}

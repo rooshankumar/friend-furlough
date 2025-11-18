@@ -22,6 +22,7 @@ import roshLinguaLogo from "@/assets/roshlingua-logo.png";
 import { useHomePageOptimization } from "@/hooks/usePageOptimization";
 import { LazyImage } from "@/components/optimized/LazyImage";
 import { useAuthStore } from "@/stores/authStore";
+import { DarkModeToggle } from "@/components/DarkModeToggle";
 
 // Memoized feature card component - Mobile Optimized
 const FeatureCard = memo<{
@@ -174,6 +175,7 @@ const HomePageProfessional = () => {
               <Link to="#community" className="text-muted-foreground hover:text-primary transition-colors">Community</Link>
               <Link to="#download" className="text-muted-foreground hover:text-primary transition-colors">Download</Link>
               <Link to="#contact" className="text-muted-foreground hover:text-primary transition-colors">Contact</Link>
+              <DarkModeToggle />
               <Button variant="outline" size="sm" asChild>
                 <Link to="/auth/signin">Sign In</Link>
               </Button>
@@ -184,6 +186,7 @@ const HomePageProfessional = () => {
 
             {/* Mobile Navigation */}
             <div className="flex lg:hidden items-center space-x-2">
+              <DarkModeToggle />
               <Button variant="outline" size="sm" asChild>
                 <Link to="/auth/signin">Sign In</Link>
               </Button>
@@ -422,51 +425,51 @@ const HomePageProfessional = () => {
       </section>
 
       {/* Footer - Mobile Optimized */}
-      <footer className="bg-muted-foreground text-background py-8 md:py-12">
+      <footer className="bg-card border-t py-8 md:py-12">
         <div className="container mx-auto px-4">
           <div className="grid grid-cols-2 md:grid-cols-4 gap-6 md:gap-8">
             <div>
               <div className="flex items-center space-x-2 mb-4">
                 <img src={roshLinguaLogo} alt="roshLingua" className="h-8 w-8" />
-                <span className="text-xl font-bold">roshLingua</span>
+                <span className="text-xl font-bold text-foreground">roshLingua</span>
               </div>
-              <p className="text-background/70">
+              <p className="text-muted-foreground">
                 Connecting cultures and building friendships through language exchange.
               </p>
             </div>
             
             <div>
-              <h4 className="font-semibold mb-4">Platform</h4>
-              <ul className="space-y-2 text-background/70">
-                <li><Link to="/explore" className="hover:text-background">Explore</Link></li>
-                <li><Link to="/community" className="hover:text-background">Community</Link></li>
-                <li><Link to="/chat" className="hover:text-background">Messages</Link></li>
-                <li><Link to="/profile" className="hover:text-background">Profile</Link></li>
+              <h4 className="font-semibold mb-4 text-foreground">Platform</h4>
+              <ul className="space-y-2 text-muted-foreground">
+                <li><Link to="/explore" className="hover:text-primary transition-colors">Explore</Link></li>
+                <li><Link to="/community" className="hover:text-primary transition-colors">Community</Link></li>
+                <li><Link to="/chat" className="hover:text-primary transition-colors">Messages</Link></li>
+                <li><Link to="/profile" className="hover:text-primary transition-colors">Profile</Link></li>
               </ul>
             </div>
             
             <div>
-              <h4 className="font-semibold mb-4">Support</h4>
-              <ul className="space-y-2 text-background/70">
-                <li><a href="mailto:roshlingua@gmail.com" className="hover:text-background">Help Center</a></li>
-                <li><Link to="/community-guidelines" className="hover:text-background">Guidelines</Link></li>
-                <li><Link to="/safety" className="hover:text-background">Safety</Link></li>
-                <li><a href="mailto:roshlingua@gmail.com" className="hover:text-background">Report Issue</a></li>
+              <h4 className="font-semibold mb-4 text-foreground">Support</h4>
+              <ul className="space-y-2 text-muted-foreground">
+                <li><a href="mailto:roshlingua@gmail.com" className="hover:text-primary transition-colors">Help Center</a></li>
+                <li><Link to="/community-guidelines" className="hover:text-primary transition-colors">Guidelines</Link></li>
+                <li><Link to="/safety" className="hover:text-primary transition-colors">Safety</Link></li>
+                <li><a href="mailto:roshlingua@gmail.com" className="hover:text-primary transition-colors">Report Issue</a></li>
               </ul>
             </div>
             
             <div>
-              <h4 className="font-semibold mb-4">Legal</h4>
-              <ul className="space-y-2 text-background/70">
-                <li><Link to="/privacy-policy" className="hover:text-background">Privacy</Link></li>
-                <li><Link to="/terms-of-service" className="hover:text-background">Terms</Link></li>
-                <li><Link to="/data-protection" className="hover:text-background">Data Protection</Link></li>
-                <li><Link to="/cookies" className="hover:text-background">Cookies</Link></li>
+              <h4 className="font-semibold mb-4 text-foreground">Legal</h4>
+              <ul className="space-y-2 text-muted-foreground">
+                <li><Link to="/privacy-policy" className="hover:text-primary transition-colors">Privacy</Link></li>
+                <li><Link to="/terms-of-service" className="hover:text-primary transition-colors">Terms</Link></li>
+                <li><Link to="/data-protection" className="hover:text-primary transition-colors">Data Protection</Link></li>
+                <li><Link to="/cookies" className="hover:text-primary transition-colors">Cookies</Link></li>
               </ul>
             </div>
           </div>
           
-          <div className="border-t border-background/20 mt-8 pt-8 text-center text-background/70">
+          <div className="border-t border-border mt-8 pt-8 text-center text-muted-foreground">
             <p>&copy; 2025 roshLingua. All rights reserved. | Contact: roshlingua@gmail.com</p>
           </div>
         </div>

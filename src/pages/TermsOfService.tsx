@@ -2,12 +2,13 @@ import React from 'react';
 import { Link } from 'react-router-dom';
 import { ArrowLeft, FileText, Mail } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { DarkModeToggle } from '@/components/DarkModeToggle';
 
 const TermsOfService = () => {
   return (
     <div className="min-h-screen bg-background">
       {/* Header */}
-      <header className="bg-white border-b sticky top-0 z-10">
+      <header className="bg-card border-b sticky top-0 z-10">
         <div className="container mx-auto px-4 py-4">
           <div className="flex items-center justify-between">
             <Button variant="ghost" asChild>
@@ -18,18 +19,19 @@ const TermsOfService = () => {
             </Button>
             <div className="flex items-center space-x-2">
               <FileText className="h-5 w-5 text-primary" />
-              <span className="font-semibold">Terms of Service</span>
+              <span className="font-semibold text-foreground">Terms of Service</span>
             </div>
+            <DarkModeToggle />
           </div>
         </div>
       </header>
 
       {/* Content */}
       <main className="container mx-auto px-4 py-8 max-w-4xl">
-        <div className="prose prose-lg max-w-none">
-          <h1 className="text-3xl font-bold mb-8">Terms of Service</h1>
+        <div className="prose prose-lg max-w-none dark:prose-invert">
+          <h1 className="text-3xl font-bold mb-8 text-foreground">Terms of Service</h1>
           
-          <p className="text-gray-600 mb-8">
+          <p className="text-muted-foreground mb-8">
             <strong>Last updated:</strong> November 12, 2024<br />
             <strong>Effective date:</strong> November 12, 2024
           </p>

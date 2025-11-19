@@ -14,6 +14,9 @@ import InstallPWA from "./components/InstallPWA";
 import PerformanceMonitor from "./components/PerformanceMonitor";
 import { useMasterOptimization } from "./hooks/useMasterOptimization";
 import { useActivityTracker } from "./hooks/useActivityTracker";
+import { LoaderProvider, useLoader } from "./contexts/LoaderContext";
+import ZerodhaLoader from "./components/ZerodhaLoader";
+import { useTheme } from "./components/ThemeProvider";
 
 // Lazy load pages for better performance
 const HomePage = React.lazy(() => import("./pages/HomePageProfessional"));
@@ -108,6 +111,20 @@ const RootRedirect = () => {
   return <HomePage />;
 };
 
+// Global loader component
+const GlobalLoader = () => {
+  const { isLoading } = useLoader();
+  const { theme } = useTheme();
+  
+  return (
+    <ZerodhaLoader 
+      size={24} 
+      isDark={theme === 'dark'} 
+      visible={isLoading} 
+    />
+  );
+};
+
 // Component that uses QueryClient - must be inside QueryClientProvider
 const AppContent = () => {
   const location = useLocation();
@@ -136,6 +153,7 @@ const AppContent = () => {
       <ConnectionStatus />
       <PerformanceMonitor />
       <InstallPWA />
+      <GlobalLoader />
       <Suspense fallback={<PageLoadingFallback />}>
         <Routes>
           {/* Splash & Onboarding */}
@@ -280,9 +298,11 @@ const App = () => {
       <BrowserRouter>
         <TooltipProvider>
           <ThemeProvider defaultTheme="system">
-            <Toaster />
-            <Sonner />
-            <AppContent />
+            <LoaderProvider>
+              <Toaster />
+              <Sonner />
+              <AppContent />
+            </LoaderProvider>
           </ThemeProvider>
         </TooltipProvider>
       </BrowserRouter>

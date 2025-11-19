@@ -105,15 +105,14 @@ export function ModernProfileCard({
 
       {/* Chat Button + Heart Count */}
       <div className="flex items-center gap-2" onClick={(e) => e.stopPropagation()}>
-        <Button
+        <button
           onClick={() => onStartConversation(profile.id)}
           disabled={isCreatingConversation}
-          className="flex-1 h-9"
-          size="sm"
+          className="flex-1 h-9 px-3 py-2 bg-blue-500 hover:bg-blue-600 text-white rounded-md font-medium text-sm flex items-center justify-center gap-2 transition-colors duration-150 disabled:opacity-50 disabled:cursor-not-allowed"
         >
-          <MessageCircle className="h-4 w-4 mr-2" />
+          <MessageCircle className="h-4 w-4" />
           {isCreatingConversation ? 'Starting...' : 'Chat'}
-        </Button>
+        </button>
         
         <div className="flex items-center -space-x-2 md:space-x-0">
           <button

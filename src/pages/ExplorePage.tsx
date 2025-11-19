@@ -8,6 +8,7 @@ import { useDebounce } from '@/hooks/useDebounce';
 import { usePullToRefresh } from '@/hooks/usePullToRefresh';
 import { useBatchPresence } from '@/hooks/useBatchPresence';
 import { PullToRefreshIndicator } from '@/components/PullToRefresh';
+import { PageHeader } from '@/components/PageHeader';
 import { ModernProfileCard } from '@/components/explore/ModernProfileCard';
 import { ModernFilters } from '@/components/explore/ModernFilters';
 import { Card } from '@/components/ui/card';
@@ -194,6 +195,11 @@ export default function ExplorePage() {
         pullDistance={usersPullToRefresh.pullDistance}
         isRefreshing={usersPullToRefresh.isRefreshing}
         threshold={80}
+      />
+      
+      <PageHeader 
+        title="Explore" 
+        showBack={false}
       />
       
       <div>

@@ -10,12 +10,13 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useTheme } from '@/components/ThemeProvider';
-import { Moon, Sun, Monitor, Bell, Globe, Lock, User, Camera, Loader2, LogOut, Save, X, Plus, Languages, RefreshCw, Trash, Download, Wifi, WifiOff, Clock } from 'lucide-react';
+import { Moon, Sun, Monitor, Bell, Globe, Lock, User, Camera, Loader2, LogOut, Save, X, Plus, Languages, RefreshCw, Trash, Download, Wifi, WifiOff, Clock, Eye, EyeOff } from 'lucide-react';
 import { Separator } from '@/components/ui/separator';
 import { useAuthStore } from '@/stores/authStore';
 import { useToast } from '@/hooks/use-toast';
 import { uploadAvatar } from '@/lib/uploadManager';
 import { useNavigate } from 'react-router-dom';
+import { PageHeader } from '@/components/PageHeader';
 import { supabase } from '@/integrations/supabase/client';
 import { countries } from '@/data/countries';
 import { languages } from '@/data/languages';
@@ -351,28 +352,22 @@ export default function SettingsPage() {
 
   return (
     <div className="min-h-screen md:ml-16 bg-gradient-subtle pb-20 md:pb-4 overflow-auto">
+      <PageHeader 
+        title="Settings" 
+        showBack={true}
+      />
+      
       <div className="p-3 sm:p-4 md:p-8 max-w-5xl mx-auto">
-        <div className="mb-4 md:mb-6">
-          <h1 className="text-2xl md:text-3xl font-bold">Settings</h1>
-          <p className="text-sm md:text-base text-muted-foreground">Manage your profile and preferences</p>
-        </div>
 
         <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-3 md:space-y-4">
-          <TabsList className="grid w-full grid-cols-3 h-auto">
+          <TabsList className="grid w-full grid-cols-2 h-auto">
             <TabsTrigger value="profile" className="text-xs sm:text-sm py-2 sm:py-2.5">
               <User className="h-3 w-3 sm:h-4 sm:w-4 mr-1 sm:mr-2" />
-              <span className="hidden xs:inline">Profile</span>
-              <span className="xs:hidden">Profile</span>
-            </TabsTrigger>
-            <TabsTrigger value="notifications" className="text-xs sm:text-sm py-2 sm:py-2.5">
-              <Bell className="h-3 w-3 sm:h-4 sm:w-4 mr-1 sm:mr-2" />
-              <span className="hidden xs:inline">Notifications</span>
-              <span className="xs:hidden">Alerts</span>
+              <span>Profile</span>
             </TabsTrigger>
             <TabsTrigger value="preferences" className="text-xs sm:text-sm py-2 sm:py-2.5">
               <Lock className="h-3 w-3 sm:h-4 sm:w-4 mr-1 sm:mr-2" />
-              <span className="hidden xs:inline">Preferences</span>
-              <span className="xs:hidden">Prefs</span>
+              <span>Preferences</span>
             </TabsTrigger>
           </TabsList>
 
@@ -619,11 +614,6 @@ export default function SettingsPage() {
             </Button>
           </TabsContent>
 
-          {/* Notifications Tab */}
-          <TabsContent value="notifications" className="space-y-4">
-            <NotificationSettings />
-          </TabsContent>
-
           {/* Preferences Tab */}
           <TabsContent value="preferences" className="space-y-4">
             {/* Appearance */}
@@ -681,17 +671,23 @@ export default function SettingsPage() {
               </CardHeader>
               <CardContent className="space-y-4">
                 <div className="flex items-center justify-between py-2">
-                  <div>
-                    <Label>Show Online Status</Label>
-                    <p className="text-sm text-muted-foreground">Let others see when you're online</p>
+                  <div className="flex items-center gap-3 flex-1">
+                    <Wifi className="h-4 w-4 text-muted-foreground" />
+                    <div>
+                      <Label>Show Online Status</Label>
+                      <p className="text-sm text-muted-foreground">Let others see when you're online</p>
+                    </div>
                   </div>
                   <Switch defaultChecked />
                 </div>
                 <Separator />
                 <div className="flex items-center justify-between py-2">
-                  <div>
-                    <Label>Profile Visibility</Label>
-                    <p className="text-sm text-muted-foreground">Who can view your profile</p>
+                  <div className="flex items-center gap-3 flex-1">
+                    <Eye className="h-4 w-4 text-muted-foreground" />
+                    <div>
+                      <Label>Profile Visibility</Label>
+                      <p className="text-sm text-muted-foreground">Who can view your profile</p>
+                    </div>
                   </div>
                   <Switch defaultChecked />
                 </div>
@@ -720,34 +716,12 @@ export default function SettingsPage() {
                 <Separator />
                 <div className="flex items-center justify-between py-2">
                   <div>
-                    <Label>Notification Sound</Label>
-                    <p className="text-sm text-muted-foreground">Play sound when receiving notifications</p>
-                  </div>
-                  <Switch 
-                    checked={notificationSettings.soundEnabled}
-                    onCheckedChange={(checked) => handleNotificationSettingChange('soundEnabled', checked)}
-                  />
-                </div>
-                <Separator />
-                <div className="flex items-center justify-between py-2">
-                  <div>
                     <Label>Message Alerts</Label>
                     <p className="text-sm text-muted-foreground">Get notified of new messages</p>
                   </div>
                   <Switch 
                     checked={notificationSettings.messageAlerts}
                     onCheckedChange={(checked) => handleNotificationSettingChange('messageAlerts', checked)}
-                  />
-                </div>
-                <Separator />
-                <div className="flex items-center justify-between py-2">
-                  <div>
-                    <Label>Friend Requests</Label>
-                    <p className="text-sm text-muted-foreground">Notifications for friend requests</p>
-                  </div>
-                  <Switch 
-                    checked={notificationSettings.friendRequests}
-                    onCheckedChange={(checked) => handleNotificationSettingChange('friendRequests', checked)}
                   />
                 </div>
               </CardContent>

@@ -1,22 +1,23 @@
 import React from 'react';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Card, CardContent, CardHeader } from '@/components/ui/card';
-import { Loader2, User, MessageCircle, Users, Globe } from 'lucide-react';
+import { User, MessageCircle, Users, Globe } from 'lucide-react';
+import './LoadingStates.css';
 
-// Generic loading spinner
+// Modern dual-ring spinner
 export const LoadingSpinner: React.FC<{ size?: 'sm' | 'md' | 'lg'; text?: string }> = ({ 
-  size = 'md', 
-  text 
+  size = 'md',
+  text
 }) => {
   const sizeClasses = {
-    sm: 'h-4 w-4',
-    md: 'h-6 w-6', 
-    lg: 'h-8 w-8'
-  };
+    sm: 'w-8 h-8',
+    md: 'w-12 h-12',
+    lg: 'w-16 h-16',
+  }[size];
 
   return (
     <div className="flex flex-col items-center justify-center p-8 space-y-3">
-      <Loader2 className={`${sizeClasses[size]} animate-spin text-primary`} />
+      <div className={`${sizeClasses} loader`} />
       {text && <p className="text-sm text-muted-foreground">{text}</p>}
     </div>
   );

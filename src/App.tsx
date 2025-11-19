@@ -15,7 +15,7 @@ import PerformanceMonitor from "./components/PerformanceMonitor";
 import { useMasterOptimization } from "./hooks/useMasterOptimization";
 import { useActivityTracker } from "./hooks/useActivityTracker";
 import { LoaderProvider, useLoader } from "./contexts/LoaderContext";
-import ZerodhaLoader from "./components/ZerodhaLoader";
+import { LoadingSpinner } from "./components/LoadingStates";
 import { useTheme } from "./components/ThemeProvider";
 
 // Lazy load pages for better performance
@@ -114,14 +114,13 @@ const RootRedirect = () => {
 // Global loader component
 const GlobalLoader = () => {
   const { isLoading } = useLoader();
-  const { theme } = useTheme();
+  
+  if (!isLoading) return null;
   
   return (
-    <ZerodhaLoader 
-      size={24} 
-      isDark={theme === 'dark'} 
-      visible={isLoading} 
-    />
+    <div className="fixed inset-0 flex items-center justify-center bg-background/80 backdrop-blur-sm z-50 pointer-events-none">
+      <LoadingSpinner size="lg" />
+    </div>
   );
 };
 

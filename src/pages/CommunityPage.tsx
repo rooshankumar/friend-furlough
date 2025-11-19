@@ -8,6 +8,7 @@ import { usePostCommentStore } from '@/stores/postCommentStore';
 import { usePullToRefresh } from '@/hooks/usePullToRefresh';
 import { useBatchPresence } from '@/hooks/useBatchPresence';
 import { PullToRefreshIndicator } from '@/components/PullToRefresh';
+import { PageHeader } from '@/components/PageHeader';
 import { CompactUploadProgress } from '@/components/CompactUploadProgress';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -915,23 +916,15 @@ const CommunityPage = () => {
           />
           
           {/* Mobile Header with Filters */}
-          <div className="lg:hidden sticky top-0 z-10 bg-background/95 backdrop-blur-md border-b border-border/50">
+          <PageHeader 
+            title="Community" 
+            showBack={false}
+            onRefresh={() => loadPosts(true)}
+            isRefreshing={isRefreshing}
+          />
+          
+          <div className="lg:hidden sticky top-16 z-10 bg-background/95 backdrop-blur-md border-b border-border/50">
             <div className="p-3 pb-2">
-              <div className="flex items-center justify-between mb-2">
-                <div className="flex items-center gap-2">
-                  <Globe className="h-5 w-5 text-primary" />
-                  <h2 className="text-base font-bold">Community</h2>
-                </div>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => loadPosts(true)}
-                  disabled={isRefreshing}
-                  className="h-8 px-2"
-                >
-                  <RefreshCw className={`h-4 w-4 ${isRefreshing ? 'animate-spin' : ''}`} />
-                </Button>
-              </div>
               
               {/* Filter Buttons - Mobile */}
               <div className="flex items-center gap-2 overflow-x-auto pb-1">
@@ -1442,10 +1435,10 @@ const CommunityPage = () => {
         </div>
 
         {/* Floating Action Button - Mobile Only */}
-        <div className="lg:hidden fixed bottom-20 right-4 z-30">
+        <div className="lg:hidden fixed bottom-24 right-4 z-40">
           <Button
             size="lg"
-            className="h-14 w-14 rounded-full shadow-lg bg-gradient-cultural text-white hover:shadow-xl transition-all"
+            className="h-14 w-14 rounded-full shadow-lg bg-blue-500 hover:bg-blue-600 text-white hover:shadow-xl transition-all hover:scale-110"
             onClick={() => setShowCreatePost(true)}
           >
             <Plus className="h-6 w-6" />

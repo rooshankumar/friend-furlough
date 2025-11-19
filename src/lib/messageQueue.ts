@@ -67,6 +67,10 @@ export class MessageQueue {
     return [...this.queue];
   }
 
+  getByConversation(conversationId: string): QueuedMessage[] {
+    return this.queue.filter(m => m.conversation_id === conversationId);
+  }
+
   incrementRetry(id: string) {
     const message = this.queue.find(m => m.id === id);
     if (message) {

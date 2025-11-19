@@ -2,6 +2,7 @@ import { Capacitor } from '@capacitor/core';
 import { Browser } from '@capacitor/browser';
 import { App } from '@capacitor/app';
 import { supabase } from '@/integrations/supabase/client';
+import { GoogleAuth } from '@codetrix-studio/capacitor-google-auth';
 
 /**
  * Mobile OAuth Authentication Utility
@@ -12,6 +13,18 @@ import { supabase } from '@/integrations/supabase/client';
 export const isMobileApp = () => {
   return Capacitor.isNativePlatform();
 };
+
+// Initialize Google Auth Plugin
+export const initializeGoogleAuth = () => {
+  if (isMobileApp()) {
+    GoogleAuth.initialize({
+      clientId: '566050034640-veqvr4osff6uushin3nu5gjovgst9gai.apps.googleusercontent.com', // IMPORTANT: Replace with your actual client ID
+      scopes: ['profile', 'email'],
+      grantOfflineAccess: true,
+    });
+  }
+};
+
 
 // Use custom scheme for mobile OAuth
 // For web, use the Vercel deployment URL
@@ -158,6 +171,52 @@ export const initOAuthListener = () => {
     }
   });
 };
+
+/**
+ * Sign in with Google using native One Tap
+ */
+export const signInWithGoogleNative = async () => {
+  try {
+    if (!isMobileApp()) {
+      // Fallback to web OAuth for non-mobile environments
+      const { error } = await supabase.auth.signInWithOAuth({
+        provider: 'google',
+        options: {
+          redirectTo: `${window.location.origin}/`,
+        },
+      });
+      return { error };
+    }
+
+    // Mobile: Use native Google Sign-In
+    const googleUser = await GoogleAuth.signIn();
+    
+    if (googleUser && googleUser.authentication && googleUser.authentication.idToken) {
+      const { data, error } = await supabase.auth.signInWithIdToken({
+        provider: 'google',
+        token: googleUser.authentication.idToken,
+      });
+
+      if (error) {
+        console.error('Supabase signInWithIdToken error:', error);
+        return { error };
+      }
+
+      // The onAuthStateChange listener in authStore will handle the session update
+      return { data, error: null };
+    } else {
+      throw new Error('Google Sign-In failed: No ID token received.');
+    }
+  } catch (err) {
+    console.error('Native Google Sign-In error:', err);
+    return { 
+      error: { 
+        message: err instanceof Error ? err.message : 'Google Sign-In failed' 
+      } 
+    };
+  }
+};
+
 
 /**
  * Sign in with Google using in-app browser

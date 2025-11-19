@@ -2,6 +2,7 @@ import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import { supabase } from '@/integrations/supabase/client';
 import { sendWelcomeEmail } from '@/lib/emailService';
+import { initializeGoogleAuth, signInWithGoogleNative } from '@/lib/mobileAuth';
 import type { User as SupabaseUser, Session } from '@supabase/supabase-js';
 
 interface Profile {
@@ -77,6 +78,9 @@ export const useAuthStore = create<AuthState>()(
 
       initialize: async () => {
         set({ isLoading: true });
+
+        // Initialize native Google Auth
+        initializeGoogleAuth();
 
         try {
           // Add timeout to prevent hanging
@@ -312,9 +316,7 @@ export const useAuthStore = create<AuthState>()(
       },
 
       signInWithGoogle: async () => {
-        // Use mobile-optimized OAuth if on mobile
-        const { signInWithGoogleMobile } = await import('@/lib/mobileAuth');
-        return await signInWithGoogleMobile();
+        return await signInWithGoogleNative();
       },
 
       signOut: async () => {

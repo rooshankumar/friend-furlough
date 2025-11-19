@@ -427,6 +427,24 @@ export const useChatStore = create<ChatState>((set, get) => ({
         error: cached.retryCount > 0 ? `Retry ${cached.retryCount}/3` : undefined
       }));
 
+      // Load queued messages for this conversation
+      const { messageQueue } = await import('@/lib/messageQueue');
+      const queuedMessages = messageQueue.getByConversation(conversationId);
+      console.log(`📋 Found ${queuedMessages.length} queued messages for conversation`);
+
+      // Convert queued messages to display format
+      const queuedMessageObjects: DbMessage[] = queuedMessages.map(queued => ({
+        id: queued.id,
+        conversation_id: queued.conversation_id,
+        sender_id: queued.sender_id,
+        content: queued.content,
+        created_at: queued.created_at,
+        type: queued.type,
+        media_url: queued.media_url,
+        status: 'sending' as MessageStatus,
+        client_id: queued.client_id
+      }));
+
       // Merge cached messages with database messages (avoid duplicates by client_id)
       const allMessages = loadMore 
         ? [...sortedMessages, ...existingMessages]
@@ -437,6 +455,14 @@ export const useChatStore = create<ChatState>((set, get) => ({
         const exists = allMessages.some(msg => (msg as any).client_id === cached.client_id);
         if (!exists) {
           allMessages.push(cached);
+        }
+      });
+
+      // Add queued messages that aren't in the database yet
+      queuedMessageObjects.forEach(queued => {
+        const exists = allMessages.some(msg => msg.id === queued.id || (msg as any).client_id === queued.client_id);
+        if (!exists) {
+          allMessages.push(queued);
         }
       });
 

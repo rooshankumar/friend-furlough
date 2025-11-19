@@ -44,6 +44,8 @@ const LearningGoalsPage = React.lazy(() => import("./pages/onboarding/LearningGo
 const ImageViewerPage = React.lazy(() => import("./pages/ImageViewerPage"));
 const ClearSessionPage = React.lazy(() => import("./pages/ClearSessionPage"));
 const AuthCallback = React.lazy(() => import("./pages/AuthCallback"));
+const SplashScreen = React.lazy(() => import("./pages/SplashAndOnboarding").then(m => ({ default: m.SplashScreen })));
+const OnboardingPage = React.lazy(() => import("./pages/SplashAndOnboarding").then(m => ({ default: m.OnboardingPage })));
 
 // Optimized QueryClient for fast initial load
 const queryClient = new QueryClient({
@@ -136,6 +138,10 @@ const AppContent = () => {
       <InstallPWA />
       <Suspense fallback={<PageLoadingFallback />}>
         <Routes>
+          {/* Splash & Onboarding */}
+          <Route path="/splash" element={<SplashScreen />} />
+          <Route path="/onboarding" element={<OnboardingPage />} />
+
           <Route path="/" element={<RootRedirect />} />
 
           {/* Legal Pages */}

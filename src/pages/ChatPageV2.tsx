@@ -151,74 +151,60 @@ const EnhancedMessageV2: React.FC<EnhancedMessageV2Props> = ({
         </Avatar>
       )}
 
-      <div className={`flex flex-col gap-1 ${isOwnMessage ? 'items-end' : 'items-start'} max-w-[75%] relative`}>
-        {/* Image Message */}
-        {message.type === 'image' ? (
-          <>
-            <div className="relative group">
-              {message.media_url ? (
-                <div 
-                  onClick={() => onImageClick?.(message.media_url!)}
-                  className="cursor-pointer hover:opacity-90 transition-opacity"
-                >
-                  <B2Image 
-                    src={message.media_url} 
-                    alt="Shared image"
-                    loading="lazy"
-                    className="max-w-[200px] max-h-[160px] object-cover rounded-xl"
-                  />
-                </div>
-              ) : (
-                // Placeholder while uploading
-                <div className="w-48 h-32 bg-muted/20 rounded-xl flex items-center justify-center">
-                  <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
-                </div>
-              )}
-
-              {/* Upload Progress Overlay */}
-              {message.status === 'sending' && message.uploadProgress !== undefined && message.uploadProgress < 100 && (
-                <div className="absolute inset-0 bg-black/40 rounded-xl flex items-center justify-center backdrop-blur-sm">
-                  <CompactUploadProgress progress={message.uploadProgress} size={48} strokeWidth={4} />
-                </div>
-              )}
-
-              {/* Failed Upload Overlay with Retry and Remove */}
-              {message.status === 'failed' && (
-                <div className="absolute inset-0 bg-red-500/40 rounded-xl flex flex-col items-center justify-center backdrop-blur-sm gap-2 p-3 text-center">
-                  <div className="text-white text-sm font-semibold">Upload Failed</div>
-                  <div className="text-white/90 text-xs">This failed upload will disappear in 30s</div>
-                  <div className="flex gap-2 mt-1">
-                    <Button
-                      size="sm"
-                      variant="secondary"
-                      className="h-8 text-xs"
-                      onClick={() => onRetry?.(message)}
-                    >
-                      Retry
-                    </Button>
-                    <Button
-                      size="sm"
-                      variant="destructive"
-                      className="h-8 text-xs"
-                      onClick={() => onRemove?.(message)}
-                    >
-                      Remove now
-                    </Button>
-                  </div>
-                </div>
-              )}
+      <div className={`flex flex-col gap-2 w-full ${isOwnMessage ? 'items-end' : 'items-start'} max-w-[75%] relative`}>
+        {/* Display Attachment (Image, Voice, or File) - Independent of text - ALWAYS FIRST */}
+        {message.media_url && message.type === 'image' && (
+          <div className="relative group order-1">
+            <div 
+              onClick={() => onImageClick?.(message.media_url!)}
+              className="cursor-pointer hover:opacity-90 transition-opacity"
+            >
+              <B2Image 
+                src={message.media_url} 
+                alt="Shared image"
+                loading="lazy"
+                className="max-w-[200px] max-h-[160px] object-cover rounded-xl"
+              />
             </div>
-            {/* Timestamp for image */}
-            <span className="text-[10px] text-muted-foreground mt-1">
-              {new Date(message.created_at).toLocaleTimeString('en-US', { 
-                hour: '2-digit', 
-                minute: '2-digit',
-                hour12: false 
-              })}
-            </span>
-          </>
-        ) : message.type === 'voice' && message.media_url ? (
-          <>
+
+            {/* Upload Progress Overlay */}
+            {message.status === 'sending' && message.uploadProgress !== undefined && message.uploadProgress < 100 && (
+              <div className="absolute inset-0 bg-black/40 rounded-xl flex items-center justify-center backdrop-blur-sm">
+                <CompactUploadProgress progress={message.uploadProgress} size={48} strokeWidth={4} />
+              </div>
+            )}
+
+            {/* Failed Upload Overlay with Retry and Remove */}
+            {message.status === 'failed' && (
+              <div className="absolute inset-0 bg-red-500/40 rounded-xl flex flex-col items-center justify-center backdrop-blur-sm gap-2 p-3 text-center">
+                <div className="text-white text-sm font-semibold">Upload Failed</div>
+                <div className="text-white/90 text-xs">This failed upload will disappear in 30s</div>
+                <div className="flex gap-2 mt-1">
+                  <Button
+                    size="sm"
+                    variant="secondary"
+                    className="h-8 text-xs"
+                    onClick={() => onRetry?.(message)}
+                  >
+                    Retry
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant="destructive"
+                    className="h-8 text-xs"
+                    onClick={() => onRemove?.(message)}
+                  >
+                    Remove now
+                  </Button>
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* Voice Message - Independent of text */}
+        {message.media_url && message.type === 'voice' && (
+          <div className="order-1">
             {/* Voice Message - Modern Waveform */}
             <VoiceMessagePlayer 
               audioUrl={message.media_url}
@@ -232,15 +218,38 @@ const EnhancedMessageV2: React.FC<EnhancedMessageV2Props> = ({
                 hour12: false 
               })}
             </span>
-          </>
-        ) : (
-          /* Text Message Bubble */
-          <div
-            className={`relative rounded-2xl px-2.5 py-1 ${
-              isOwnMessage ? 'rounded-br-md' : 'rounded-bl-md'
-            } transition-all duration-200 hover:shadow-md`}
+          </div>
+        )}
+
+        {/* File Attachment - Independent of text */}
+        {message.media_url && message.type === 'file' && (
+          <a
+            className="order-1 flex items-center gap-3 p-3 rounded-xl border-2 hover:opacity-80 transition-opacity"
+            href={message.media_url}
+            download
+            target="_blank"
+            rel="noopener noreferrer"
             style={{
-              backgroundColor: isOwnMessage ? '#0B93F6' : '#F0F0F0',
+              backgroundColor: isOwnMessage ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.05)',
+              borderColor: isOwnMessage ? 'rgba(255,255,255,0.3)' : 'rgba(0,0,0,0.1)',
+            }}
+          >
+            <Paperclip className="w-5 h-5 flex-shrink-0" />
+            <div className="flex-1 min-w-0">
+              <p className="text-sm font-semibold truncate">{message.file_name || 'File'}</p>
+              <p className="text-xs opacity-70">{message.file_size || 'Download'}</p>
+            </div>
+          </a>
+        )}
+
+        {/* Text Message - Always display if content exists (independent of attachment) - ALWAYS LAST */}
+        {message.content && (
+          <div
+            className={`relative rounded-2xl px-2.5 py-1 order-2 ${
+              isOwnMessage ? 'rounded-br-md' : 'rounded-bl-md'
+            } transition-all duration-200 hover:shadow-md dark:bg-[#1F2227] dark:text-[#F0F0F0]`}
+            style={{
+              backgroundColor: isOwnMessage ? '#3874FF' : '#F0F0F0',
               color: isOwnMessage ? '#FFFFFF' : '#1C1E21',
             }}
           >
@@ -249,7 +258,7 @@ const EnhancedMessageV2: React.FC<EnhancedMessageV2Props> = ({
               <div className={`mb-2 px-2 py-1.5 rounded text-xs border-l-4 flex items-center gap-2 ${
                 isOwnMessage 
                   ? 'bg-white/10 border-white/40' 
-                  : 'bg-black/5 border-primary/60'
+                  : 'bg-black/5 border-primary/60 dark:bg-[#2A2D32] dark:border-[#3874FF]'
               }`}>
                 <div className="flex-1 min-w-0">
                   <p className="font-semibold mb-0.5 opacity-90">{message.reply_to.sender_name || 'User'}</p>
@@ -580,17 +589,15 @@ const ChatPageV2 = () => {
 
       if (markedCount > 0) {
         logger.debug(`Marked ${markedCount} messages as read`);
-        // Reload messages to get updated status
-        setTimeout(() => {
-          loadMessages(conversationId);
-        }, 300);
+        // Don't reload messages - realtime subscription will update status automatically
       }
     };
 
     // Delay marking as read to ensure user actually sees the messages
+    // Only run once per conversation to avoid infinite loops
     const timer = setTimeout(markMessagesAsRead, 500);
     return () => clearTimeout(timer);
-  }, [conversationId, user, conversationMessages, loadMessages]);
+  }, [conversationId, user?.id]); // Only depend on conversationId and user.id, not the entire array
 
   // Mobile optimization effects
   useEffect(() => {

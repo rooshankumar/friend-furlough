@@ -106,13 +106,21 @@ class BrevoClient {
     name: string,
     resetLink: string
   ): Promise<BrevoResponse> {
+    console.log('Sending password reset email with params:', { email, name, resetLink });
+    
     return this.sendEmail({
       to: email,
       templateId: parseInt(import.meta.env.VITE_BREVO_TEMPLATE_FORGOT_PASSWORD || '2'),
       params: {
         name: name || 'User',
-        resetLink,
+        resetLink: resetLink,
+        reset_link: resetLink,
+        link: resetLink,
         expiryTime: '24 hours',
+        expiry_time: '24 hours',
+        FIRSTNAME: name || 'User',
+        RESET_LINK: resetLink,
+        EXPIRY_TIME: '24 hours',
       },
       tags: ['password-reset', 'security'],
     });

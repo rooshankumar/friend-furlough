@@ -4,4 +4,5 @@
     <string name="title_activity_main">roshLingua</string>
     <string name="package_name">com.roshlingua.app</string>
     <string name="custom_url_scheme">com.roshlingua.app</string>
+    <string name="server_client_id">566050034640-veqvr4osff6uushin3nu5gjovgst9gai.apps.googleusercontent.com</string>
 </resources>

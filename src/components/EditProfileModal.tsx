@@ -126,11 +126,6 @@ export const EditProfileModal: React.FC<EditProfileModalProps> = ({ trigger }) =
       // Update local state
       await updateProfile(updateData);
 
-      toast({
-        title: "Profile updated successfully!",
-        description: "Your changes have been saved.",
-      });
-
       setIsOpen(false);
     } catch (error: any) {
       console.error('Profile update error:', error);

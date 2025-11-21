@@ -796,11 +796,6 @@ const ChatPageV2 = () => {
 
     try {
       await sendAttachment(conversationId, user.id, file);
-      
-      toast({
-        title: "Sent!",
-        description: "Attachment uploaded successfully",
-      });
     } catch (error: any) {
       logger.error('Attachment upload failed', error);
       toast({

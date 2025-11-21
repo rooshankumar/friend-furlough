@@ -154,15 +154,6 @@ export default function ExplorePage() {
 
   const handleToggleFavorite = async (profileId: string) => {
     const success = await toggleReaction(profileId);
-    if (success) {
-      toast.success(
-        userReactions[profileId] 
-          ? 'Removed from favorites' 
-          : 'Added to favorites!'
-      );
-    } else {
-      toast.error('Failed to update reaction');
-    }
   };
 
 

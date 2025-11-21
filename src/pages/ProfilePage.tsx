@@ -327,11 +327,6 @@ const ProfilePage = () => {
       
       // Refresh profile data from database to get updated avatar
       await fetchProfileData();
-      
-      toast({
-        title: "Avatar updated",
-        description: "Your profile photo has been updated successfully."
-      });
     } catch (error: any) {
       toast({
         title: "Upload failed",
@@ -378,15 +373,6 @@ const ProfilePage = () => {
     
     const wasReacted = userReactions[profileUser.id] || false;
     const success = await toggleReaction(profileUser.id);
-    
-    if (success) {
-      toast({
-        title: !wasReacted ? "Added to favorites!" : "Removed from favorites",
-        description: !wasReacted 
-          ? `You liked ${profileUser.name}'s profile` 
-          : `You removed your like from ${profileUser.name}'s profile`,
-      });
-    }
   };
 
   const handleLikePost = async (postId: string) => {

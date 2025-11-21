@@ -31,11 +31,6 @@ const WelcomePage = () => {
       setAvatarPreview(URL.createObjectURL(file));
       const avatarUrl = await uploadAvatar(file, user.id);
       await updateProfile({ avatar_url: avatarUrl });
-      
-      toast({
-        title: "Avatar uploaded",
-        description: "Your profile photo has been set!"
-      });
     } catch (error: any) {
       toast({
         title: "Upload failed",

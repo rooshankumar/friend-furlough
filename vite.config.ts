@@ -8,14 +8,18 @@ import { componentTagger } from "lovable-tagger";
 export default defineConfig(({ mode }) => ({
   base: '/',
   server: {
-    host: "0.0.0.0", // Allow access from Replit and external URLs
+    host: "0.0.0.0",
     port: 5000,
-    strictPort: true,
-    hmr: {
-      clientPort: 5000
-    },
+    strictPort: false,
+    hmr: process.env.CODESPACES === 'true' 
+      ? {
+          // Client-side HMR configuration for Codespaces
+          // Don't set port here - let it use the forwarded connection
+          protocol: 'wss',
+          host: process.env.CODESPACE_NAME + '-5000.app.github.dev'
+        }
+      : true, // Use default for local development
     proxy: {
-      // Optional: route API calls to Replit backend
       "/api": "https://5609853b-7353-4830-99d4-8810531cea64-00-3c52iz14wozfc.worf.replit.dev",
     },
   },

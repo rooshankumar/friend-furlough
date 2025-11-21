@@ -14,7 +14,8 @@ import { Moon, Sun, Monitor, Bell, Globe, Lock, User, Camera, Loader2, LogOut, S
 import { Separator } from '@/components/ui/separator';
 import { useAuthStore } from '@/stores/authStore';
 import { useToast } from '@/hooks/use-toast';
-import { uploadAvatar } from '@/lib/uploadManager';
+import { uploadAvatar } from '@/lib/storage';
+import { mobileUploadHelper } from '@/lib/mobileUploadHelper';
 import { useNavigate } from 'react-router-dom';
 import { PageHeader } from '@/components/PageHeader';
 import { supabase } from '@/integrations/supabase/client';
@@ -310,19 +311,15 @@ export default function SettingsPage() {
     const file = e.target.files?.[0];
     if (!file || !user?.id) return;
 
-    if (!file.type.startsWith('image/')) {
-      toast({
-        title: "Invalid file type",
-        description: "Please select an image file",
-        variant: "destructive"
-      });
-      return;
-    }
+    const validation = mobileUploadHelper.validateFile(file, {
+      maxSizeMB: mobileUploadHelper.getRecommendedLimits().avatar,
+      allowedTypes: ['image/']
+    });
 
-    if (file.size > 5 * 1024 * 1024) {
+    if (!validation.valid) {
       toast({
-        title: "File too large",
-        description: "Image must be smaller than 5MB",
+        title: "Upload failed",
+        description: validation.error,
         variant: "destructive"
       });
       return;
@@ -331,13 +328,15 @@ export default function SettingsPage() {
     try {
       setIsUploading(true);
       
-      const avatarUrl = await uploadAvatar(user.id, file, (progress) => {
-        if (progress === 100) {
-          toast({ title: "Avatar uploaded! ✨" });
-        }
-      });
+      const result = await mobileUploadHelper.uploadWithRetry(
+        (f) => uploadAvatar(f, user.id),
+        file,
+        { enableRetry: true }
+      );
       
-      await updateProfile({ avatar_url: avatarUrl });
+      if (!result.success) throw new Error(result.error);
+      
+      await updateProfile({ avatar_url: result.url! });
       queryClient.invalidateQueries({ queryKey: ['profile'] });
     } catch (error: any) {
       toast({
